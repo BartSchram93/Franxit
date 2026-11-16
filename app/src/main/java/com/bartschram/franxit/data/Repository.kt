@@ -147,13 +147,16 @@ class Repository private constructor(context: Context) {
         if (query != null || !ShoppingSettings.isExtra(appContext, product.id)) return Extras(emptyList())
         val today = LocalDate.now().toString()
         ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return Extras(it) }
+        val name = product.displayName
+        // The wording that worked last time first, then the product's name, its fuller name, and "kopen".
+        val terms = listOfNotNull(ShoppingSettings.extraTerm(appContext, product.id), name, fullNameQuery(product), "$name kopen")
         val found = try {
-            searchGoogleShopping(product.id, product.displayName, retryWith = fullNameQuery(product))
+            searchGoogleShopping(product.id, name, terms) { ShoppingSettings.setExtraTerm(appContext, product.id, it) }
         } catch (e: Exception) {
             return when (e.message) {
                 // Nothing for this product: asked once a day, not at every refresh.
                 GoogleShopping.NOT_FOUND -> {
-                    ShoppingSettings.saveExtraOffers(appContext, product.id, today, emptyList())
+                    ShoppingSettings.saveExtraOffers(appContext, product.id, today, emptyList(), days = 3)
                     Extras(emptyList())
                 }
                 GoogleShopping.BAD_KEY, GoogleShopping.NO_SEARCHES_LEFT -> Extras(emptyList(), e.message)
@@ -168,10 +171,16 @@ class Repository private constructor(context: Context) {
         return Extras(offers)
     }
 
-    /** The product's full name from the site, as a second wording to search for; null when it adds nothing. */
-    private fun fullNameQuery(product: Product): String? =
-        product.name.replace(Regex("[,;/]"), " ").split(Regex("\\s+")).filter { it.isNotBlank() }.take(9).joinToString(" ")
-            .takeIf { it.isNotBlank() && !it.equals(product.displayName, ignoreCase = true) }
+    /**
+     * The name with the first thing after its comma ("Bose QuietComfort Ultra Earbuds" + "(2e gen) Zwart"),
+     * as a second wording to search for; null when that is no short variant, but specs ("36,3 cm", "256 GB").
+     */
+    private fun fullNameQuery(product: Product): String? {
+        val extra = product.name.split(',').getOrNull(1)?.trim().orEmpty()
+        val spec = Regex("""\d\s?(cm|inch|"|gb|mb|tb|mm|hz|mah|w|x)\b|^[\d.\s]+$""", RegexOption.IGNORE_CASE)
+        if (extra.isEmpty() || extra.split(Regex("\\s+")).size > 4 || spec.containsMatchIn(extra)) return null
+        return "${product.displayName} $extra"
+    }
 
     /** Switches a product's photo; the page's own photo comes back with a check (no Google search). */
     suspend fun setPhoto(productId: Long, choice: Photos.Choice) = withContext(Dispatchers.IO) {
@@ -186,9 +195,15 @@ class Repository private constructor(context: Context) {
     }
 
     /** Google Shopping's shops for a product; remembers each shop's page for the Buy button. */
-    private fun searchGoogleShopping(productId: Long, query: String, retryWith: String? = null): Scraper.Result {
+    private fun searchGoogleShopping(
+        productId: Long,
+        query: String,
+        terms: List<String> = listOf(query),
+        onTerm: (String) -> Unit = {},
+    ): Scraper.Result {
         val key = ShoppingSettings.key(appContext) ?: throw IOException("Turn on Google Shopping in ⋮ → Google Shopping")
-        val found = GoogleShopping.fetch(query, key, { TrustedShops.name(appContext, it) }, retryWith)
+        val found = GoogleShopping.fetch(query, key, { TrustedShops.name(appContext, it) }, terms)
+        found.term?.let(onTerm)
         // Every search keeps its best result's photo, for "Use Google Shopping photo".
         found.result.image?.let { Photos.saveGooglePhoto(appContext, productId, it) }
         ShoppingSettings.saveLinks(appContext, productId, found.links)

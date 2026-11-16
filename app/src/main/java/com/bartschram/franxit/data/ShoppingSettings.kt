@@ -35,9 +35,19 @@ object ShoppingSettings {
         prefs(context).edit { putStringSet("extra", now); remove("extra_offers_$productId"); remove("extra_status_$productId") }
     }
 
-    /** Today's Google Shopping offers for a product, so a later refresh doesn't search again. */
-    fun saveExtraOffers(context: Context, productId: Long, day: String, offers: List<ShopOffer>) {
-        val json = JSONObject().put("day", day).put(
+    /** The wording of the search that worked last time for this product: tried first next time. */
+    fun extraTerm(context: Context, productId: Long): String? = prefs(context).getString("extra_term_$productId", null)
+
+    fun setExtraTerm(context: Context, productId: Long, term: String) =
+        prefs(context).edit { putString("extra_term_$productId", term) }
+
+    /** Bumped when the way results are found or filtered changes, so older saved results aren't reused. */
+    private const val EXTRA_VERSION = 2
+
+    /** Google Shopping offers for a product, saved so a later refresh doesn't search again: used for [days] days (more for "nothing found": no searches wasted). */
+    fun saveExtraOffers(context: Context, productId: Long, day: String, offers: List<ShopOffer>, days: Int = 1) {
+        val json = JSONObject().put("v", EXTRA_VERSION).put("day", day)
+            .put("until", java.time.LocalDate.parse(day).plusDays(days - 1L).toString()).put(
             "offers",
             org.json.JSONArray(offers.map { JSONObject().put("seller", it.seller).put("price", it.price) }),
         )
@@ -46,7 +56,7 @@ object ShoppingSettings {
 
     fun extraOffers(context: Context, productId: Long, day: String): List<ShopOffer>? {
         val json = prefs(context).getString("extra_offers_$productId", null)?.let(::JSONObject) ?: return null
-        if (json.optString("day") != day) return null
+        if (json.optInt("v", 0) != EXTRA_VERSION || day > json.optString("until", "") || day < json.optString("day")) return null
         val list = json.getJSONArray("offers")
         return (0 until list.length()).map { list.getJSONObject(it).let { o -> ShopOffer(o.getString("seller"), o.getDouble("price")) } }
     }

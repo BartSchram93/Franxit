@@ -22,22 +22,30 @@ object GoogleShopping {
     fun queryOf(url: String): String? = url.takeIf { it.startsWith(SEARCH) }?.let { URLDecoder.decode(it.removePrefix(SEARCH), "UTF-8") }
 
     /** [token]: Google's page for the best match, which lists more shops (see [addStores]). */
-    data class Found(val result: Scraper.Result, val links: Map<String, String>, val token: String? = null)
+    data class Found(val result: Scraper.Result, val links: Map<String, String>, val token: String? = null, val term: String? = null)
 
     /**
      * The shops selling this product: a search, then Google's page for the best match, which
      * lists more shops, each with its own link (two searches; the second is skipped when it fails).
      */
-    fun fetch(query: String, key: String, trusted: (String) -> String?, retryWith: String? = null): Found {
-        try {
-            return search(query, query, key, trusted)
-        } catch (e: IOException) {
-            // Google sometimes has nothing for one wording ("Bose QuietComfort Ultra Earbuds") and plenty
-            // for a fuller one ("… (2e gen) Zwart"): try that once. Other errors are no use retrying.
-            if (e.message != NOT_FOUND || retryWith.isNullOrBlank() || retryWith.equals(query, ignoreCase = true)) throw e
+    fun fetch(query: String, key: String, trusted: (String) -> String?, terms: List<String> = listOf(query)): Found {
+        // Google's results depend a lot on the wording: "TCL Nxtpaper 14" gets only screen protectors,
+        // "TCL Nxtpaper 14 kopen" gets the tablet. When a wording finds nothing, the next is tried
+        // (at most three, as each is a search); other errors are no use retrying.
+        val wordings = terms.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.take(MAX_WORDINGS)
+        var nothing: IOException? = null
+        for (term in wordings.ifEmpty { listOf(query) }) {
+            try {
+                return search(term, query, key, trusted).copy(term = term)
+            } catch (e: IOException) {
+                if (e.message != NOT_FOUND) throw e
+                nothing = e
+            }
         }
-        return search(retryWith, query, key, trusted)
+        throw nothing ?: IOException(NOT_FOUND)
     }
+
+    private const val MAX_WORDINGS = 3
 
     /** Searches for [term]; the results must be [query] (they may be found under a fuller wording). */
     private fun search(term: String, query: String, key: String, trusted: (String) -> String?): Found {
