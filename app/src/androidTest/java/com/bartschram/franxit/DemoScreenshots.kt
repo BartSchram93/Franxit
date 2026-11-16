@@ -42,7 +42,7 @@ class DemoScreenshots {
             val id = db.insertProduct(url, name)
             for (daysAgo in 365 downTo 1 step 3) {
                 var price = base + wave * sin(daysAgo / 17.0) + wave * 0.5 * sin(daysAgo / 5.0)
-                if (daysAgo in 58..64) price = dip
+                if (daysAgo in 150..156) price = dip
                 db.savePrice(id, PricePoint(today.minusDays(daysAgo.toLong()), Math.round(price).toDouble(), offers.first().seller, offers.size, now))
             }
             db.savePrice(id, PricePoint(today, current, offers.first().seller, offers.size, now))
@@ -52,7 +52,7 @@ class DemoScreenshots {
         }
 
         product(
-            "https://example.test/koptelefoon", "Wireless noise-cancelling headphones", 231.0, 189.0, 199.0, 9.0,
+            "https://example.test/koptelefoon", "Wireless noise-cancelling headphones", 231.0, 195.0, 199.0, 9.0,
             listOf(ShopOffer("Techhoek.be", 199.0, true), ShopOffer("Gadgetgigant.be", 204.0, true), ShopOffer("Huisplein.be", 215.0, true)),
             target = 190.0,
         )
@@ -105,6 +105,7 @@ class DemoScreenshots {
         device.wait(Until.hasObject(By.textContains("Buy now")), 30_000)
         shot("2-advice")
 
+        device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 30)
         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 30)
         shot("3-details")
 
