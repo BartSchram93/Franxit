@@ -60,6 +60,14 @@ class DutchLayoutShots {
     private fun clickDesc(regex: String) = (await(By.desc(ci(regex)), 30_000) ?: error("no $regex")).click()
     private fun clickText(regex: String) = (await(By.text(ci(regex)), 30_000) ?: error("no $regex")).click()
 
+    /** Clicks a result's title: not the search field, which holds the same words. */
+    private fun clickResult(regex: String) {
+        await(By.text(ci(regex)), 60_000)
+        val hit = device.findObjects(By.text(ci(regex))).firstOrNull { it.className != "android.widget.EditText" }
+            ?: error("no result $regex")
+        hit.click()
+    }
+
     private fun scrollDown() =
         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 30)
 
@@ -105,7 +113,7 @@ class DutchLayoutShots {
             field.text = "PlayStation 5"
             await(By.textContains("vanaf"), 90_000)
             shot("nl-09-search")
-            (await(By.text(ci(".*playstation 5.*")), 30_000) ?: error("no result")).click()
+            clickResult(".*playstation 5 slim.*")
             await(By.textContains("Gebruikelijk"), 120_000)
             scrollUp(); scrollUp()
             shot("nl-10-detail-top")
@@ -121,7 +129,7 @@ class DutchLayoutShots {
             val field = await(By.clazz("android.widget.EditText"), 30_000) ?: error("no field")
             field.text = "AirPods Pro 3"
             await(By.textContains("vanaf"), 90_000)
-            (await(By.text(ci(".*airpods pro 3.*")), 30_000) ?: error("no result")).click()
+            clickResult(".*airpods pro 3.*")
             await(By.textContains("Gebruikelijk"), 120_000)
             device.pressBack()
         }
@@ -133,7 +141,7 @@ class DutchLayoutShots {
         step("big-overview") { Thread.sleep(3000); shot("nl-20-big-overview") }
         step("big-menu") { clickDesc("Meer"); await(By.text("Taal"), 10_000); shot("nl-21-big-menu"); device.pressBack() }
         step("big-detail") {
-            clickText(".*playstation.*")
+            clickResult(".*playstation.*")
             await(By.textContains("Gebruikelijk"), 60_000)
             shot("nl-22-big-detail-top")
             scrollDown(); shot("nl-23-big-detail-middle")
