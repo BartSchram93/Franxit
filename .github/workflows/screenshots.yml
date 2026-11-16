@@ -4,6 +4,8 @@ name: Screenshots
 
 on:
   workflow_dispatch:
+  push:
+    branches: [demo-shots]
 
 permissions:
   contents: write
