@@ -200,7 +200,7 @@ class GoogleShoppingTest {
         val trusted = { shop: String -> com.bartschram.franxit.data.TrustedShops.name(shop, emptySet()) }
         val found = GoogleShopping.addStores(GoogleShopping.parse(search, "NXTPAPER 14", trusted), page, "NXTPAPER 14", trusted)
         assertEquals(
-            listOf("Movertix", "CSMobiles", "Amazon.com.be", "Galaxus"),
+            listOf("Movertix", "CSMobiles", "Amazon.com.be", "Galaxus.be"),
             found.result.offers.map { it.seller },
         )
     }
