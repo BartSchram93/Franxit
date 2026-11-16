@@ -52,17 +52,17 @@ class DemoScreenshots {
         }
 
         product(
-            "https://example.test/koptelefoon", "Wireless noise-cancelling headphones", 231.0, 195.0, 199.0, 9.0,
-            listOf(ShopOffer("Techhoek.be", 199.0, true), ShopOffer("Gadgetgigant.be", 204.0, true), ShopOffer("Huisplein.be", 215.0, true)),
-            target = 190.0,
+            "https://example.test/ps5", "Sony PlayStation 5 Slim", 499.0, 449.0, 459.0, 12.0,
+            listOf(ShopOffer("Techhoek.be", 459.0, true), ShopOffer("Gadgetgigant.be", 469.0, true), ShopOffer("Huisplein.be", 479.0, true)),
+            target = 449.0,
         )
         product(
-            "https://example.test/stofzuiger", "Robot vacuum cleaner", 349.0, 299.0, 389.0, 12.0,
-            listOf(ShopOffer("Huisplein.be", 389.0, true), ShopOffer("Techhoek.be", 399.0, true)),
+            "https://example.test/airpods", "Apple AirPods Pro 2", 279.0, 229.0, 289.0, 8.0,
+            listOf(ShopOffer("Huisplein.be", 289.0, true), ShopOffer("Techhoek.be", 295.0, true)),
         )
         product(
-            "https://example.test/espresso", "Espresso machine", 279.0, 229.0, 259.0, 11.0,
-            listOf(ShopOffer("Gadgetgigant.be", 259.0, true), ShopOffer("Techhoek.be", 262.0, true), ShopOffer("Huisplein.be", 269.0, false)),
+            "https://example.test/dyson", "Dyson V15 Detect", 649.0, 499.0, 579.0, 20.0,
+            listOf(ShopOffer("Gadgetgigant.be", 579.0, true), ShopOffer("Techhoek.be", 589.0, true), ShopOffer("Huisplein.be", 599.0, false)),
         )
         db.close()
     }
@@ -97,11 +97,11 @@ class DemoScreenshots {
         device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), 10_000)
         // Android 13+ asks for the notification permission on first start.
         device.findObject(By.text("Allow"))?.click()
-        device.wait(Until.hasObject(By.textContains("Wireless")), 30_000)
+        device.wait(Until.hasObject(By.textContains("PlayStation")), 30_000)
         clearDialogs()
         shot("1-overview")
 
-        device.findObject(By.textContains("Wireless")).click()
+        device.findObject(By.textContains("PlayStation")).click()
         device.wait(Until.hasObject(By.textContains("Buy now")), 30_000)
         shot("2-advice")
 
