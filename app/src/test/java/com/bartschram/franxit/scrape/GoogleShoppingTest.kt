@@ -1,0 +1,171 @@
+package com.bartschram.franxit.scrape
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class GoogleShoppingTest {
+
+    private val json = """
+        {"shopping_results": [
+          {"title": "Hercules KB200B Keyboardbank", "source": "Bax-shop.be", "price": "€ 39,00", "extracted_price": 39.0,
+           "product_link": "https://www.google.be/shopping/product/1", "thumbnail": "https://img/1.jpg"},
+          {"title": "Hercules Stands KB200B keyboardbank zwart", "source": "Gear4music.be", "extracted_price": 41.5,
+           "product_link": "https://www.google.be/shopping/product/2"},
+          {"title": "Hercules KB200B Keyboardbank", "source": "Bax-shop.be", "extracted_price": 44.0},
+          {"title": "Hoes geschikt voor Hercules KB200B", "source": "Bol.com", "extracted_price": 9.99},
+          {"title": "Yamaha keyboardbank BC-100", "source": "Thomann", "extracted_price": 29.0},
+          {"title": "Hercules KB210B Keyboardbank", "source": "Krefel.be", "extracted_price": 35.0},
+          {"title": "Hercules KB 200B keyboard bench", "source": "Muziekcentrum.be", "extracted_price": 43.0},
+          {"title": "Hercules KB200B Keyboardbank", "source": "Thomann.de", "extracted_price": 30.0},
+          {"title": "Hercules KB200B Keyboardbank + koptelefoon", "source": "Coolblue.be", "extracted_price": 60.0},
+          {"title": "Hercules KB200B Height Adjustable Foldable Keyboard Bench", "source": "Gigstore", "price": "€ 88,99",
+           "extracted_price": 88.99, "alternative_price": {"price": "AED 366", "extracted_price": 366, "currency": "AED"}}
+        ]}
+    """.trimIndent()
+
+    @Test
+    fun keepsTheProductCheapestPerShop() {
+        val found = GoogleShopping.parse(json, "Hercules KB200B keyboardbank")
+        assertEquals(
+            listOf("Thomann.de" to 30.0, "Bax-shop.be" to 39.0, "Gear4music.be" to 41.5, "Muziekcentrum.be" to 43.0),
+            found.result.offers.map { it.seller to it.price },
+        )
+        // No shop page in the result: a Google Shopping search for the product at that shop.
+        assertEquals(GoogleShopping.urlFor("Hercules KB200B keyboardbank Bax-shop.be"), found.links["Bax-shop.be"])
+    }
+
+    @Test
+    fun productUrlsRoundTrip() {
+        val url = GoogleShopping.urlFor("Hercules KB200B keyboardbank")
+        assertEquals("Hercules KB200B keyboardbank", GoogleShopping.queryOf(url))
+        assertNull(GoogleShopping.queryOf("https://www.vergelijk.be/x/"))
+    }
+
+    @Test(expected = java.io.IOException::class)
+    fun nothingMatchingIsAnError() {
+        GoogleShopping.parse(json, "Sony WF-1000XM6")
+    }
+
+    @Test
+    fun onlyTheSameModelFromBelgianShops() {
+        // KB210B is another model, "+ koptelefoon" a bundle, Gigstore sells in dirhams.
+        // Thomann.de stays: Google Shopping Belgium only lists shops that ship to Belgium.
+        val shops = GoogleShopping.parse(json, "Hercules KB200B keyboardbank").result.offers.map { it.seller }
+        assertEquals(listOf("Thomann.de", "Bax-shop.be", "Gear4music.be", "Muziekcentrum.be"), shops)
+    }
+
+    @Test
+    fun sellersNamedAfterAnotherCountryAreLeftOut() {
+        assertEquals(false, GoogleShopping.isForeignShop("bol.com"))
+        assertEquals(false, GoogleShopping.isForeignShop("Thomann.de"))
+        assertEquals(true, GoogleShopping.isForeignShop("eBay - sobreruedas-spain"))
+    }
+
+    @Test
+    fun trustedByNameOrByTheSiteItLinksTo() {
+        val json = """
+            {"shopping_results": [
+              {"title": "Hercules KB200B", "source": "Bax Music", "link": "https://www.bax-shop.be/keyboardbank/hercules-kb200b", "extracted_price": 39.0},
+              {"title": "Hercules KB200B", "source": "Thomann", "link": "https://www.thomann.de/be/hercules_kb200b.htm", "extracted_price": 35.0},
+              {"title": "Hercules KB200B", "source": "Garantie2ans.com", "link": "https://garantie2ans.com/kb200b", "extracted_price": 19.0},
+              {"title": "Hercules KB200B", "source": "Muziekwinkel XL", "link": "https://www.muziekwinkelxl.de/kb200b", "extracted_price": 36.0}
+            ]}
+        """.trimIndent()
+        val trusted = { shop: String -> com.bartschram.franxit.data.TrustedShops.name(shop, emptySet()) }
+        val found = GoogleShopping.parse(json, "Hercules KB200B", trusted)
+        assertEquals(listOf("Thomann.de", "Bax-shop.be"), found.result.offers.map { it.seller })
+        assertEquals("https://www.bax-shop.be/keyboardbank/hercules-kb200b", found.links["Bax-shop.be"])
+    }
+
+    @Test
+    fun noMarketplacesSellersFromOtherCountriesOrOddPrices() {
+        val json = """
+            {"shopping_results": [
+              {"title": "TCL NXTPAPER 14", "source": "Amazon.com.be", "extracted_price": 361.05},
+              {"title": "TCL NXTPAPER 14", "source": "Coolblue.be", "extracted_price": 379.0},
+              {"title": "TCL NXTPAPER 14", "source": "Krefel.be", "extracted_price": 389.0},
+              {"title": "TCL NXTPAPER 14", "source": "U-buy.be", "extracted_price": 620.0},
+              {"title": "TCL NXTPAPER 14", "source": "eBay - sobreruedas-spain", "extracted_price": 815.8},
+              {"title": "TCL NXTPAPER 14", "source": "MegaStore", "extracted_price": 900.0}
+            ]}
+        """.trimIndent()
+        val shops = GoogleShopping.parse(json, "TCL NXTPAPER 14").result.offers.map { it.seller }
+        assertEquals(listOf("Amazon.com.be", "Coolblue.be", "Krefel.be"), shops)
+    }
+
+    @Test
+    fun onlyNewAndNoTooGoodToBeTrue() {
+        val json = """
+            {"shopping_results": [
+              {"title": "JBL Tour Pro 3 TWS", "source": "Voomy", "extracted_price": 37.99},
+              {"title": "JBL Tour Pro 3 TWS", "source": "Used Products Rotterdam zuid", "extracted_price": 189.99},
+              {"title": "JBL Tour Pro 3 TWS", "source": "Coolblue.be", "extracted_price": 205.0, "second_hand_condition": "refurbished"},
+              {"title": "JBL Tour Pro 3 TWS Refurbished", "source": "Krefel.be", "extracted_price": 199.0},
+              {"title": "JBL Tour Pro 3 TWS", "source": "Amazon.com.be", "extracted_price": 219.0},
+              {"title": "JBL Tour Pro 3 TWS", "source": "MediaMarkt.be", "extracted_price": 219.0},
+              {"title": "JBL Tour Pro 3 TWS", "source": "JBL Official", "extracted_price": 221.99}
+            ]}
+        """.trimIndent()
+        val shops = GoogleShopping.parse(json, "JBL Tour Pro 3 TWS").result.offers.map { it.seller }
+        assertEquals(listOf("Amazon.com.be", "MediaMarkt.be", "JBL Official"), shops)
+    }
+
+    @Test
+    fun withoutAShopLinkItKeepsTheTokenToLookItUp() {
+        val json = """
+            {"shopping_results": [
+              {"title": "Hercules KB200B", "source": "Gear4music.be", "extracted_price": 45.0, "immersive_product_page_token": "abc"}
+            ]}
+        """.trimIndent()
+        assertEquals(GoogleShopping.TOKEN + "abc", GoogleShopping.parse(json, "Hercules KB200B").links["Gear4music.be"])
+    }
+
+    @Test
+    fun theStoreLinkIsThatShopsOwnPage() {
+        val json = """
+            {"product_results": {"stores": [
+              {"name": "Bax Music", "link": "https://www.bax-shop.be/kb200b"},
+              {"name": "Gear4music", "link": "https://www.gear4music.be/nl/Keyboards-and-Pianos/Hercules-KB200B/1UG2"}
+            ]}}
+        """.trimIndent()
+        val same = { a: String, b: String -> com.bartschram.franxit.data.TrustedShops.key(a) == com.bartschram.franxit.data.TrustedShops.key(b) }
+        assertEquals("https://www.gear4music.be/nl/Keyboards-and-Pianos/Hercules-KB200B/1UG2", GoogleShopping.storeLinkIn(json, "Gear4music.be", same))
+        assertEquals("https://www.bax-shop.be/kb200b", GoogleShopping.storeLinkIn(json, "Bax-shop.be", same))
+        assertNull(GoogleShopping.storeLinkIn(json, "Coolblue.be", same))
+    }
+
+    @Test
+    fun googlesProductPageAddsShopsWithTheirOwnLinks() {
+        // Real results for the Hercules KB200B: the search has only Bax ("Bax Music BEFR"); Google's
+        // page for it also lists Gear4music (through Google's redirect) and bol.com.
+        val search = """
+            {"shopping_results": [
+              {"title": "Hercules Stands KB-200B keyboardbank", "source": "Bax Music BEFR", "extracted_price": 135.0,
+               "immersive_product_page_token": "tok"},
+              {"title": "Hercules Stands SS200BB", "source": "Omega Music", "extracted_price": 98.0, "immersive_product_page_token": "other"}
+            ]}
+        """.trimIndent()
+        val page = """
+            {"product_results": {"stores": [
+              {"name": "Bax Music BEFR", "link": "https://www.bax-shop.be/fr/hercules-stands-kb-200b", "title": "Hercules Stands KB-200B banc de clavier",
+               "logo": "https://encrypted-tbn0.gstatic.com/faviconV2?url=https://www.bax-shop.be&client=SHOPPING", "extracted_price": 135.0},
+              {"name": "Gear4music.be", "link": "/goto?url=CAES1", "title": "Hercules KB200B Keyboard Bench",
+               "logo": "https://encrypted-tbn0.gstatic.com/faviconV2?url=https://www.gear4music.be&client=SHOPPING", "extracted_price": 137.25},
+              {"name": "bol.com", "link": "https://www.bol.com/be/nl/p/hercules-hckb-200b/9300000188957608/", "title": "HERCULES HCKB-200B Keyboardbank",
+               "logo": "https://encrypted-tbn0.gstatic.com/faviconV2?url=https://www.bol.com&client=SHOPPING", "extracted_price": 172.46},
+              {"name": "Garantie2ans.com", "link": "https://garantie2ans.com/kb200b", "extracted_price": 99.0}
+            ]}}
+        """.trimIndent()
+        val trusted = { shop: String -> com.bartschram.franxit.data.TrustedShops.name(shop, emptySet()) }
+        val searched = GoogleShopping.parse(search, "Hercules KB200B", trusted)
+        assertEquals("tok", searched.token)
+        val found = GoogleShopping.addStores(searched, page, "Hercules KB200B", trusted)
+        assertEquals(
+            listOf("Bax-shop.be" to 135.0, "Gear4music.be" to 137.25, "Bol.com" to 172.46),
+            found.result.offers.map { it.seller to it.price },
+        )
+        assertEquals("https://www.bax-shop.be/fr/hercules-stands-kb-200b", found.links["Bax-shop.be"])
+        assertEquals("https://www.google.com/goto?url=CAES1", found.links["Gear4music.be"])
+    }
+}

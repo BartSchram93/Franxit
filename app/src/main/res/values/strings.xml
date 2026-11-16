@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Franxit</string>
+    <string name="list_widget_description">All tracked products with today\'s prices</string>
+</resources>

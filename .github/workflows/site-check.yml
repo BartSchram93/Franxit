@@ -1,0 +1,57 @@
+# Once a day, reads the product pages in canary-urls.txt with the app's own scraper.
+# If a site changed its pages and prices can't be read anymore, opens a GitHub issue,
+# so it gets fixed before the phone's price history gets gaps.
+name: Site check
+
+on:
+  schedule:
+    - cron: "30 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Read live pages
+        id: live
+        run: |
+          chmod +x gradlew
+          export FRANXIT_LIVE_URL="$(grep -v '^#' canary-urls.txt)"
+          set -o pipefail
+          ./gradlew testDebugUnitTest --tests '*LiveScraperTest' --console=plain 2>&1 | tee live.log
+
+      - name: Open an issue
+        # Only the scheduled morning run reports: test runs on other branches don't open issues.
+        if: failure() && steps.live.outcome == 'failure' && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Site check failed"
+          {
+            echo "The daily site check couldn't read one or more product pages."
+            echo
+            echo '```'
+            grep -A 12 "Site check failed" live.log | head -30 || tail -40 live.log
+            echo '```'
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          } > body.md
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file body.md
+          else
+            gh issue create --title "$title" --body-file body.md
+          fi

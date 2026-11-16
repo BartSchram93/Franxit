@@ -1,0 +1,93 @@
+package com.bartschram.franxit.scrape
+
+/**
+ * Ranks vergelijk.be search hits against what you're looking for: a typed query, or the product
+ * name from another shop's page ("Sony WF-1000XM6 Zwart" from Coolblue). Accessories ("Hoes
+ * geschikt voor Sony WF-1000XM6") go to the bottom unless you were looking for one.
+ */
+object Matching {
+
+    private val ACCESSORY = listOf(
+        "geschikt voor", "compatible", "suitable for", "hoes", "hoesje", "case", "cover", "sleeve", "screenprotector",
+        "screen protector", "beschermfolie", "beschermglas", "tempered glass", "oordopjes voor", "eartips", "ear tips",
+        "oplaadkabel", "kabel voor", "adapter voor", "houder", "standaard voor", "skin", "sticker",
+    )
+
+    private fun words(text: String): Set<String> =
+        text.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotBlank() }.toSet()
+
+    private fun isAccessory(text: String): Boolean = text.lowercase().let { t -> ACCESSORY.any { it in t } }
+
+    /**
+     * Whether a page still shows the product you track: titles change a little over time ("Zwart"
+     * added), but share most words. A different product (Pokémon cards for a piano bench) doesn't.
+     */
+    fun isStillTheSame(tracked: String, page: String): Boolean {
+        val a = words(tracked)
+        val b = words(page)
+        if (a.isEmpty() || b.isEmpty()) return true
+        return a.count { it in b }.toDouble() / minOf(a.size, b.size) >= 0.5
+    }
+
+    /** How well [title] fits [wanted]: mostly how many of its words [wanted] has, then the reverse. */
+    fun score(title: String, wanted: String): Double {
+        val have = words(title)
+        val want = words(wanted)
+        if (have.isEmpty() || want.isEmpty()) return 0.0
+        val titleInWanted = have.count { it in want }.toDouble() / have.size
+        val wantedInTitle = want.count { it in have }.toDouble() / want.size
+        val accessory = if (isAccessory(title) && !isAccessory(wanted)) 1.0 else 0.0
+        return titleInWanted + wantedInTitle / 2 - accessory
+    }
+
+    /**
+     * Whether a search result is the product you're after: most of your words are in its title,
+     * and it isn't an accessory (unless you're looking for one).
+     */
+    fun isSameProduct(title: String, wanted: String): Boolean {
+        val want = words(wanted)
+        if (want.isEmpty() || (isAccessory(title) && !isAccessory(wanted))) return false
+        if (BUNDLE.containsMatchIn(title) && !BUNDLE.containsMatchIn(wanted)) return false
+        val have = words(title)
+        // The brand (first word) must be there.
+        val brand = wanted.trim().split(Regex("\\s+")).first().lowercase().filter { it.isLetterOrDigit() }
+        if (brand.isNotEmpty() && brand !in have) return false
+        // Model codes (letters and digits: kb200b, 1000xm6) must all match, and the title may not
+        // name a different one (kb210b): that's a related product, not this one.
+        // Compared without spaces and dashes, so "KB 200B" and "KB200B" are the same code.
+        val wantCodes = want.filter(::isModelCode)
+        val haveCompact = compact(title)
+        val wantCompact = compact(wanted)
+        if (!wantCodes.all { it in haveCompact }) return false
+        if (have.filter(::isModelCode).any { it !in wantCompact }) return false
+        // Without a model code, most of the words have to match.
+        return wantCodes.isNotEmpty() || want.count { it in have }.toDouble() / want.size >= 0.6
+    }
+
+    private val BUNDLE = Regex("""\s\+\s|\bbundel\b|\bbundle\b|\bset met\b|\bincl\.?\b|\binclusief\b""", RegexOption.IGNORE_CASE)
+
+    private fun compact(text: String) = text.lowercase().filter { it.isLetterOrDigit() }
+
+    private fun isModelCode(word: String) = word.length >= 3 && word.any(Char::isDigit) && word.any(Char::isLetter)
+
+    /** [hits] best match first; ties keep vergelijk.be's order. */
+    fun rank(hits: List<VergelijkSearch.Hit>, wanted: String): List<VergelijkSearch.Hit> =
+        hits.sortedByDescending { score(it.title, wanted) }
+
+    /**
+     * The one hit that clearly is [wanted]: every word of its title appears in [wanted]
+     * (vergelijk.be titles are short: "WF-1000XM6 Zwart"), it isn't an accessory, and no other
+     * hit fits as well. Null when that's not clear-cut.
+     */
+    fun clearMatch(hits: List<VergelijkSearch.Hit>, wanted: String): VergelijkSearch.Hit? {
+        val want = words(wanted)
+        val full = hits.filter { hit ->
+            val have = words(hit.title)
+            have.isNotEmpty() && have.all { it in want } && !(isAccessory(hit.title) && !isAccessory(wanted))
+        }
+        // Several hits fully inside the name (e.g. "WF-1000XM6" and "WF-1000XM6 Zwart"): the one
+        // with the most words is the most specific, if only one has that many.
+        val most = full.maxOfOrNull { words(it.title).size } ?: return null
+        return full.filter { words(it.title).size == most }.singleOrNull()
+    }
+}
