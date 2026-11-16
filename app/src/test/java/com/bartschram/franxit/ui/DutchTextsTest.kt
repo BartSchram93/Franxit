@@ -45,6 +45,16 @@ class DutchTextsTest {
     }
 
     @Test
+    fun theAlertSuggestionsAreTranslated() {
+        // Their texts live in the data layer, so the source scan doesn't see them.
+        val code = File("src/main/java/com/bartschram/franxit/data/Suggestions.kt").readText()
+        val texts = Regex("""add\("([^"]+)",[^"]*"([^"]+)"\)""").findAll(code).flatMap { listOf(it.groupValues[1], it.groupValues[2]) }.toList()
+        assertTrue("found no suggestions in $code", texts.size >= 6)
+        val missing = texts.filter { it !in DUTCH_TEXTS }
+        assertTrue("No Dutch for: $missing", missing.isEmpty())
+    }
+
+    @Test
     fun theLongUsageTextIsTranslatedAsAWhole() {
         // Written as joined pieces in the code, so the scan above skips it: check it by hand.
         assertTrue(DUTCH_TEXTS.keys.any { it.startsWith("Franxit counts anonymously") && it.endsWith("never your products or prices.") })
