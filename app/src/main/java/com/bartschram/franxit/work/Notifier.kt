@@ -21,6 +21,7 @@ import com.bartschram.franxit.data.AlertKind
 import com.bartschram.franxit.data.Product
 import com.bartschram.franxit.data.UpdateCheck
 import com.bartschram.franxit.ui.euro
+import com.bartschram.franxit.ui.t
 
 object Notifier {
 
@@ -28,7 +29,7 @@ object Notifier {
     private const val SENT = "sent_alerts"
 
     fun createChannel(context: Context) {
-        val channel = NotificationChannel(CHANNEL, "Price drops", NotificationManager.IMPORTANCE_DEFAULT)
+        val channel = NotificationChannel(CHANNEL, t("Price drops"), NotificationManager.IMPORTANCE_DEFAULT)
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
@@ -56,9 +57,9 @@ object Notifier {
 
         val price = alert.to.price.euro()
         val title = when (alert.kind) {
-            AlertKind.TARGET -> "$price — below your ${alert.product.targetPrice?.euro()} target"
-            AlertKind.LOWEST -> "$price — lowest price seen"
-            AlertKind.DROP -> "$price — was ${alert.from?.euro()}"
+            AlertKind.TARGET -> t("%1\$s — below your %2\$s target", price, alert.product.targetPrice?.euro().orEmpty())
+            AlertKind.LOWEST -> t("%s — lowest price seen", price)
+            AlertKind.DROP -> t("%1\$s — was %2\$s", price, alert.from?.euro().orEmpty())
         }
         show(context, alert.product, title, alert.to.seller, id = alert.product.id.toInt())
     }
@@ -69,7 +70,7 @@ object Notifier {
      */
     fun discountAlert(context: Context, product: Product, price: Double, seller: String, percent: Double, target: Double) {
         if (!allowed(context)) return
-        val title = "${price.euro()} with your ${Discounts.label(percent)}% — below your ${target.euro()} target"
+        val title = t("%1\$s with your %2\$s%% — below your %3\$s target", price.euro(), Discounts.label(percent), target.euro())
         show(context, product, title, seller, id = DISCOUNT_ID_OFFSET + product.id.toInt())
     }
 
@@ -85,13 +86,13 @@ object Notifier {
     fun newVersion(context: Context, notes: String?): Boolean {
         if (!allowed(context)) return false
         context.getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel(UPDATES, "App updates", NotificationManager.IMPORTANCE_LOW))
+            .createNotificationChannel(NotificationChannel(UPDATES, t("App updates"), NotificationManager.IMPORTANCE_LOW))
         val open = Intent(Intent.ACTION_VIEW, Uri.parse(UpdateCheck.DOWNLOAD_PAGE)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         val pending = PendingIntent.getActivity(context, UPDATE_ID, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val text = notes ?: "A new version is ready to download."
+        val text = notes ?: t("A new version is ready to download.")
         val notification = NotificationCompat.Builder(context, UPDATES)
             .setSmallIcon(R.drawable.ic_stat_price)
-            .setContentTitle("New version of Franxit")
+            .setContentTitle(t("New version of Franxit"))
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(pending)
@@ -110,7 +111,7 @@ object Notifier {
             context, id, open,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val text = "${product.displayName} at ${seller.ifBlank { "a shop" }.let(Shops::name)}"
+        val text = t("%1\$s at %2\$s", product.displayName, seller.ifBlank { t("a shop") }.let(Shops::name))
         val notification = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_price)
             .setContentTitle(title)

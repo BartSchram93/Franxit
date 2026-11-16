@@ -79,7 +79,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.bartschram.franxit.ui.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -146,6 +146,7 @@ fun ListScreen(
     onShowTips: () -> Unit,
     /** Opens the anonymous usage counts: null when this build doesn't count. */
     onUsage: (() -> Unit)? = null,
+    onLanguage: () -> Unit = {},
     onDelete: (Product) -> Unit,
     onUndoDelete: (Product) -> Unit,
     /** A newer version is out (the app isn't in a store): say so, with the way to the download. */
@@ -177,7 +178,7 @@ fun ListScreen(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(18.dp),
-            ) { Icon(Icons.Default.Add, contentDescription = "Track a product") }
+            ) { Icon(Icons.Default.Add, contentDescription = t("Track a product")) }
         },
     ) { padding ->
         val pullState = rememberPullToRefreshState()
@@ -216,7 +217,7 @@ fun ListScreen(
                         // Sorting and filtering under their own icon; blue while a filter is on.
                         Box {
                             IconButton(onClick = { filterOpen = true }) {
-                                Icon(FilterListIcon, "Sort and filter", tint = if (alertsOnly) ChartLine else LocalContentColor.current)
+                                Icon(FilterListIcon, t("Sort and filter"), tint = if (alertsOnly) ChartLine else LocalContentColor.current)
                             }
                             DropdownMenu(expanded = filterOpen, onDismissRequest = { filterOpen = false }) {
                                 Text(
@@ -241,7 +242,7 @@ fun ListScreen(
                             }
                         }
                         Box {
-                            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, "More") }
+                            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, t("More")) }
                             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 if (!notificationsOn) {
                                     DropdownMenuItem(
@@ -268,7 +269,11 @@ fun ListScreen(
                                     )
                                 }
                                 DropdownMenuItem(
-                                    text = { Text("Daily check at ${checkTime.format(DateTimeFormatter.ofPattern("HH:mm"))}") },
+                                    text = { Text("Language") },
+                                    onClick = { menuOpen = false; onLanguage() },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(t("Daily check at %s", checkTime.format(DateTimeFormatter.ofPattern("HH:mm")))) },
                                     onClick = { menuOpen = false; onChangeTime() },
                                 )
                             }
@@ -290,7 +295,7 @@ fun ListScreen(
                     if (refreshing && progress != null && progress.second > 1) {
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Checking ${minOf(progress.first + 1, progress.second)} of ${progress.second}…",
+                            t("Checking %1\$d of %2\$d…", minOf(progress.first + 1, progress.second), progress.second),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -374,7 +379,7 @@ fun ListScreen(
                                     // A new removal replaces the previous bar instead of queueing behind it.
                                     snackbar.currentSnackbarData?.dismiss()
                                     val result = snackbar.showSnackbar(
-                                        "${product.displayName} removed", actionLabel = "Undo", duration = SnackbarDuration.Short,
+                                        t("%s removed", product.displayName), actionLabel = t("Undo"), duration = SnackbarDuration.Short,
                                     )
                                     if (result == SnackbarResult.ActionPerformed) {
                                         undone[product.id] = (undone[product.id] ?: 0) + 1
@@ -500,7 +505,7 @@ private fun ProductCard(
             if (latest == null) {
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    if (product.lastError != null) "Couldn't read price: ${product.lastError}" else "Not checked yet · pull down to check",
+                    if (product.lastError != null) t("Couldn't read price: %s", tMessage(product.lastError)) else "Not checked yet · pull down to check",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (product.lastError != null) PriceUp else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = indent),
@@ -529,7 +534,7 @@ private fun ProductCard(
                 }
                 if (product.lastError != null) {
                     Text(
-                        "Last check failed: ${product.lastError}",
+                        t("Last check failed: %s", tMessage(product.lastError.orEmpty())),
                         style = MaterialTheme.typography.bodySmall,
                         color = PriceUp,
                         maxLines = 1,
@@ -597,9 +602,9 @@ fun TargetLine(target: Double, price: Double, muted: Boolean = false) {
     // Blue like your own checks in the chart: it's your setting. Green once reached.
     val color = if (reached) PriceDown else ChartLine
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Default.Notifications, contentDescription = "Price alert", tint = color, modifier = Modifier.size(14.dp))
+        Icon(Icons.Default.Notifications, contentDescription = t("Price alert"), tint = color, modifier = Modifier.size(14.dp))
         Spacer(Modifier.width(4.dp))
-        Text(target.euro() + if (muted) " · muted" else "", style = MaterialTheme.typography.bodySmall, color = color)
+        Text(if (muted) t("%s · muted", target.euro()) else target.euro(), style = MaterialTheme.typography.bodySmall, color = color)
     }
 }
 
@@ -607,7 +612,7 @@ fun TargetLine(target: Double, price: Double, muted: Boolean = false) {
 @Composable
 fun StaleLine(lastSuccess: Long) {
     Text(
-        "Last checked ${lastSuccess.ageLabel()} · daily check may be blocked by battery saving",
+        t("Last checked %s · daily check may be blocked by battery saving", lastSuccess.ageLabel()),
         style = MaterialTheme.typography.bodySmall,
         color = Warning,
     )
@@ -626,7 +631,8 @@ private fun DiscountLine(price: Double, percent: Double, shop: String?, belowAle
         Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = muted, modifier = Modifier.padding(top = 2.dp).size(14.dp))
         Spacer(Modifier.width(4.dp))
         Text(
-            price.euro() + (shop?.let { " at $it" } ?: "") + " with your ${Discounts.label(percent)}%",
+            if (shop != null) t("%1\$s at %2\$s with your %3\$s%%", price.euro(), shop, Discounts.label(percent))
+            else t("%1\$s with your %2\$s%%", price.euro(), Discounts.label(percent)),
             style = MaterialTheme.typography.bodySmall,
             color = muted,
         )

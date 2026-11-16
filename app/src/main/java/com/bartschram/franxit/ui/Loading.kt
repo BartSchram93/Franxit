@@ -41,7 +41,7 @@ fun LoadingDots(
     val time = rememberInfiniteTransition(label = "dots")
         .animateFloat(0f, 1f, infiniteRepeatable(tween(1200, easing = LinearEasing)), label = "wave")
     Row(
-        modifier.semantics { contentDescription = "Loading" },
+        modifier.semantics { contentDescription = t("Loading") },
         horizontalArrangement = Arrangement.spacedBy(dotSize * 0.7f),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -73,7 +73,7 @@ fun SpinningRefresh(modifier: Modifier = Modifier, tint: Color = MaterialTheme.c
     Box(modifier.size(48.dp), contentAlignment = Alignment.Center) {
         Icon(
             Icons.Default.Refresh,
-            contentDescription = "Checking",
+            contentDescription = t("Checking"),
             tint = tint,
             modifier = Modifier.graphicsLayer { rotationZ = angle.value },
         )

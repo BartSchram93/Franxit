@@ -48,6 +48,7 @@ import com.bartschram.franxit.data.Shops
 import com.bartschram.franxit.ui.SortOrder
 import com.bartschram.franxit.ui.euro
 import com.bartschram.franxit.ui.shortTitle
+import com.bartschram.franxit.ui.t
 
 /**
  * Home-screen widget listing the tracked products: photo, name, price and today's change.
@@ -90,13 +91,13 @@ class PriceListWidget : GlanceAppWidget() {
             GlanceModifier.fillMaxSize().background(Background).cornerRadius(22.dp).padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
             Text(
-                if (alertsOnly) "Price alerts" else "Overview",
+                if (alertsOnly) t("Price alerts") else t("Overview"),
                 style = TextStyle(color = ColorProvider(TextMuted), fontSize = 12.sp, fontWeight = FontWeight.Medium),
                 modifier = GlanceModifier.clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
             )
             Spacer(GlanceModifier.height(6.dp))
             if (products.isEmpty()) {
-                Text(if (alertsOnly) "No products with a price alert" else "Add a product in the app", style = TextStyle(color = ColorProvider(TextMain), fontSize = 13.sp))
+                Text(if (alertsOnly) t("No products with a price alert") else t("Add a product in the app"), style = TextStyle(color = ColorProvider(TextMain), fontSize = 13.sp))
                 return@Column
             }
             LazyColumn(GlanceModifier.fillMaxSize()) {
@@ -128,9 +129,10 @@ class PriceListWidget : GlanceAppWidget() {
                 val best = Discounts.bestForYou(product.offers, discounts)
                 val percent = best?.let { Discounts.percentFor(it.seller, discounts) }
                 if (best != null && percent != null) {
-                    val shop = if (best.seller != product.latest?.seller) " at ${Shops.name(best.seller)}" else ""
+                    val yours = Discounts.yourPrice(best, discounts).euro()
                     Text(
-                        "${Discounts.yourPrice(best, discounts).euro()}$shop with your ${Discounts.label(percent)}%",
+                        if (best.seller != product.latest?.seller) t("%1\$s at %2\$s with your %3\$s%%", yours, Shops.name(best.seller), Discounts.label(percent))
+                        else t("%1\$s with your %2\$s%%", yours, Discounts.label(percent)),
                         style = TextStyle(color = ColorProvider(TextMuted), fontSize = 11.sp),
                         maxLines = 1,
                     )
@@ -145,14 +147,14 @@ class PriceListWidget : GlanceAppWidget() {
                 )
                 // As in the app: the Buy or wait advice in a word, or a warning when the check stopped.
                 if (product.isStale()) {
-                    Text("Check overdue", style = TextStyle(color = ColorProvider(Warn), fontSize = 11.sp), maxLines = 1)
+                    Text(t("Check overdue"), style = TextStyle(color = ColorProvider(Warn), fontSize = 11.sp), maxLines = 1)
                 } else {
                     val advice = BuyAdvisor.advise(product)
                     if (advice.verdict != Verdict.INSUFFICIENT_DATA) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("● ", style = TextStyle(color = ColorProvider(verdictDot(advice.verdict)), fontSize = 9.sp))
                             Text(
-                                shortTitle(advice.verdict),
+                                t(shortTitle(advice.verdict)),
                                 style = TextStyle(color = ColorProvider(if (advice.verdict == Verdict.BUY_NOW) Down else TextMuted), fontSize = 11.sp),
                                 maxLines = 1,
                             )

@@ -25,7 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.bartschram.franxit.ui.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -172,7 +172,7 @@ fun SearchScreen(
                 val google = shoppingQuery?.takeIf { onGoogleShopping != null && !searching && it.length >= 2 }
                 if (google != null && (link == null || shopLink != null)) {
                     item {
-                        ResultRow("Track via Google Shopping: \"$google\"", "Checked once a day", null) {
+                        ResultRow(t("Track via Google Shopping: \"%s\"", google), "Checked once a day", null) {
                             onGoogleShopping?.invoke(google)
                         }
                     }
@@ -203,7 +203,7 @@ private fun ResultRow(title: String, subtitle: String?, price: Double?, onClick:
             }
             price?.let {
                 Spacer(Modifier.width(12.dp))
-                Text("from ${it.euro()}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(t("from %s", it.euro()), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             }
         }
     }

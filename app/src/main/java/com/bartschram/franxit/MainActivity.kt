@@ -38,6 +38,10 @@ import com.bartschram.franxit.data.Discounts
 import com.bartschram.franxit.data.Photos
 import com.bartschram.franxit.data.Repository
 import com.bartschram.franxit.ui.UsageDialog
+import com.bartschram.franxit.ui.L10n
+import com.bartschram.franxit.ui.LanguageDialog
+import com.bartschram.franxit.ui.t
+import com.bartschram.franxit.ui.tMessage
 import com.bartschram.franxit.data.Usage
 import androidx.compose.ui.platform.LocalUriHandler
 import kotlinx.coroutines.withContext
@@ -69,7 +73,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         handle(intent)
-        setContent { FranxitTheme { App(sharedUrl, openProductId) } }
+        L10n.init(applicationContext)
+        // key(): when the language changes, everything is drawn again in the new one.
+        setContent { FranxitTheme { androidx.compose.runtime.key(L10n.choice) { App(sharedUrl, openProductId) } } }
     }
 
     override fun onStart() {
@@ -125,6 +131,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     var showDiscounts by rememberSaveable { mutableStateOf(false) }
     var showShopping by rememberSaveable { mutableStateOf(false) }
     var showUsage by rememberSaveable { mutableStateOf(false) }
+    var showLanguage by rememberSaveable { mutableStateOf(false) }
     var shoppingKey by remember { mutableStateOf(ShoppingSettings.key(context) != null) }
     var extraOn by remember { mutableStateOf(ShoppingSettings.extraIds(context)) }
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
@@ -225,7 +232,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             onRefresh = {
                 scope.launch {
                     refreshing = true
-                    repo.checkOne(selected.id).onFailure { toast("Check failed: ${it.message}") }
+                    repo.checkOne(selected.id).onFailure { toast(t("Check failed: %s", tMessage(it.message.orEmpty()))) }
                     refreshing = false
                 }
             },
@@ -281,7 +288,8 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                     refreshing = true
                     val summary = repo.checkAll()
                     refreshing = false
-                    if (summary.failed > 0) toast("${summary.failed} product(s) couldn't be checked")
+                    if (summary.failed == 1) toast(t("1 product couldn't be checked"))
+                    else if (summary.failed > 1) toast(t("%d products couldn't be checked", summary.failed))
                 }
             },
             onOpen = { selectedId = it.id },
@@ -312,6 +320,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             onDiscounts = { showDiscounts = true },
             onGoogleShopping = { showShopping = true },
             onUsage = if (Usage.configured) ({ showUsage = true }) else null,
+            onLanguage = { showLanguage = true },
             notificationsOn = notificationsOn,
             onTurnOnNotifications = { turnOnNotifications() },
             showTips = showTips,
@@ -327,6 +336,18 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                     checkTime = time
                 }, checkTime.hour, checkTime.minute, true).show()
             },
+        )
+    }
+
+    if (showLanguage) {
+        LanguageDialog(
+            choice = L10n.choice,
+            onChoose = { choice ->
+                L10n.set(context, choice)
+                // The home-screen widget speaks the same language.
+                scope.launch { runCatching { PriceListWidget().updateAll(context) } }
+            },
+            onDismiss = { showLanguage = false },
         )
     }
 

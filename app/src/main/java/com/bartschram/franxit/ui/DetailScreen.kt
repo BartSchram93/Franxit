@@ -42,7 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import com.bartschram.franxit.ui.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -142,9 +142,9 @@ fun DetailScreen(
                     if (refreshing) {
                         SpinningRefresh()
                     } else {
-                        IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, "Check now") }
+                        IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, t("Check now")) }
                     }
-                    IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Default.Delete, "Stop tracking") }
+                    IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Default.Delete, t("Stop tracking")) }
                 },
             )
         },
@@ -203,7 +203,7 @@ fun DetailScreen(
             }
             product.lastError?.let {
                 Spacer(Modifier.height(8.dp))
-                Text("Last check failed: $it", style = MaterialTheme.typography.bodySmall, color = PriceUp)
+                Text(t("Last check failed: %s", tMessage(it)), style = MaterialTheme.typography.bodySmall, color = PriceUp)
             }
 
             Spacer(Modifier.height(20.dp))
@@ -234,7 +234,7 @@ fun DetailScreen(
                 @Composable
                 fun Label(shop: String, price: String?) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Buy at $shop", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(t("Buy at %s", shop), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         price?.let {
                             Text(it, style = MaterialTheme.typography.labelMedium, color = LocalContentColor.current.copy(alpha = 0.7f))
                         }
@@ -242,10 +242,10 @@ fun DetailScreen(
                 }
                 when {
                     openingShop -> LoadingDots(color = MaterialTheme.colorScheme.onPrimary)
-                    !comparisonSite -> Text("Open $host")
+                    !comparisonSite -> Text(t("Open %s", host))
                     best != null && bestPercent != null -> Label(
                         Shops.name(best.seller),
-                        "${Discounts.yourPrice(best, discounts).euro()} with your ${Discounts.label(bestPercent)}%",
+                        t("%1\$s with your %2\$s%%", Discounts.yourPrice(best, discounts).euro(), Discounts.label(bestPercent)),
                     )
                     latest != null && latest.seller.isNotBlank() -> Label(Shops.name(latest.seller), latest.price.euro())
                     else -> Text("Go to cheapest shop")
@@ -257,7 +257,7 @@ fun DetailScreen(
                 val yours = Discounts.yourPrice(best, discounts)
                 if (yours <= target + 0.005) {
                     Text(
-                        "Below your ${target.euro()} alert with your ${Discounts.label(bestPercent)}%",
+                        t("Below your %1\$s alert with your %2\$s%%", target.euro(), Discounts.label(bestPercent)),
                         style = MaterialTheme.typography.bodySmall,
                         color = PriceDown,
                         modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
@@ -278,8 +278,8 @@ fun DetailScreen(
                     Text(
                         when {
                             target == null -> "Price alert"
-                            product.notify -> "Alert ${target.euroRounded()}"
-                            else -> "Alert ${target.euroRounded()} · muted"
+                            product.notify -> t("Alert %s", target.euroRounded())
+                            else -> t("Alert %s · muted", target.euroRounded())
                         }
                     )
                 }
@@ -295,7 +295,7 @@ fun DetailScreen(
                         Text(
                             when {
                                 on && refreshing -> "Searching…"
-                                on && googleStatus != null -> googleStatus
+                                on && googleStatus != null -> tMessage(googleStatus)
                                 else -> "Find more shops, once a day"
                             },
                             style = MaterialTheme.typography.bodySmall,
@@ -347,7 +347,7 @@ fun DetailScreen(
                         Stat(
                             "Lowest", low, PriceDown, Modifier.weight(1f),
                             advice.historicalLowDate?.short() ?: "",
-                            if (below != null && below >= 0.005) "${(below * 100).roundToInt()}% below current" else "Today's price",
+                            if (below != null && below >= 0.005) t("%d%% below current", (below * 100).roundToInt()) else "Today's price",
                         )
                         Stat("Typical", typical, MaterialTheme.colorScheme.onSurface, Modifier.weight(1f), "Median price", "of the past year")
                     }
@@ -493,7 +493,7 @@ private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopLin
     }
     if (offers.size > SHOPS_SHOWN) {
         TextButton(onClick = { showAll = !showAll }, contentPadding = PaddingValues(0.dp)) {
-            Text(if (showAll) "Show fewer" else "Show all ${offers.size} shops")
+            Text(if (showAll) "Show fewer" else t("Show all %d shops", offers.size))
         }
     }
 }

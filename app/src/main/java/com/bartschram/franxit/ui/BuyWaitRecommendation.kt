@@ -21,7 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.bartschram.franxit.ui.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,7 +74,7 @@ fun BuyWaitRecommendation(
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                "Based on past prices${advice.confidence?.let { " · ${confidenceLabel(it)}" } ?: ""}.\nNot a forecast.",
+                advice.confidence?.let { t("Based on past prices · %s.\nNot a forecast.", confidenceLabel(it)) } ?: t("Based on past prices.\nNot a forecast."),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -147,14 +147,14 @@ fun SuggestedTargetPrice(target: ClosedFloatingPointRange<Double>, currentAlert:
     val range = if (target.start == target.endInclusive) target.start.euroRounded()
     else "${target.start.euroRounded()}–${target.endInclusive.euroRounded()}"
     Column {
-        Text("A more attractive price would be: $range", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+        Text(t("A more attractive price would be: %s", range), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(8.dp))
         if (currentAlert != null && currentAlert <= target.endInclusive + 0.005) {
             Row(verticalAlignment = Alignment.Top) {
                 Text("✓", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = PriceDown, modifier = Modifier.width(22.dp))
                 Text(
-                    if (currentAlert >= target.start - 0.005) "Your alert (${currentAlert.euroRounded()}) is already in this range"
-                    else "Your alert (${currentAlert.euroRounded()}) is already below this range",
+                    if (currentAlert >= target.start - 0.005) t("Your alert (%s) is already in this range", currentAlert.euroRounded())
+                    else t("Your alert (%s) is already below this range", currentAlert.euroRounded()),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -167,7 +167,7 @@ fun SuggestedTargetPrice(target: ClosedFloatingPointRange<Double>, currentAlert:
                 ) {
                     Icon(Icons.Default.Notifications, null, Modifier.height(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Set alert at ${target.endInclusive.euroRounded()}")
+                    Text(t("Set alert at %s", target.endInclusive.euroRounded()))
                 }
             }
         }
@@ -214,11 +214,11 @@ private fun color(verdict: Verdict): Color = when (verdict) {
 }
 
 private fun title(verdict: Verdict) = when (verdict) {
-    Verdict.BUY_NOW -> "Buy now"
-    Verdict.CONSIDER_BUYING -> "Consider buying"
-    Verdict.WAIT -> "Wait"
-    Verdict.WAIT_EXPENSIVE -> "Wait — currently expensive"
-    Verdict.INSUFFICIENT_DATA -> "Insufficient data"
+    Verdict.BUY_NOW -> t("Buy now")
+    Verdict.CONSIDER_BUYING -> t("Consider buying")
+    Verdict.WAIT -> t("Wait")
+    Verdict.WAIT_EXPENSIVE -> t("Wait — currently expensive")
+    Verdict.INSUFFICIENT_DATA -> t("Insufficient data")
 }
 
 private fun subtitle(verdict: Verdict) = when (verdict) {
@@ -230,9 +230,9 @@ private fun subtitle(verdict: Verdict) = when (verdict) {
 }
 
 private fun confidenceLabel(confidence: Confidence) = when (confidence) {
-    Confidence.HIGH -> "plenty of history"
-    Confidence.MEDIUM -> "a few months of history"
-    Confidence.LOW -> "little history"
+    Confidence.HIGH -> t("plenty of history")
+    Confidence.MEDIUM -> t("a few months of history")
+    Confidence.LOW -> t("little history")
 }
 
 private fun pct(fraction: Double) = "${(fraction * 100).roundToInt()}%"
@@ -244,31 +244,31 @@ internal fun summary(advice: BuyAdvice): String {
     val vs = advice.vsMedian
     val above = advice.aboveLow
     if (advice.verdict == Verdict.INSUFFICIENT_DATA || current == null || median == null || low == null || vs == null || above == null) {
-        return "There isn't enough price history yet to compare today's price with. It builds up with every daily check."
+        return t("There isn't enough price history yet to compare today's price with. It builds up with every daily check.")
     }
     val typical = when {
-        vs <= -0.03 -> "${current.euro()} is ${pct(-vs)} below the typical price"
-        vs >= 0.03 -> "${current.euro()} is ${pct(vs)} above the typical price"
-        else -> "${current.euro()} is about the typical price"
+        vs <= -0.03 -> t("%1\$s is %2\$s below the typical price", current.euro(), pct(-vs))
+        vs >= 0.03 -> t("%1\$s is %2\$s above the typical price", current.euro(), pct(vs))
+        else -> t("%s is about the typical price", current.euro())
     }
     val lowPart = when {
-        advice.reasons.any { it is Reason.Stable } -> ", which has hardly changed in the past year"
-        above < 0.005 -> " and the lowest price recorded"
-        else -> " and ${(current - low).euro()} above the lowest recorded price"
+        advice.reasons.any { it is Reason.Stable } -> t(", which has hardly changed in the past year")
+        above < 0.005 -> t(" and the lowest price recorded")
+        else -> t(" and %s above the lowest recorded price", (current - low).euro())
     }
     return "$typical$lowPart."
 }
 
 internal fun text(reason: Reason): String = when (reason) {
-    is Reason.BelowTypical -> "${pct(reason.percent)} below the typical price (${reason.typical.euroRounded()})"
-    is Reason.AboveTypical -> "${pct(reason.percent)} above the typical price (${reason.typical.euroRounded()})"
-    is Reason.NearLow -> if (reason.percent < 0.005) "At the lowest recorded price"
-    else "Within ${pct(reason.percent).let { if (it == "0%") "1%" else it }} of the lowest price (${reason.low.euro()})"
-    is Reason.FarAboveLow -> "${pct(reason.percent)} above the lowest price (${reason.low.euro()})"
-    is Reason.LowestInMonths -> "Lowest price in the last ${reason.months} months"
-    is Reason.DroppedRecently -> "Dropped ${pct(reason.percent)} compared with the last ${reason.days} days"
-    is Reason.RoseRecently -> "Up ${pct(reason.percent)} compared with the last ${reason.days} days"
-    is Reason.CheaperRecently -> "Was ${reason.price.euro()} (${pct(reason.percent)} cheaper) within the last ${reason.days} days"
-    is Reason.Stable -> "The price has been stable at about ${reason.typical.euroRounded()}"
-    is Reason.HistoryLength -> "Based on ${reason.months} month${if (reason.months == 1) "" else "s"} of price history"
+    is Reason.BelowTypical -> t("%1\$s below the typical price (%2\$s)", pct(reason.percent), reason.typical.euroRounded())
+    is Reason.AboveTypical -> t("%1\$s above the typical price (%2\$s)", pct(reason.percent), reason.typical.euroRounded())
+    is Reason.NearLow -> if (reason.percent < 0.005) t("At the lowest recorded price")
+    else t("Within %1\$s of the lowest price (%2\$s)", pct(reason.percent).let { if (it == "0%") "1%" else it }, reason.low.euro())
+    is Reason.FarAboveLow -> t("%1\$s above the lowest price (%2\$s)", pct(reason.percent), reason.low.euro())
+    is Reason.LowestInMonths -> t("Lowest price in the last %d months", reason.months)
+    is Reason.DroppedRecently -> t("Dropped %1\$s compared with the last %2\$d days", pct(reason.percent), reason.days)
+    is Reason.RoseRecently -> t("Up %1\$s compared with the last %2\$d days", pct(reason.percent), reason.days)
+    is Reason.CheaperRecently -> t("Was %1\$s (%2\$s cheaper) within the last %3\$d days", reason.price.euro(), pct(reason.percent), reason.days)
+    is Reason.Stable -> t("The price has been stable at about %s", reason.typical.euroRounded())
+    is Reason.HistoryLength -> if (reason.months == 1) t("Based on 1 month of price history") else t("Based on %d months of price history", reason.months)
 }
