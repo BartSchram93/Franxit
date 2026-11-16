@@ -67,7 +67,17 @@ class DemoScreenshots {
         db.close()
     }
 
+    /** A slow emulator can show "isn't responding" boxes and the first-start tips: click them away. */
+    private fun clearDialogs() {
+        repeat(3) {
+            device.findObject(By.text("Wait"))?.click()
+            device.findObject(By.text("Got it"))?.click()
+            Thread.sleep(500)
+        }
+    }
+
     private fun shot(name: String) {
+        clearDialogs()
         device.waitForIdle()
         Thread.sleep(1500)
         val bmp = instrumentation.uiAutomation.takeScreenshot()
@@ -79,12 +89,6 @@ class DemoScreenshots {
         out.listFiles()?.forEach { it.delete() }
         seed()
         device.executeShellCommand("cmd uimode night no")
-        device.executeShellCommand("settings put global sysui_demo_allowed 1")
-        device.executeShellCommand("am broadcast -a com.android.systemui.demo -e command enter")
-        device.executeShellCommand("am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941")
-        device.executeShellCommand("am broadcast -a com.android.systemui.demo -e command battery -e level 100 -e plugged false")
-        device.executeShellCommand("am broadcast -a com.android.systemui.demo -e command network -e wifi show -e level 4")
-        device.executeShellCommand("am broadcast -a com.android.systemui.demo -e command notifications -e visible false")
 
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)!!
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -92,16 +96,16 @@ class DemoScreenshots {
         device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), 10_000)
         // Android 13+ asks for the notification permission on first start.
         device.findObject(By.text("Allow"))?.click()
-        device.wait(Until.hasObject(By.textContains("Wireless")), 10_000)
+        device.wait(Until.hasObject(By.textContains("Wireless")), 30_000)
+        clearDialogs()
         shot("1-overview")
 
         device.findObject(By.textContains("Wireless")).click()
-        device.wait(Until.hasObject(By.textContains("Buy now")), 10_000)
+        device.wait(Until.hasObject(By.textContains("Buy now")), 30_000)
         shot("2-advice")
 
         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 30)
         shot("3-details")
 
-        device.executeShellCommand("am broadcast -a com.android.systemui.demo -e command exit")
     }
 }
