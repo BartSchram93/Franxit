@@ -14,7 +14,7 @@ import java.time.LocalDate
 object UpdateCheck {
 
     private const val LATEST = "https://api.github.com/repos/BartSchram93/franxit-download/releases/latest"
-    const val DOWNLOAD_PAGE = "https://bartschram93.github.io/franxit-download/"
+    const val DOWNLOAD_PAGE = "https://franxit.be/"
     const val PRIVACY_PAGE = DOWNLOAD_PAGE + "privacy.html"
     private const val PREFS = "update_check"
 
