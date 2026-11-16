@@ -63,7 +63,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Searching…" to "Zoeken…",
     "Find more shops, once a day" to "Zoekt één keer per dag extra winkels",
     "Lowest" to "Laagste",
-    "%d%% below current" to "%d%% onder de huidige prijs",
+    "%d%% below current" to "%d%% lager dan nu",
     "Today's price" to "Prijs van vandaag",
     "Typical" to "Gebruikelijk",
     "Median price" to "Mediaanprijs",
@@ -107,6 +107,12 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Get a free key" to "Gratis sleutel aanvragen",
     "Your key" to "Je sleutel",
     "Turn off" to "Uitzetten",
+    "Good deal" to "Goede deal",
+    "Year low" to "Jaarlaagste",
+    "10% off" to "10% lager",
+    "Cheaper than on 4 out of 5 days this past year." to "Goedkoper dan op 4 van de 5 dagen van het voorbije jaar.",
+    "The lowest price of the past year." to "De laagste prijs van het voorbije jaar.",
+    "10% below today's price." to "10% onder de prijs van vandaag.",
     "Notify me when the cheapest price drops to or below:" to "Verwittig me wanneer de goedkoopste prijs zakt tot of onder:",
     ("Franxit counts anonymously how many phones use it each day, so the maker knows if people use it. " +
         "Once a day it sends \"one more phone\" and the app version, nothing else: no number that " +
