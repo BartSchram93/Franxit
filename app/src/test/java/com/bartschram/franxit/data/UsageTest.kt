@@ -17,10 +17,18 @@ class UsageTest {
     }
 
     @Test
-    fun onlyTheAnonymousNumberVersionAndOpensAreSent() {
-        val json = JSONObject(Usage.payload("3f2b8c1e-0a4d-4f6a-9d3e-7c1b2a5e8f90", "1.0.11", 7))
-        assertEquals(setOf("id", "version", "opens"), json.keys().asSequence().toSet())
+    fun onlyTheAnonymousNumberVersionAndCountsAreSent() {
+        val json = JSONObject(Usage.payload("3f2b8c1e-0a4d-4f6a-9d3e-7c1b2a5e8f90", "1.0.11", 7, 2))
+        assertEquals(setOf("id", "version", "opens", "bol_clicks"), json.keys().asSequence().toSet())
         assertEquals("1.0.11", json.getString("version"))
         assertEquals(7, json.getInt("opens"))
+        assertEquals(2, json.getInt("bol_clicks"))
+    }
+
+    @Test
+    fun deletingSendsOnlyTheNumber() {
+        val json = JSONObject(Usage.deletePayload("3f2b8c1e-0a4d-4f6a-9d3e-7c1b2a5e8f90"))
+        assertEquals(setOf("id", "delete"), json.keys().asSequence().toSet())
+        assertEquals(true, json.getBoolean("delete"))
     }
 }

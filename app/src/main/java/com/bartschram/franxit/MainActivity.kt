@@ -37,7 +37,8 @@ import androidx.core.content.edit
 import com.bartschram.franxit.data.Discounts
 import com.bartschram.franxit.data.Photos
 import com.bartschram.franxit.data.Repository
-import com.bartschram.franxit.ui.UsageNotice
+import com.bartschram.franxit.ui.UsageConsent
+import com.bartschram.franxit.data.Offers
 import com.bartschram.franxit.ui.UsageDialog
 import com.bartschram.franxit.data.Usage
 import androidx.compose.ui.platform.LocalUriHandler
@@ -126,8 +127,8 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     var showDiscounts by rememberSaveable { mutableStateOf(false) }
     var showShopping by rememberSaveable { mutableStateOf(false) }
     var showUsage by rememberSaveable { mutableStateOf(false) }
-    // The one-time explanation of the anonymous counts, only when this build counts at all.
-    var showUsageNotice by remember { mutableStateOf(Usage.configured && !Usage.noticeSeen(context)) }
+    // Asked once whether the anonymous counts are fine, only when this build counts at all.
+    var showUsageConsent by remember { mutableStateOf(Usage.configured && Usage.consent(context) == null) }
     var shoppingKey by remember { mutableStateOf(ShoppingSettings.key(context) != null) }
     var extraOn by remember { mutableStateOf(ShoppingSettings.extraIds(context)) }
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
@@ -253,7 +254,12 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                 if (on) askForNotifications()
             },
             discounts = discounts,
-            shopLink = { seller -> repo.shopLink(selected, seller) },
+            shopLink = { seller ->
+                // Only that "Buy at Bol.com" was tapped (see Usage), never which product.
+                val shop = seller ?: Offers.cheapest(selected.offers)?.seller
+                if (shop != null && Shops.name(shop).equals("Bol.com", ignoreCase = true)) Usage.boughtAtBol(context)
+                repo.shopLink(selected, seller)
+            },
             googleExtra = if (shoppingKey && GoogleShopping.queryOf(selected.url) == null) {
                 extraOn.contains(selected.id)
             } else null,
@@ -330,16 +336,24 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
         )
     }
 
-    if (showUsageNotice) {
-        UsageNotice(
-            onOk = { Usage.setNoticeSeen(context); showUsageNotice = false },
-            onTurnOff = { Usage.setEnabled(context, false); Usage.setNoticeSeen(context); showUsageNotice = false },
+    if (showUsageConsent) {
+        UsageConsent(
+            onYes = {
+                Usage.setConsent(context, true)
+                showUsageConsent = false
+                Thread { Usage.opened(context.applicationContext) }.start()
+            },
+            onNo = { Usage.setConsent(context, false); showUsageConsent = false },
         )
     }
     if (showUsage) {
         UsageDialog(
-            enabled = Usage.enabled(context),
-            onChange = { Usage.setEnabled(context, it) },
+            consent = Usage.consent(context) == true,
+            onChange = { on ->
+                Usage.setConsent(context, on)
+                if (on) Thread { Usage.opened(context.applicationContext) }.start()
+            },
+            onDelete = { Usage.deleteMine(context) },
             onDismiss = { showUsage = false },
         )
     }
