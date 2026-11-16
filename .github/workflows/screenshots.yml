@@ -1,5 +1,5 @@
 # Takes screenshots of the real app on an emulator with made-up demo products (see
-# DemoScreenshots) and puts them on the "screenshots" branch, for the download page.
+# DemoScreenshots) and puts them on the "screenshot-images" branch, for the download page.
 name: Screenshots
 
 on:
@@ -55,7 +55,7 @@ jobs:
           name: screenshots
           path: shots/*.png
 
-      - name: Put the screenshots on the screenshots branch
+      - name: Put the screenshots on the screenshot-images branch
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
@@ -64,4 +64,4 @@ jobs:
           cp shots/*.png .
           git add *.png
           git commit -q -m "Screenshots from run ${{ github.run_number }}"
-          git push -f origin HEAD:screenshots
+          git push -f origin HEAD:screenshot-images
