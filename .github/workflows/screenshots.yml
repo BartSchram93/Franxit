@@ -55,7 +55,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: screenshots
-          path: shots/*.png
+          path: shots/*
 
       - name: Put the screenshots on the screenshot-images branch
         run: |
@@ -63,7 +63,7 @@ jobs:
           git config user.email "github-actions@users.noreply.github.com"
           git checkout --orphan screenshots-out
           git rm -rf -q . || true
-          cp shots/*.png .
-          git add *.png
+          cp shots/* .
+          git add .
           git commit -q -m "Screenshots from run ${{ github.run_number }}"
           git push -f origin HEAD:screenshot-images

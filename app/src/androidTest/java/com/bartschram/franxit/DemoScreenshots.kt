@@ -11,6 +11,7 @@ import com.bartschram.franxit.data.Db
 import org.junit.Test
 import java.io.File
 import java.time.LocalDate
+import java.util.regex.Pattern
 
 /**
  * Takes the screenshots for the download page, with the real app doing real work: it starts empty,
@@ -62,6 +63,12 @@ class DemoScreenshots {
         File(out, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    /** For when a step fails: what the screen looked like. */
+    private fun debug(name: String) {
+        runCatching { shot("debug-$name") }
+        runCatching { device.dumpWindowHierarchy(File(out, "debug-$name.xml")) }
+    }
+
     private fun scrollDown() =
         device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 30)
 
@@ -81,9 +88,14 @@ class DemoScreenshots {
             device.wait(Until.findObject(By.desc("Track a product")), 30_000).click()
             val field = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 30_000)
             field.text = query
-            val result = device.wait(
-                Until.findObject(By.clazz("android.widget.TextView").textContains(word)), 60_000,
-            ) ?: error("No search result for '$query'")
+            // The result's title (not the text field, which also holds the word); any letter case.
+            val inTitle = By.text(Pattern.compile(".*$word.*", Pattern.CASE_INSENSITIVE or Pattern.DOTALL))
+            device.wait(Until.hasObject(inTitle), 60_000)
+            val result = device.findObjects(inTitle).firstOrNull { it.className != "android.widget.EditText" }
+            if (result == null) {
+                debug("search-$word")
+                error("No search result for '$query'")
+            }
             device.wait(Until.hasObject(By.textContains("from")), 10_000)
             if (index == 0) shot("1-search")
 
