@@ -9,6 +9,8 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import com.bartschram.franxit.data.Db
 import com.bartschram.franxit.data.PricePoint
+import com.bartschram.franxit.data.Repository
+import kotlinx.coroutines.runBlocking
 import com.bartschram.franxit.data.ShopOffer
 import org.junit.Test
 import java.io.File
@@ -26,8 +28,48 @@ class DemoScreenshots {
     private val device = UiDevice.getInstance(instrumentation)
     private val out = File(context.getExternalFilesDir(null), "shots").apply { mkdirs() }
 
-    private fun seed() {
+    /**
+     * The real thing first: the app's own search finds popular products on vergelijk.be and adds them,
+     * so prices, history, shops and photos are real. Returns how many worked; [seedDemo] is the fallback.
+     */
+    private fun seedReal(): Int {
         context.deleteDatabase("franxit.db")
+        context.getSharedPreferences("usage", Context.MODE_PRIVATE).edit().putBoolean("share", false).commit()
+        context.getSharedPreferences("update_check", Context.MODE_PRIVATE).edit()
+            .putString("checked", LocalDate.now().toString()).putInt("latest", 0).commit()
+        val repo = Repository.get(context)
+        val wanted = listOf(
+            "Sony PlayStation 5 Slim" to "playstation",
+            "Apple AirPods Pro 3" to "airpods",
+            "Dyson V15 Detect" to "dyson",
+            "Nintendo Switch 2" to "switch",
+            "Samsung Galaxy S25" to "galaxy",
+            "Philips Airfryer XXL" to "airfryer",
+        )
+        var added = 0
+        runBlocking {
+            for ((query, word) in wanted) {
+                runCatching {
+                    val hit = repo.search(query).firstOrNull { it.title.contains(word, ignoreCase = true) } ?: return@runCatching
+                    val id = repo.add(hit.url)
+                    if (added == 0) {
+                        repo.products.value.firstOrNull { it.id == id }?.latest?.price?.let { repo.setTarget(id, Math.round(it * 0.97).toDouble()) }
+                    }
+                    added++
+                }
+            }
+        }
+        return added
+    }
+
+    private fun seed() {
+        val real = runCatching { seedReal() }.getOrDefault(0)
+        File(out, "source.txt").writeText(if (real >= 3) "real:$real" else "demo")
+        if (real < 3) seedDemo()
+    }
+
+    private fun seedDemo() {
+        Db(context).also { it.writableDatabase.execSQL("DELETE FROM product"); it.close() }
         // No anonymous count and no update banner while taking screenshots.
         context.getSharedPreferences("usage", Context.MODE_PRIVATE).edit().putBoolean("share", false).commit()
         context.getSharedPreferences("update_check", Context.MODE_PRIVATE).edit()
