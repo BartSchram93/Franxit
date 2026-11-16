@@ -57,7 +57,7 @@ class DemoScreenshots {
             target = 449.0,
         )
         product(
-            "https://example.test/airpods", "Apple AirPods Pro 2", 279.0, 229.0, 289.0, 8.0,
+            "https://example.test/airpods", "Apple AirPods Pro 3", 279.0, 229.0, 289.0, 8.0,
             listOf(ShopOffer("Huisplein.be", 289.0, true), ShopOffer("Techhoek.be", 295.0, true)),
         )
         product(
