@@ -5,13 +5,14 @@ import androidx.core.content.edit
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.UUID
+import java.time.LocalDate
 
 /**
- * Anonymous usage counts, only for people who say yes (asked once, on first start; Franxit works the
- * same either way). What is sent: a random number made on this phone (no name, no account), the app
- * version and how many times the app was opened. Never products, prices, searches or keys. In ⋮ → Usage statistics it can be switched off, which also
- * deletes the number at the maker, or deleted and started afresh.
+ * An anonymous count of how many phones use Franxit each day. Once a day, when the app is opened, it
+ * sends "one more phone today" with the app version, and nothing else: no number that identifies
+ * the phone, no name, no account, never products, prices, searches or keys. The maker's overview
+ * just adds them up. The phone only remembers the date of its last count (to count once a day).
+ * Can be switched off in ⋮ → Usage statistics.
  */
 object Usage {
 
@@ -20,75 +21,65 @@ object Usage {
         "https://script.google.com/macros/s/AKfycbyQjbFdhUHwOfemUyckpmQuvwP-sKAa4ilCEfAoE_m5TMEE-ub9OD0uTi5jauLNdTuq/exec"
 
     private const val PREFS = "usage"
-    /** Coming back to the app within this time isn't a new use. */
-    private const val SAME_USE_MS = 30 * 60 * 1000L
 
     /** Whether this build counts at all (the endpoint is filled in). */
     val configured: Boolean get() = ENDPOINT.isNotBlank()
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** The person's answer: true = yes, false = no, null = not asked yet (then nothing is sent). */
-    fun consent(context: Context): Boolean? =
-        prefs(context).takeIf { it.contains("consent") }?.getBoolean("consent", false)
-
-    /** Saves the answer. A no (or switching off) also deletes this phone's number at the maker. */
-    fun setConsent(context: Context, on: Boolean) {
-        if (!on) deleteMine(context)
-        prefs(context).edit { putBoolean("consent", on) }
-    }
-
-    /** Deletes this phone's number at the maker and starts afresh (a new number when counting again). */
-    fun deleteMine(context: Context) {
+    /** On unless switched off; someone who said no to the earlier question stays on no. */
+    fun enabled(context: Context): Boolean {
         val prefs = prefs(context)
-        val id = synchronized(this) {
-            prefs.getString("id", null).also {
-                prefs.edit { remove("id"); remove("opens"); remove("last_open") }
-            }
-        }
-        if (configured && id != null) Thread { send(deletePayload(id)) }.start()
+        return prefs.getBoolean("share", prefs.getBoolean("consent", true))
     }
 
-    /** A new use: not again within 30 minutes of the last one. */
-    internal fun isNewUse(lastOpenAt: Long, now: Long): Boolean = now - lastOpenAt >= SAME_USE_MS
+    fun setEnabled(context: Context, on: Boolean) = prefs(context).edit { putBoolean("share", on) }
 
-    internal fun payload(id: String, version: String, opens: Int): String =
-        JSONObject().put("id", id).put("version", version).put("opens", opens).toString()
+    /** Counted once a day: not again on the same date. */
+    internal fun shouldReport(lastDay: String?, today: String): Boolean = lastDay != today
 
+    internal fun payload(version: String): String = JSONObject().put("version", version).toString()
+
+    /** What the earlier version sent for a deletion: only the old number. */
     internal fun deletePayload(id: String): String = JSONObject().put("id", id).put("delete", true).toString()
 
     /**
-     * Counts one opening of the app and tells the maker the new totals (off the main thread).
-     * Does nothing without a yes or when not configured; a failed send is simply sent with the next one.
+     * Counts this phone for today, once a day (call off the main thread). Does nothing when switched
+     * off or not configured; a failed send is tried again at the next opening.
      */
-    fun opened(context: Context) {
-        if (!configured || consent(context) != true) return
+    fun reportToday(context: Context) {
+        if (!configured) return
+        removeOldNumber(context)
+        if (!enabled(context)) return
         val prefs = prefs(context)
-        val now = System.currentTimeMillis()
+        val today = LocalDate.now().toString()
         synchronized(this) {
-            if (!isNewUse(prefs.getLong("last_open", 0L), now)) return
-            val opens = prefs.getInt("opens", 0) + 1
-            val id = prefs.getString("id", null) ?: UUID.randomUUID().toString()
-            prefs.edit { putLong("last_open", now); putInt("opens", opens); putString("id", id) }
+            if (!shouldReport(prefs.getString("last_day", null), today)) return
             val version = runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
-            send(payload(id, version, opens))
+            if (send(payload(version))) prefs.edit { putString("last_day", today) }
         }
     }
 
-    private fun send(body: String) {
-        runCatching {
-            val conn = URL(ENDPOINT).openConnection() as HttpURLConnection
-            try {
-                conn.connectTimeout = 10_000
-                conn.readTimeout = 10_000
-                conn.requestMethod = "POST"
-                conn.doOutput = true
-                conn.setRequestProperty("Content-Type", "text/plain; charset=utf-8")
-                conn.outputStream.use { it.write(body.toByteArray()) }
-                conn.responseCode
-            } finally {
-                conn.disconnect()
-            }
-        }
+    /** Versions 1.0.11 to 1.0.13 made a number for this phone: deleted here and at the maker's. */
+    private fun removeOldNumber(context: Context) {
+        val prefs = prefs(context)
+        val id = prefs.getString("id", null) ?: return
+        if (prefs.getBoolean("consent", false)) send(deletePayload(id))
+        prefs.edit { remove("id"); remove("opens"); remove("last_open"); remove("bol_clicks") }
     }
+
+    private fun send(body: String): Boolean = runCatching {
+        val conn = URL(ENDPOINT).openConnection() as HttpURLConnection
+        try {
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "text/plain; charset=utf-8")
+            conn.outputStream.use { it.write(body.toByteArray()) }
+            conn.responseCode in 200..399
+        } finally {
+            conn.disconnect()
+        }
+    }.getOrDefault(false)
 }

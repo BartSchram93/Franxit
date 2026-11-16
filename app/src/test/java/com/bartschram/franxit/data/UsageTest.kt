@@ -9,25 +9,23 @@ import org.junit.Test
 class UsageTest {
 
     @Test
-    fun comingBackWithinHalfAnHourIsTheSameUse() {
-        val t = 1_000_000_000L
-        assertTrue(Usage.isNewUse(0L, t))
-        assertFalse(Usage.isNewUse(t, t + 10 * 60_000))
-        assertTrue(Usage.isNewUse(t, t + 31 * 60_000))
+    fun countedOnceADay() {
+        assertTrue(Usage.shouldReport(null, "2026-11-16"))
+        assertTrue(Usage.shouldReport("2026-11-15", "2026-11-16"))
+        assertFalse(Usage.shouldReport("2026-11-16", "2026-11-16"))
     }
 
     @Test
-    fun onlyTheAnonymousNumberVersionAndOpensAreSent() {
-        val json = JSONObject(Usage.payload("3f2b8c1e-0a4d-4f6a-9d3e-7c1b2a5e8f90", "1.0.11", 7))
-        assertEquals(setOf("id", "version", "opens"), json.keys().asSequence().toSet())
-        assertEquals("1.0.11", json.getString("version"))
-        assertEquals(7, json.getInt("opens"))
+    fun onlyTheVersionIsSent() {
+        val json = JSONObject(Usage.payload("1.0.14"))
+        // No number that identifies the phone, nothing else.
+        assertEquals(setOf("version"), json.keys().asSequence().toSet())
+        assertEquals("1.0.14", json.getString("version"))
     }
 
     @Test
-    fun deletingSendsOnlyTheNumber() {
+    fun deletingAnOldNumberSendsOnlyThatNumber() {
         val json = JSONObject(Usage.deletePayload("3f2b8c1e-0a4d-4f6a-9d3e-7c1b2a5e8f90"))
         assertEquals(setOf("id", "delete"), json.keys().asSequence().toSet())
-        assertEquals(true, json.getBoolean("delete"))
     }
 }

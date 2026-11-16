@@ -37,7 +37,6 @@ import androidx.core.content.edit
 import com.bartschram.franxit.data.Discounts
 import com.bartschram.franxit.data.Photos
 import com.bartschram.franxit.data.Repository
-import com.bartschram.franxit.ui.UsageConsent
 import com.bartschram.franxit.ui.UsageDialog
 import com.bartschram.franxit.data.Usage
 import androidx.compose.ui.platform.LocalUriHandler
@@ -75,9 +74,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // One more use of the app, counted anonymously (see Usage); off the main thread.
+        // This phone counted anonymously once a day (see Usage); off the main thread.
         val app = applicationContext
-        Thread { Usage.opened(app) }.start()
+        Thread { Usage.reportToday(app) }.start()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -126,8 +125,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     var showDiscounts by rememberSaveable { mutableStateOf(false) }
     var showShopping by rememberSaveable { mutableStateOf(false) }
     var showUsage by rememberSaveable { mutableStateOf(false) }
-    // Asked once whether the anonymous counts are fine, only when this build counts at all.
-    var showUsageConsent by remember { mutableStateOf(Usage.configured && Usage.consent(context) == null) }
     var shoppingKey by remember { mutableStateOf(ShoppingSettings.key(context) != null) }
     var extraOn by remember { mutableStateOf(ShoppingSettings.extraIds(context)) }
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
@@ -330,24 +327,10 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
         )
     }
 
-    if (showUsageConsent) {
-        UsageConsent(
-            onYes = {
-                Usage.setConsent(context, true)
-                showUsageConsent = false
-                Thread { Usage.opened(context.applicationContext) }.start()
-            },
-            onNo = { Usage.setConsent(context, false); showUsageConsent = false },
-        )
-    }
     if (showUsage) {
         UsageDialog(
-            consent = Usage.consent(context) == true,
-            onChange = { on ->
-                Usage.setConsent(context, on)
-                if (on) Thread { Usage.opened(context.applicationContext) }.start()
-            },
-            onDelete = { Usage.deleteMine(context) },
+            enabled = Usage.enabled(context),
+            onChange = { on -> Usage.setEnabled(context, on) },
             onDismiss = { showUsage = false },
         )
     }
