@@ -28,14 +28,14 @@ class DemoScreenshots {
     private val device = UiDevice.getInstance(instrumentation)
     private val out = File(context.getExternalFilesDir(null), "shots").apply { mkdirs() }
 
-    /** (what the user types, a word the right result must contain) */
+    /** (what the user types, a pattern the right result's whole title must match) */
     private val products = listOf(
-        "PlayStation 5" to "playstation",
-        "AirPods Pro 3" to "airpods",
-        "Dyson V15 Detect" to "detect",
-        "Nintendo Switch 2" to "switch",
-        "Samsung Galaxy S25" to "galaxy",
-        "Philips Airfryer XXL" to "airfryer",
+        "PlayStation 5" to ".*playstation 5.*",
+        "AirPods Pro 3" to ".*airpods pro 3.*",
+        "Dyson V15 Detect" to ".*v15 detect.*",
+        "Nintendo Switch 2" to "(nintendo )?switch 2( .*)?",
+        "Samsung Galaxy S25" to ".*galaxy s25.*",
+        "Philips Airfryer XXL" to ".*airfryer xxl.*",
     )
 
     private fun startEmpty() {
@@ -106,7 +106,7 @@ class DemoScreenshots {
             val field = await(By.clazz("android.widget.EditText"), 60_000) ?: run { debug("field-$word"); error("No search field") }
             field.text = query
             // The result's title (not the text field, which also holds the word); any letter case.
-            val inTitle = By.text(Pattern.compile(".*$word.*", Pattern.CASE_INSENSITIVE or Pattern.DOTALL))
+            val inTitle = By.text(Pattern.compile(word, Pattern.CASE_INSENSITIVE or Pattern.DOTALL))
             await(By.textContains("from"), 90_000)
             val result = device.findObjects(inTitle).firstOrNull { it.className != "android.widget.EditText" }
             if (result == null) {
@@ -130,6 +130,7 @@ class DemoScreenshots {
             device.pressBack()
             await(By.desc("Track a product"), 60_000)
         }
+        Thread.sleep(10_000) // the last photos are still coming in
         shot("2-overview")
         check(tracked >= 4) { "Only $tracked products could be tracked" }
     }
