@@ -64,6 +64,18 @@ class DemoScreenshots {
             "https://example.test/dyson", "Dyson V15 Detect", 649.0, 499.0, 579.0, 20.0,
             listOf(ShopOffer("Gadgetgigant.be", 579.0, true), ShopOffer("Techhoek.be", 589.0, true), ShopOffer("Huisplein.be", 599.0, false)),
         )
+        product(
+            "https://example.test/switch2", "Nintendo Switch 2", 469.0, 429.0, 449.0, 9.0,
+            listOf(ShopOffer("Techhoek.be", 449.0, true), ShopOffer("Huisplein.be", 459.0, true)),
+        )
+        product(
+            "https://example.test/galaxy", "Samsung Galaxy S25", 899.0, 749.0, 949.0, 25.0,
+            listOf(ShopOffer("Gadgetgigant.be", 949.0, true), ShopOffer("Techhoek.be", 959.0, true)),
+        )
+        product(
+            "https://example.test/airfryer", "Philips Airfryer XXL", 219.0, 169.0, 189.0, 7.0,
+            listOf(ShopOffer("Huisplein.be", 189.0, true), ShopOffer("Gadgetgigant.be", 199.0, true)),
+        )
         db.close()
     }
 
