@@ -118,16 +118,6 @@ enum class SortOrder(val label: String) {
     }
 }
 
-/**
- * The all-time low ("ATL"): the lowest price we know of, from our own checks and vergelijk.be's
- * history before them. Null while the price has never changed: it would just repeat today's price.
- */
-fun allTimeLow(product: Product): Double? {
-    val prices = priceLine(product.history, product.siteHistory).map { it.second }
-    val low = prices.minOrNull() ?: return null
-    return low.takeIf { prices.max() - low > 0.005 }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListScreen(
@@ -501,7 +491,7 @@ private fun ProductCard(
                     Spacer(Modifier.width(12.dp))
                     Column(horizontalAlignment = Alignment.End) {
                         Text(latest.price.euro(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        VerdictLabel(product, latest.price)
+                        VerdictLabel(product)
                     }
                 }
             }
@@ -580,19 +570,13 @@ private fun Tips(onDone: (() -> Unit)?) {
     }
 }
 
-/** "ATL € 304,24", the all-time low; just a green "ATL" when today's price is that low. */
-
 /**
  * The Buy or wait advice in a word, under the price: only "Buy now" in green, the rest grey with a
- * coloured dot, so the list stays calm. Without enough history: the all-time low, as before.
+ * coloured dot, so the list stays calm. Without enough history it says "No advice yet", in grey.
  */
 @Composable
-private fun VerdictLabel(product: Product, price: Double) {
+private fun VerdictLabel(product: Product) {
     val advice = remember(product) { BuyAdvisor.advise(product) }
-    if (advice.verdict == Verdict.INSUFFICIENT_DATA) {
-        LowestLabel(product, price)
-        return
-    }
     val buy = advice.verdict == Verdict.BUY_NOW
     Spacer(Modifier.width(12.dp))
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -604,24 +588,6 @@ private fun VerdictLabel(product: Product, price: Double) {
             color = if (buy) PriceDown else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-}
-
-@Composable
-private fun LowestLabel(product: Product, price: Double) {
-    val low = remember(product) { allTimeLow(product) }
-    Spacer(Modifier.width(12.dp))
-    if (low == null) {
-        // Only one price so far (e.g. just added): say so instead of leaving a gap.
-        Text("No price changes yet", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        return
-    }
-    val atLowest = price <= low + 0.005
-    // At the low, the price is already right above: just say so.
-    Text(
-        if (atLowest) "ATL" else "ATL ${low.euro()}",
-        style = MaterialTheme.typography.bodySmall,
-        color = if (atLowest) PriceDown else MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }
 
 /** A bell and the alert amount, in blue; green once the price reached it. */
