@@ -48,7 +48,7 @@ jobs:
             adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             adb shell settings put global hide_error_dialogs 1
             adb shell pm grant com.bartschram.franxit android.permission.POST_NOTIFICATIONS
-            adb shell am instrument -w -e class com.bartschram.franxit.DutchLayoutShots com.bartschram.franxit.test/androidx.test.runner.AndroidJUnitRunner
+            adb shell am instrument -w -e class com.bartschram.franxit.DemoScreenshots com.bartschram.franxit.test/androidx.test.runner.AndroidJUnitRunner
             mkdir -p shots
             adb pull /sdcard/Android/data/com.bartschram.franxit/files/shots/. shots/
             ls -l shots

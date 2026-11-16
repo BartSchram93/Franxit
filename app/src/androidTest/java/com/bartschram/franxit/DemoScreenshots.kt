@@ -38,7 +38,13 @@ class DemoScreenshots {
         "Philips Airfryer XXL" to ".*airfryer xxl.*",
     )
 
+    // The screenshots are in Dutch, as the app is for Flemish users; these are the words the test looks for.
+    private val TRACK = "Product volgen"
+    private val FROM = "vanaf"
+    private val TYPICAL = "Gebruikelijk"
+
     private fun startEmpty() {
+        context.getSharedPreferences("language", Context.MODE_PRIVATE).edit().putString("choice", "DUTCH").commit()
         context.deleteDatabase("franxit.db")
         // No anonymous count and no update banner while taking screenshots.
         context.getSharedPreferences("usage", Context.MODE_PRIVATE).edit().putBoolean("share", false).commit()
@@ -102,17 +108,17 @@ class DemoScreenshots {
         var tracked = 0
         products.forEachIndexed { index, (query, word) ->
             // Search like a user: tap +, type, wait for the results.
-            (await(By.desc("Track a product"), 60_000) ?: run { debug("plus-$word"); error("No + button") }).click()
+            (await(By.desc(TRACK), 60_000) ?: run { debug("plus-$word"); error("No + button") }).click()
             val field = await(By.clazz("android.widget.EditText"), 60_000) ?: run { debug("field-$word"); error("No search field") }
             field.text = query
             // The result's title (not the text field, which also holds the word); any letter case.
             val inTitle = By.text(Pattern.compile(word, Pattern.CASE_INSENSITIVE or Pattern.DOTALL))
-            await(By.textContains("from"), 90_000)
+            await(By.textContains(FROM), 90_000)
             val result = device.findObjects(inTitle).firstOrNull { it.className != "android.widget.EditText" }
             if (result == null) {
                 // Not found: leave it out (never invent it) and go on with the next product.
                 debug("search-$word")
-                repeat(3) { if (device.findObject(By.desc("Track a product")) == null) device.pressBack() }
+                repeat(3) { if (device.findObject(By.desc(TRACK)) == null) device.pressBack() }
                 return@forEachIndexed
             }
             tracked++
@@ -120,7 +126,7 @@ class DemoScreenshots {
 
             // Tap the result: the app tracks it and opens it.
             result.click()
-            await(By.textContains("Typical"), 120_000)
+            await(By.textContains(TYPICAL), 120_000)
             if (tracked == 1) {
                 shot("3-advice")
                 scrollDown()
@@ -128,7 +134,7 @@ class DemoScreenshots {
                 shot("4-details")
             }
             device.pressBack()
-            await(By.desc("Track a product"), 60_000)
+            await(By.desc(TRACK), 60_000)
         }
         Thread.sleep(10_000) // the last photos are still coming in
         shot("2-overview")
