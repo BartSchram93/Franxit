@@ -141,18 +141,37 @@ class Repository private constructor(context: Context) {
      * Google Shopping's shops for a vergelijk.be product with "Also search Google Shopping" on:
      * searched once a day, then reused. Never fails the check; without results it's just vergelijk.be.
      */
-    private fun extraShops(product: Product, query: String?): List<ShopOffer> {
-        if (query != null || !ShoppingSettings.isExtra(appContext, product.id)) return emptyList()
+    private class Extras(val offers: List<ShopOffer>, val error: String? = null)
+
+    private fun extraShops(product: Product, query: String?): Extras {
+        if (query != null || !ShoppingSettings.isExtra(appContext, product.id)) return Extras(emptyList())
         val today = LocalDate.now().toString()
-        ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return it }
-        val found = runCatching { searchGoogleShopping(product.id, product.displayName) }.getOrNull() ?: return emptyList()
+        ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return Extras(it) }
+        val found = try {
+            searchGoogleShopping(product.id, product.displayName, retryWith = fullNameQuery(product))
+        } catch (e: Exception) {
+            return when (e.message) {
+                // Nothing for this product: asked once a day, not at every refresh.
+                GoogleShopping.NOT_FOUND -> {
+                    ShoppingSettings.saveExtraOffers(appContext, product.id, today, emptyList())
+                    Extras(emptyList())
+                }
+                GoogleShopping.BAD_KEY, GoogleShopping.NO_SEARCHES_LEFT -> Extras(emptyList(), e.message)
+                else -> Extras(emptyList(), "Couldn't reach Google Shopping")
+            }
+        }
         found.image?.let { photo ->
             if (Photos.choice(appContext, product.id) == Photos.Choice.GOOGLE) runCatching { Images.save(appContext, product.id, photo) }
         }
         val offers = found.offers.map { ShopOffer(it.seller, it.price, it.inStock) }
         ShoppingSettings.saveExtraOffers(appContext, product.id, today, offers)
-        return offers
+        return Extras(offers)
     }
+
+    /** The product's full name from the site, as a second wording to search for; null when it adds nothing. */
+    private fun fullNameQuery(product: Product): String? =
+        product.name.replace(Regex("[,;/]"), " ").split(Regex("\\s+")).filter { it.isNotBlank() }.take(9).joinToString(" ")
+            .takeIf { it.isNotBlank() && !it.equals(product.displayName, ignoreCase = true) }
 
     /** Switches a product's photo; the page's own photo comes back with a check (no Google search). */
     suspend fun setPhoto(productId: Long, choice: Photos.Choice) = withContext(Dispatchers.IO) {
@@ -167,9 +186,9 @@ class Repository private constructor(context: Context) {
     }
 
     /** Google Shopping's shops for a product; remembers each shop's page for the Buy button. */
-    private fun searchGoogleShopping(productId: Long, query: String): Scraper.Result {
+    private fun searchGoogleShopping(productId: Long, query: String, retryWith: String? = null): Scraper.Result {
         val key = ShoppingSettings.key(appContext) ?: throw IOException("Turn on Google Shopping in ⋮ → Google Shopping")
-        val found = GoogleShopping.fetch(query, key) { TrustedShops.name(appContext, it) }
+        val found = GoogleShopping.fetch(query, key, { TrustedShops.name(appContext, it) }, retryWith)
         // Every search keeps its best result's photo, for "Use Google Shopping photo".
         found.result.image?.let { Photos.saveGooglePhoto(appContext, productId, it) }
         ShoppingSettings.saveLinks(appContext, productId, found.links)
@@ -282,8 +301,17 @@ class Repository private constructor(context: Context) {
         // cheapest: far above it is no alternative (U-buy at € 620 for a € 361 tablet), under half of
         // it is another item or too good to be true (€ 37,99 for € 219 earbuds).
         val ownCheapest = own.minOfOrNull { it.price }
-        val extra = extraShops(product, query).filter {
+        val extras = extraShops(product, query)
+        val extra = extras.offers.filter {
             (ownCheapest == null || it.price in ownCheapest * 0.5..ownCheapest * 1.25) && TrustedShops.isTrusted(appContext, it.seller)
+        }
+        if (query == null && ShoppingSettings.isExtra(appContext, product.id)) {
+            // Said on the product page, so "doesn't do much" is never a mystery.
+            val added = extra.count { e -> own.none { Shops.name(it.seller).equals(Shops.name(e.seller), ignoreCase = true) } }
+            ShoppingSettings.setExtraStatus(
+                appContext, product.id,
+                extras.error ?: when (added) { 0 -> "No extra shops found"; 1 -> "Found 1 extra shop"; else -> "Found $added extra shops" },
+            )
         }
         val offers = (own + extra)
             .groupBy { Shops.name(it.seller).lowercase() }.values

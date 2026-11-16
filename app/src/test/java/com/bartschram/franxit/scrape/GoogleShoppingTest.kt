@@ -168,4 +168,13 @@ class GoogleShoppingTest {
         assertEquals("https://www.bax-shop.be/fr/hercules-stands-kb-200b", found.links["Bax-shop.be"])
         assertEquals("https://www.google.com/goto?url=CAES1", found.links["Gear4music.be"])
     }
+
+    @Test
+    fun googleHavingNothingForAWordingIsNotFound() {
+        // Real answer for "Bose QuietComfort Ultra Earbuds": the fuller wording gets results, this one none.
+        val e = org.junit.Assert.assertThrows(java.io.IOException::class.java) {
+            GoogleShopping.parse("""{"error": "Google hasn't returned any results for this query."}""", "Bose QuietComfort Ultra Earbuds")
+        }
+        assertEquals(GoogleShopping.NOT_FOUND, e.message)
+    }
 }

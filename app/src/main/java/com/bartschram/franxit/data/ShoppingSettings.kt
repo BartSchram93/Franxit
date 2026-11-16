@@ -31,7 +31,8 @@ object ShoppingSettings {
     fun setExtra(context: Context, productId: Long, on: Boolean) {
         val now = prefs(context).getStringSet("extra", emptySet())!!.toMutableSet()
         if (on) now += productId.toString() else now -= productId.toString()
-        prefs(context).edit { putStringSet("extra", now); if (!on) remove("extra_offers_$productId") }
+        // Switching it on or off starts afresh: a new search, a new result.
+        prefs(context).edit { putStringSet("extra", now); remove("extra_offers_$productId"); remove("extra_status_$productId") }
     }
 
     /** Today's Google Shopping offers for a product, so a later refresh doesn't search again. */
@@ -51,6 +52,12 @@ object ShoppingSettings {
     }
 
     /** Keeps a shop's page found earlier when the new search only has a token to look it up again. */
+    /** What the last Google Shopping search for this product found, in words for the product page. */
+    fun extraStatus(context: Context, productId: Long): String? = prefs(context).getString("extra_status_$productId", null)
+
+    fun setExtraStatus(context: Context, productId: Long, status: String) =
+        prefs(context).edit { putString("extra_status_$productId", status) }
+
     fun saveLinks(context: Context, productId: Long, links: Map<String, String>) {
         val old = prefs(context).getString("links_$productId", null)?.let(::JSONObject)
         val merged = links.mapValues { (shop, link) ->

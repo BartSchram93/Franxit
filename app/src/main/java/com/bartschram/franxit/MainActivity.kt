@@ -233,6 +233,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             googleExtra = if (shoppingKey && GoogleShopping.queryOf(selected.url) == null) {
                 extraOn.contains(selected.id)
             } else null,
+            googleStatus = remember(selected.id, selected.lastChecked, extraOn) { ShoppingSettings.extraStatus(context, selected.id) },
             onGoogleExtra = { on ->
                 ShoppingSettings.setExtra(context, selected.id, on)
                 extraOn = if (on) extraOn + selected.id else extraOn - selected.id

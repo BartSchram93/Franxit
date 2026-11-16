@@ -28,14 +28,26 @@ object GoogleShopping {
      * The shops selling this product: a search, then Google's page for the best match, which
      * lists more shops, each with its own link (two searches; the second is skipped when it fails).
      */
-    fun fetch(query: String, key: String, trusted: (String) -> String?): Found {
-        val q = URLEncoder.encode(query, "UTF-8")
+    fun fetch(query: String, key: String, trusted: (String) -> String?, retryWith: String? = null): Found {
+        try {
+            return search(query, query, key, trusted)
+        } catch (e: IOException) {
+            // Google sometimes has nothing for one wording ("Bose QuietComfort Ultra Earbuds") and plenty
+            // for a fuller one ("… (2e gen) Zwart"): try that once. Other errors are no use retrying.
+            if (e.message != NOT_FOUND || retryWith.isNullOrBlank() || retryWith.equals(query, ignoreCase = true)) throw e
+        }
+        return search(retryWith, query, key, trusted)
+    }
+
+    /** Searches for [term]; the results must be [query] (they may be found under a fuller wording). */
+    private fun search(term: String, query: String, key: String, trusted: (String) -> String?): Found {
+        val q = URLEncoder.encode(term, "UTF-8")
         val searched = parse(serp("engine=google_shopping&q=$q&gl=be&hl=nl&google_domain=google.be", key), query, trusted)
         val found = searched.token?.let { token ->
             val t = URLEncoder.encode(token, "UTF-8")
             runCatching { addStores(searched, serp("engine=google_immersive_product&page_token=$t", key), query, trusted) }.getOrNull()
         } ?: searched
-        if (found.result.offers.isEmpty()) throw IOException("Not found on Google Shopping")
+        if (found.result.offers.isEmpty()) throw IOException(NOT_FOUND)
         return found
     }
 
@@ -53,6 +65,7 @@ object GoogleShopping {
         }
     }
 
+    const val NOT_FOUND = "Not found on Google Shopping"
     const val BAD_KEY = "Your Google Shopping key doesn't work"
     const val NO_SEARCHES_LEFT = "No Google Shopping searches left this month"
 
@@ -84,7 +97,13 @@ object GoogleShopping {
     fun parse(json: String, query: String, trusted: (String) -> String? = { it }): Found {
         val root = JSONObject(json)
         root.optString("error").takeIf { it.isNotBlank() }?.let {
-            throw IOException(if ("run out of searches" in it) NO_SEARCHES_LEFT else "Google Shopping: $it")
+            throw IOException(
+                when {
+                    "run out of searches" in it -> NO_SEARCHES_LEFT
+                    "hasn't returned any results" in it -> NOT_FOUND
+                    else -> "Google Shopping: $it"
+                },
+            )
         }
         val items = listOf("shopping_results", "inline_shopping_results")
             .flatMap { key -> root.optJSONArray(key).objects() }
@@ -113,7 +132,7 @@ object GoogleShopping {
             val site = direct?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.removePrefix("www.")
             Item(title, shop, price, link, o.optString("thumbnail").takeIf { it.startsWith("http") }, site, token)
         }.filter { Matching.isSameProduct(it.title, query) && !isForeignShop(it.shop) && !isMarketplace(it.shop) }
-        if (same.isEmpty()) throw IOException("Not found on Google Shopping")
+        if (same.isEmpty()) throw IOException(NOT_FOUND)
         // Google's page for the best match, whichever shop it came from: it lists the trusted ones too.
         val best = same.maxBy { Matching.score(it.title, query) }
         val token = same.filter { it.token != null }.maxByOrNull { Matching.score(it.title, query) }?.token

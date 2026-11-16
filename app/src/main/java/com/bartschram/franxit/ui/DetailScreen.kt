@@ -79,6 +79,7 @@ import com.bartschram.franxit.data.ShopOffer
 import com.bartschram.franxit.data.SitePoint
 import com.bartschram.franxit.ui.theme.PriceDown
 import com.bartschram.franxit.ui.theme.PriceUp
+import com.bartschram.franxit.ui.theme.Warning
 import kotlinx.coroutines.launch
 import java.net.URI
 import kotlin.math.roundToInt
@@ -107,6 +108,8 @@ fun DetailScreen(
     /** "Also search Google Shopping": null when it doesn't apply (no key, or a Google Shopping product). */
     googleExtra: Boolean? = null,
     onGoogleExtra: (Boolean) -> Unit = {},
+    /** What the last Google Shopping search found ("Found 2 extra shops"), null before the first. */
+    googleStatus: String? = null,
     photoChoice: Photos.Choice = Photos.Choice.SITE,
     /** Whether a Google Shopping photo is there to switch to. */
     googlePhoto: Boolean = false,
@@ -288,10 +291,15 @@ fun DetailScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Also search Google Shopping", style = MaterialTheme.typography.bodyMedium)
+                        val ok = googleStatus == null || googleStatus.startsWith("Found") || googleStatus == "No extra shops found"
                         Text(
-                            "Find more shops, once a day",
+                            when {
+                                on && refreshing -> "Searching…"
+                                on && googleStatus != null -> googleStatus
+                                else -> "Find more shops, once a day"
+                            },
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (on && !refreshing && !ok) Warning else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     Switch(checked = on, onCheckedChange = onGoogleExtra)
