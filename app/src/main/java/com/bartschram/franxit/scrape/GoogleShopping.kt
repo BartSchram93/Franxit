@@ -139,7 +139,10 @@ object GoogleShopping {
             val link = direct ?: token?.let { TOKEN + it } ?: urlFor("$query $shop")
             val site = direct?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.removePrefix("www.")
             Item(title, shop, price, link, o.optString("thumbnail").takeIf { it.startsWith("http") }, site, token)
-        }.filter { Matching.isSameProduct(it.title, query) && !isForeignShop(it.shop) && !isMarketplace(it.shop) }
+        }.filter {
+            Matching.isSameProduct(it.title, query) && !isForeignShop(it.shop) && !isMarketplace(it.shop) &&
+                !isOtherLanguage(it.title, it.link)
+        }
         if (same.isEmpty()) throw IOException(NOT_FOUND)
         // Google's page for the best match, whichever shop it came from: it lists the trusted ones too.
         val best = same.maxBy { Matching.score(it.title, query) }
@@ -178,11 +181,13 @@ object GoogleShopping {
             val title = s.optString("title")
             if (name.isBlank() || price <= 0 || isForeignShop(name) || isMarketplace(name)) return@mapNotNull null
             if (SECOND_HAND.containsMatchIn("$name $title ${s.optJSONArray("details_and_offers")}")) return@mapNotNull null
+            // Dutch or English pages only (bol.com's French page is left out; its Dutch one is listed too).
+            if (isOtherLanguage(title, link)) return@mapNotNull null
             val site = storeSite(s)
             // Trusted by the lists, or by what Google's shoppers say about the shop (stars and number
             // of reviews): a fake shop rarely has plenty of both.
             val shown = site?.takeIf { trusted(it) != null }?.let(Shops::name) ?: trusted(name)
-                ?: name.takeIf { wellReviewed(s) } ?: return@mapNotNull null
+                ?: name.takeIf { wellReviewed(s) && site != null && sellsToBelgium(site) } ?: return@mapNotNull null
             Scraper.Offer(shown, price, link = link)
         }
         // The page's own links first: on the same price, its direct link wins.
@@ -191,6 +196,51 @@ object GoogleShopping {
         val links = offers.mapNotNull { o -> (o.link ?: found.links[o.seller])?.let { o.seller to it } }.toMap()
         return Found(found.result.copy(offers = offers), links, found.token)
     }
+
+    /**
+     * A page in another language than Dutch or English: its address has a language folder
+     * ("/fr/", "/de/", "/be/fr/", "/-/fr/"), or its title has words or letters of another language
+     * ("Tablette", "pour", "Kopfhörer", "ç", "ß"). A brand like "Le Creuset" alone doesn't count.
+     */
+    internal fun isOtherLanguage(title: String, link: String?): Boolean {
+        val path = link?.takeIf { it.startsWith("http") && "google." !in it }
+            ?.let { runCatching { java.net.URI(it) }.getOrNull() }
+        val folders = path?.path.orEmpty().lowercase().split('/').filter { it.isNotEmpty() }
+        if (folders.any { it in OTHER_LANGUAGE_FOLDERS }) return true
+        if (Regex("""[?&](lang|language|locale)=(fr|de|es|it|pt|pl)""").containsMatchIn(path?.rawQuery?.let { "?$it" }.orEmpty().lowercase())) return true
+        val text = title.lowercase()
+        if (Regex("[çèêàâôûßñãõ]").containsMatchIn(text)) return true
+        val words = text.split(Regex("[^\\p{L}]+")).filter { it.isNotEmpty() }
+        if (words.any { it in OTHER_LANGUAGE_WORDS }) return true
+        return words.count { it in OTHER_LANGUAGE_SMALL_WORDS } >= 2
+    }
+
+    private val OTHER_LANGUAGE_FOLDERS = setOf(
+        "fr", "fr-be", "fr_be", "be-fr", "be_fr", "fr-fr", "fr_fr", "de", "de-de", "de_de", "de-be", "es", "es-es", "it", "it-it", "pt", "pl",
+    )
+
+    /** Words that only appear in French, German, Spanish or Italian product titles. */
+    private val OTHER_LANGUAGE_WORDS = setOf(
+        // French
+        "pour", "avec", "tablette", "étui", "coque", "écouteurs", "écran", "génération", "noir", "blanc", "gris",
+        "livraison", "neuf", "reconditionné", "clavier", "banc", "chargeur", "casque", "housse", "sans-fil", "enceinte",
+        // German
+        "für", "mit", "und", "kopfhörer", "schwarz", "weiß", "weiss", "kabellose", "kabellos", "ohne", "hülle", "tastatur",
+        "ladegerät", "neu",
+        // Spanish, Italian, Portuguese
+        "con", "para", "negro", "blanco", "auriculares", "inalámbricos", "funda", "nuevo", "nero", "bianco", "cuffie",
+        "nuovo", "custodia", "senza", "preto", "novo",
+    )
+
+    /** Short French words that can be part of a brand ("Le Creuset"): two of them make a French title. */
+    private val OTHER_LANGUAGE_SMALL_WORDS = setOf("le", "la", "les", "des", "du", "et", "une", "sans")
+
+    /**
+     * A shop's site for the Belgian market: a .be, .nl or international address. A shop on a
+     * French, German… address that only Google's reviews vouch for is left out (it rarely ships here).
+     */
+    internal fun sellsToBelgium(site: String): Boolean =
+        site.substringAfterLast('.').lowercase() in setOf("be", "nl", "com", "eu", "net", "shop", "store", "online")
 
     /** Google's reviews of the shop itself: at least 4 stars from at least 50 reviews. */
     internal fun wellReviewed(store: JSONObject): Boolean =

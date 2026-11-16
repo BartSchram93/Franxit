@@ -148,7 +148,7 @@ class GoogleShoppingTest {
         """.trimIndent()
         val page = """
             {"product_results": {"stores": [
-              {"name": "Bax Music BEFR", "link": "https://www.bax-shop.be/fr/hercules-stands-kb-200b", "title": "Hercules Stands KB-200B banc de clavier",
+              {"name": "Bax Music BEFR", "link": "https://www.bax-shop.be/keyboardbank/hercules-stands-kb-200b", "title": "Hercules Stands KB-200B keyboardbank",
                "logo": "https://encrypted-tbn0.gstatic.com/faviconV2?url=https://www.bax-shop.be&client=SHOPPING", "extracted_price": 135.0},
               {"name": "Gear4music.be", "link": "/goto?url=CAES1", "title": "Hercules KB200B Keyboard Bench",
                "logo": "https://encrypted-tbn0.gstatic.com/faviconV2?url=https://www.gear4music.be&client=SHOPPING", "extracted_price": 137.25},
@@ -165,7 +165,7 @@ class GoogleShoppingTest {
             listOf("Bax-shop.be" to 135.0, "Gear4music.be" to 137.25, "Bol.com" to 172.46),
             found.result.offers.map { it.seller to it.price },
         )
-        assertEquals("https://www.bax-shop.be/fr/hercules-stands-kb-200b", found.links["Bax-shop.be"])
+        assertEquals("https://www.bax-shop.be/keyboardbank/hercules-stands-kb-200b", found.links["Bax-shop.be"])
         assertEquals("https://www.google.com/goto?url=CAES1", found.links["Gear4music.be"])
     }
 
@@ -190,8 +190,8 @@ class GoogleShoppingTest {
         val page = """
             {"product_results": {"stores": [
               {"name": "Amazon.com.be", "link": "https://www.amazon.com.be/TCL-NXTPAPER/dp/B0", "extracted_price": 349.0},
-              {"name": "CSMobiles", "link": "https://csmobiles.com/fr/tablette-tcl", "extracted_price": 348.0, "rating": 4.4, "reviews": 171},
-              {"name": "Movertix", "link": "https://www.movertix.com/fr/tcl-nxtpaper-14", "extracted_price": 344.0, "rating": 4.7, "reviews": 69},
+              {"name": "CSMobiles", "link": "https://csmobiles.com/nl/tcl-nxtpaper-14", "extracted_price": 348.0, "rating": 4.4, "reviews": 171},
+              {"name": "Movertix", "link": "https://www.movertix.com/nl/tcl-nxtpaper-14", "extracted_price": 344.0, "rating": 4.7, "reviews": 69},
               {"name": "Galaxus", "link": "https://www.galaxus.be/nl/s1/product/tcl-nxtpaper-14", "extracted_price": 437.93, "rating": 4.8, "reviews": 41},
               {"name": "GreaTecno", "link": "https://greatecno.com/fr/tablette", "extracted_price": 407.76, "rating": 3.8, "reviews": 32},
               {"name": "Garantie2ans.com", "link": "https://garantie2ans.com/x", "extracted_price": 299.0}
@@ -203,5 +203,38 @@ class GoogleShoppingTest {
             listOf("Movertix", "CSMobiles", "Amazon.com.be", "Galaxus.be"),
             found.result.offers.map { it.seller },
         )
+    }
+
+    @Test
+    fun onlyDutchOrEnglishPagesAndShopsSellingHere() {
+        // Real stores for the TCL NXTPAPER 14: French pages (by their address or title) are left out,
+        // bol.com's Dutch page stays; a well-reviewed shop on a German address is left out too.
+        val search = """
+            {"shopping_results": [
+              {"title": "TCL NXTPAPER 14", "source": "Amazon.com.be", "extracted_price": 349.0, "immersive_product_page_token": "tok"}
+            ]}
+        """.trimIndent()
+        val page = """
+            {"product_results": {"stores": [
+              {"name": "Amazon.com.be", "link": "https://www.amazon.com.be/TCL-NXTPAPER/dp/B0", "title": "TCL NXTPAPER 14 +flip case +T-pen - Tablette Wi-Fi", "extracted_price": 349.0},
+              {"name": "Amazon.com.be", "link": "https://www.amazon.com.be/-/nl/TCL-NXTPAPER/dp/B0", "title": "TCL NXTPAPER 14 + Flip Case + T-pen - Tablet", "extracted_price": 349.0},
+              {"name": "CSMobiles", "link": "https://csmobiles.com/fr/Tablette-tactile/158270", "title": "TCL NxtPaper 14 8Go 256Go Wifi Gris", "extracted_price": 348.0, "rating": 4.4, "reviews": 171},
+              {"name": "bol", "link": "https://www.bol.com/be/fr/p/tablette-liseuse-tcl-14", "title": "Tablet TCL NXTPAPER 14 WiFi 8GB 256GB Gris Stylus", "extracted_price": 441.13},
+              {"name": "bol.com", "link": "https://www.bol.com/be/nl/p/tcl-e-reader-tablet-14", "title": "TCL NXTPAPER 14 - 14 inch - 8GB RAM 256GB", "extracted_price": 441.13},
+              {"name": "Technikshop", "link": "https://www.technikshop.de/tcl-nxtpaper-14", "title": "TCL NXTPAPER 14 Tablet", "extracted_price": 359.0, "rating": 4.6, "reviews": 900}
+            ]}}
+        """.trimIndent()
+        val trusted = { shop: String -> com.bartschram.franxit.data.TrustedShops.name(shop, emptySet()) }
+        val found = GoogleShopping.addStores(GoogleShopping.parse(search, "TCL NXTPAPER 14", trusted), page, "TCL NXTPAPER 14", trusted)
+        assertEquals(listOf("Amazon.com.be", "Bol.com"), found.result.offers.map { it.seller })
+        assertEquals("https://www.amazon.com.be/-/nl/TCL-NXTPAPER/dp/B0", found.links["Amazon.com.be"])
+        assertEquals("https://www.bol.com/be/nl/p/tcl-e-reader-tablet-14", found.links["Bol.com"])
+    }
+
+    @Test
+    fun aBrandLikeLeCreusetIsNoFrenchTitle() {
+        assertEquals(false, GoogleShopping.isOtherLanguage("Le Creuset braadpan 24 cm", "https://www.bol.com/be/nl/p/x"))
+        assertEquals(true, GoogleShopping.isOtherLanguage("Coque pour TCL NXTPAPER 14", null))
+        assertEquals(true, GoogleShopping.isOtherLanguage("TCL NXTPAPER 14", "https://www.movertix.com/fr/tcl-nxtpaper-14"))
     }
 }

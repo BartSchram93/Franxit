@@ -60,6 +60,9 @@ object Matching {
         val wantCompact = compact(wanted)
         if (!wantCodes.all { it in haveCompact }) return false
         if (have.filter(::isModelCode).any { it !in wantCompact }) return false
+        // Numbers in the name must be in the title too: "TCL Smartphone 60 SE Nxtpaper 5G" isn't the
+        // "TCL Nxtpaper 14", though it shares two of its three words.
+        if (want.filter { w -> w.all(Char::isDigit) }.any { it !in have }) return false
         // Without a model code, most of the words have to match.
         return wantCodes.isNotEmpty() || want.count { it in have }.toDouble() / want.size >= 0.6
     }

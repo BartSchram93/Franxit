@@ -48,4 +48,10 @@ class MatchingTest {
         assertTrue(Matching.isStillTheSame("Hercules KB200B keyboardbank", "Hercules Stands KB200B keyboardbank zwart"))
         assertFalse(Matching.isStillTheSame("Hercules KB200B keyboardbank", "Pokémon Scarlet & Violet Booster Box"))
     }
+
+    @Test
+    fun theNumberInTheNameMustMatch() {
+        assertFalse(Matching.isSameProduct("TCL Smartphone 60 Se Nxtpaper 5g", "TCL Nxtpaper 14"))
+        assertTrue(Matching.isSameProduct("TCL NXTPAPER 14 (14.3\") tablet", "TCL Nxtpaper 14"))
+    }
 }
