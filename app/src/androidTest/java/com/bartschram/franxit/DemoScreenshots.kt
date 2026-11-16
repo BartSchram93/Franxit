@@ -5,7 +5,9 @@ import android.content.Intent
 import android.graphics.Bitmap
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import com.bartschram.franxit.data.Db
 import org.junit.Test
@@ -63,6 +65,17 @@ class DemoScreenshots {
         File(out, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    /** Waits for [selector], clicking away "isn't responding" boxes meanwhile (the emulator is slow). */
+    private fun await(selector: BySelector, timeoutMs: Long): UiObject2? {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) {
+            if (device.hasObject(By.textContains("isn't responding"))) device.findObject(By.text("Wait"))?.click()
+            device.findObject(selector)?.let { return it }
+            Thread.sleep(700)
+        }
+        return null
+    }
+
     /** For when a step fails: what the screen looked like. */
     private fun debug(name: String) {
         runCatching { shot("debug-$name") }
@@ -85,23 +98,22 @@ class DemoScreenshots {
 
         products.forEachIndexed { index, (query, word) ->
             // Search like a user: tap +, type, wait for the results.
-            device.wait(Until.findObject(By.desc("Track a product")), 30_000).click()
-            val field = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 30_000)
+            (await(By.desc("Track a product"), 60_000) ?: run { debug("plus-$word"); error("No + button") }).click()
+            val field = await(By.clazz("android.widget.EditText"), 60_000) ?: run { debug("field-$word"); error("No search field") }
             field.text = query
             // The result's title (not the text field, which also holds the word); any letter case.
             val inTitle = By.text(Pattern.compile(".*$word.*", Pattern.CASE_INSENSITIVE or Pattern.DOTALL))
-            device.wait(Until.hasObject(inTitle), 60_000)
+            await(By.textContains("from"), 90_000)
             val result = device.findObjects(inTitle).firstOrNull { it.className != "android.widget.EditText" }
             if (result == null) {
                 debug("search-$word")
                 error("No search result for '$query'")
             }
-            device.wait(Until.hasObject(By.textContains("from")), 10_000)
             if (index == 0) shot("1-search")
 
             // Tap the result: the app tracks it and opens it.
             result.click()
-            device.wait(Until.hasObject(By.textContains("Typical")), 90_000)
+            await(By.textContains("Typical"), 120_000)
             if (index == 0) {
                 shot("3-advice")
                 scrollDown()
@@ -109,7 +121,7 @@ class DemoScreenshots {
                 shot("4-details")
             }
             device.pressBack()
-            device.wait(Until.hasObject(By.desc("Track a product")), 30_000)
+            await(By.desc("Track a product"), 60_000)
         }
         shot("2-overview")
     }
