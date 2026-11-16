@@ -52,7 +52,8 @@ class DutchLayoutShots {
             runCatching { shot("fail-$name") }
             runCatching { device.dumpWindowHierarchy(File(out, "fail-$name.xml")) }
             File(out, "fail-$name.txt").writeText(it.toString())
-            repeat(2) { runCatching { device.pressBack() } }
+            // Back to the app, however far the failed step got (a blind "back" would leave it).
+            runCatching { launch() }
         }
     }
 
@@ -84,8 +85,9 @@ class DutchLayoutShots {
         Db(context).close()
 
         launch()
-        step("tips") { await(By.text("Begrepen"), 30_000) ?: error("no tips"); shot("nl-01-tips"); clickText("Begrepen") }
-        step("empty") { shot("nl-02-empty") }
+        // The tips sit on the empty overview itself.
+        step("tips") { await(By.text("Begrepen").pkg(context.packageName).clazz("android.widget.Button"), 5_000)?.click(); Thread.sleep(500) }
+        step("empty") { await(By.text("Je volgt nog niets."), 30_000); shot("nl-01-empty-with-tips") }
         step("menu") { clickDesc("Meer"); await(By.text("Taal"), 10_000); shot("nl-03-menu"); device.pressBack() }
         step("sort") { clickDesc("Sorteren en filteren"); await(By.text("Sorteer op"), 10_000); shot("nl-04-sort"); device.pressBack() }
         for ((item, name) in listOf(
