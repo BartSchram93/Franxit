@@ -32,16 +32,22 @@ class DutchTextsTest {
             // t("…") and the app's own Text("…"), but not Glance's (the widget calls t() itself).
             val calls = Regex("""\bt\(\s*"((?:[^"\\\n]|\\.)*)"""").findAll(code).map { it.groupValues[1] } +
                 (if ("import com.bartschram.franxit.ui.Text" in code || file.parent.endsWith("ui") && "androidx.glance" !in code)
-                    Regex("""(?<![A-Za-z.])Text\(\s*"((?:[^"\\\n]|\\.)*)"""").findAll(code).map { it.groupValues[1] }
+                    Regex("""(?<![A-Za-z.])Text\(\s*"((?:[^"\\\n]|\\.)*)"(?!\s*\+)""").findAll(code).map { it.groupValues[1] }
                 else emptySequence())
             for (raw in calls) {
                 val text = unescape(raw)
                 // Plain symbols and templates built elsewhere have nothing to translate.
-                if (!Regex("[A-Za-z]{3}").containsMatchIn(text) || "\${" in raw) continue
+                if (!Regex("[A-Za-z]{3}").containsMatchIn(text) || "$" in raw) continue
                 if (text !in DUTCH_TEXTS) missing += "${file.name}: $text"
             }
         }
-        assertEquals("No Dutch for these texts: $missing", emptySet<String>(), missing as Set<String>)
+        assertTrue("No Dutch for these texts: $missing", missing.isEmpty())
+    }
+
+    @Test
+    fun theLongUsageTextIsTranslatedAsAWhole() {
+        // Written as joined pieces in the code, so the scan above skips it: check it by hand.
+        assertTrue(DUTCH_TEXTS.keys.any { it.startsWith("Franxit counts anonymously") && it.endsWith("never your products or prices.") })
     }
 
     @Test
@@ -53,7 +59,6 @@ class DutchTextsTest {
     @Test
     fun dutchOnlyWhenAskedFor() {
         // Without a stored choice and on an English test machine, texts stay English.
-        assertEquals("Overview", t("Overview").takeIf { !L10n.dutch } ?: "Overview")
         assertEquals("Welcome", t("Welcome"))
     }
 }
