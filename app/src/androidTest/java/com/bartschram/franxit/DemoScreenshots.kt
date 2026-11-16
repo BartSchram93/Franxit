@@ -50,9 +50,12 @@ class DemoScreenshots {
     /** A slow emulator can show "isn't responding" boxes and the first-start tips: click them away. */
     private fun clearDialogs() {
         repeat(3) {
-            // "Wait" is also a verdict on a product card: only click it inside the system box.
-            if (device.hasObject(By.textContains("isn't responding"))) device.findObject(By.text("Wait"))?.click()
-            device.findObject(By.text("Got it"))?.click()
+            // A box can vanish between finding it and clicking it: that is fine.
+            runCatching {
+                // "Wait" is also a verdict on a product card: only click it inside the system box.
+                if (device.hasObject(By.textContains("isn't responding"))) device.findObject(By.text("Wait"))?.click()
+            }
+            runCatching { device.findObject(By.text("Got it"))?.click() }
             Thread.sleep(500)
         }
     }
@@ -69,8 +72,8 @@ class DemoScreenshots {
     private fun await(selector: BySelector, timeoutMs: Long): UiObject2? {
         val end = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < end) {
-            if (device.hasObject(By.textContains("isn't responding"))) device.findObject(By.text("Wait"))?.click()
-            device.findObject(selector)?.let { return it }
+            runCatching { if (device.hasObject(By.textContains("isn't responding"))) device.findObject(By.text("Wait"))?.click() }
+            runCatching { device.findObject(selector) }.getOrNull()?.let { return it }
             Thread.sleep(700)
         }
         return null
