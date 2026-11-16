@@ -25,7 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import com.bartschram.franxit.ui.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -48,7 +48,7 @@ import com.bartschram.franxit.scrape.Matching
 import com.bartschram.franxit.scrape.VergelijkSearch
 import kotlinx.coroutines.delay
 
-/** Search vergelijk.be, or paste any product link, and pick what to track. */
+/** Search for a product, or paste any product link, and pick what to track. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -136,15 +136,15 @@ fun SearchScreen(
                 if (shopLink != null) {
                     if (searching) item {
                         Text(
-                            "Looking for this product on vergelijk.be…",
+                            "Looking for this product across shops…",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                     if (!searching) item {
                         Text(
-                            if (results.isEmpty()) "Not found on vergelijk.be, so only this shop's price can be followed."
-                            else "Pick it on vergelijk.be to compare prices across all shops:",
+                            if (results.isEmpty()) "No other shops found, so only this shop's price can be followed."
+                            else "Pick it to compare prices across all shops:",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -161,7 +161,7 @@ fun SearchScreen(
                 } else if (query.isBlank()) {
                     item {
                         Text(
-                            "Type a product name, or paste a vergelijk.be or coolblue.be link.",
+                            "Type a product name, or paste a link to a product page.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -172,7 +172,7 @@ fun SearchScreen(
                 val google = shoppingQuery?.takeIf { onGoogleShopping != null && !searching && it.length >= 2 }
                 if (google != null && (link == null || shopLink != null)) {
                     item {
-                        ResultRow("Track via Google Shopping: \"$google\"", "Checked once a day", null) {
+                        ResultRow(t("Track via Google Shopping: \"%s\"", google), "Checked once a day", null) {
                             onGoogleShopping?.invoke(google)
                         }
                     }
@@ -203,7 +203,7 @@ private fun ResultRow(title: String, subtitle: String?, price: Double?, onClick:
             }
             price?.let {
                 Spacer(Modifier.width(12.dp))
-                Text("from ${it.euro()}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Text(t("from %s", it.euro()), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             }
         }
     }

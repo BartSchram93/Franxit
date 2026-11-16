@@ -29,22 +29,24 @@ fun percent(from: Double, to: Double): String {
     return sign + String.format(locale, "%.1f%%", abs(pct))
 }
 
-private val shortDate = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
-private val longDate = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
+// Month names follow the app's language.
+private fun shortDate() = DateTimeFormatter.ofPattern("d MMM", L10n.locale)
+private fun longDate() = DateTimeFormatter.ofPattern("d MMM yyyy", L10n.locale)
 private val clock = DateTimeFormatter.ofPattern("HH:mm")
 
 fun LocalDate.short(): String =
-    if (year == LocalDate.now().year) format(shortDate) else format(longDate)
+    if (year == LocalDate.now().year) format(shortDate()) else format(longDate())
 
-fun LocalDate.long(): String = format(longDate)
+fun LocalDate.long(): String = format(longDate())
 
 /** "3 hours ago", "2 days ago". */
 fun Long.ageLabel(now: Long = System.currentTimeMillis()): String {
     val hours = ((now - this) / 3_600_000).coerceAtLeast(0)
     return when {
-        hours < 1 -> "just now"
-        hours < 48 -> "$hours hour${if (hours == 1L) "" else "s"} ago"
-        else -> "${hours / 24} days ago"
+        hours < 1 -> t("just now")
+        hours == 1L -> t("1 hour ago")
+        hours < 48 -> t("%d hours ago", hours)
+        else -> t("%d days ago", hours / 24)
     }
 }
 
@@ -53,8 +55,8 @@ fun Long.checkedLabel(): String {
     val day = time.toLocalDate()
     val today = LocalDate.now()
     return when (day) {
-        today -> "today ${time.format(clock)}"
-        today.minusDays(1) -> "yesterday ${time.format(clock)}"
+        today -> t("today %s", time.format(clock))
+        today.minusDays(1) -> t("yesterday %s", time.format(clock))
         else -> "${day.short()} ${time.format(clock)}"
     }
 }
