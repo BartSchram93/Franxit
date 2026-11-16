@@ -24,7 +24,7 @@ object TrustedShops {
         "gamemania", "fun", "colruyt", "collectandgo", "carrefour", "makro", "action", "hema", "blokker", "kruidvat",
         "ikea", "decathlon", "brico", "gamma", "hubo", "intratuin", "aveve", "torfs", "zalando", "standaardboekhandel",
         "lego", "apple", "samsung", "sony", "lenovo", "dell", "hp", "lg", "philips", "bose", "jbl", "dyson",
-        "proximus", "orange", "telenet", "base",
+        "proximus", "orange", "telenet", "base", "galaxus",
         // Photo and music
         "kamera-express", "kameraexpress", "fotokonijnenberg", "bax-shop", "baxshop", "baxmusic", "thomann", "gear4music",
         "woodbrass", "keymusic", "michenaud",

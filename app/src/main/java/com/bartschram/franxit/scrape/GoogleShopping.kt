@@ -45,7 +45,7 @@ object GoogleShopping {
         val searched = parse(serp("engine=google_shopping&q=$q&gl=be&hl=nl&google_domain=google.be", key), query, trusted)
         val found = searched.token?.let { token ->
             val t = URLEncoder.encode(token, "UTF-8")
-            runCatching { addStores(searched, serp("engine=google_immersive_product&page_token=$t", key), query, trusted) }.getOrNull()
+            runCatching { addStores(searched, serp("engine=google_immersive_product&page_token=$t&more_stores=true", key), query, trusted) }.getOrNull()
         } ?: searched
         if (found.result.offers.isEmpty()) throw IOException(NOT_FOUND)
         return found
@@ -78,7 +78,7 @@ object GoogleShopping {
      */
     fun storeLink(token: String, shop: String, key: String, sameShop: (String, String) -> Boolean): String? {
         val t = URLEncoder.encode(token, "UTF-8")
-        return storeLinkIn(serp("engine=google_immersive_product&page_token=$t", key), shop, sameShop)
+        return storeLinkIn(serp("engine=google_immersive_product&page_token=$t&more_stores=true", key), shop, sameShop)
     }
 
     internal fun storeLinkIn(json: String, shop: String, sameShop: (String, String) -> Boolean): String? {
@@ -171,7 +171,10 @@ object GoogleShopping {
             if (name.isBlank() || price <= 0 || isForeignShop(name) || isMarketplace(name)) return@mapNotNull null
             if (SECOND_HAND.containsMatchIn("$name $title ${s.optJSONArray("details_and_offers")}")) return@mapNotNull null
             val site = storeSite(s)
-            val shown = site?.takeIf { trusted(it) != null }?.let(Shops::name) ?: trusted(name) ?: return@mapNotNull null
+            // Trusted by the lists, or by what Google's shoppers say about the shop (stars and number
+            // of reviews): a fake shop rarely has plenty of both.
+            val shown = site?.takeIf { trusted(it) != null }?.let(Shops::name) ?: trusted(name)
+                ?: name.takeIf { wellReviewed(s) } ?: return@mapNotNull null
             Scraper.Offer(shown, price, link = link)
         }
         // The page's own links first: on the same price, its direct link wins.
@@ -180,6 +183,13 @@ object GoogleShopping {
         val links = offers.mapNotNull { o -> (o.link ?: found.links[o.seller])?.let { o.seller to it } }.toMap()
         return Found(found.result.copy(offers = offers), links, found.token)
     }
+
+    /** Google's reviews of the shop itself: at least 4 stars from at least 50 reviews. */
+    internal fun wellReviewed(store: JSONObject): Boolean =
+        store.optDouble("rating", 0.0) >= MIN_STARS && store.optInt("reviews", 0) >= MIN_REVIEWS
+
+    private const val MIN_STARS = 4.0
+    private const val MIN_REVIEWS = 50
 
     /** A store's link; some go through Google's redirect ("/goto?url=…"), which opens the shop too. */
     private fun storeUrl(raw: String): String? = when {

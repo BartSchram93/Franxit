@@ -177,4 +177,31 @@ class GoogleShoppingTest {
         }
         assertEquals(GoogleShopping.NOT_FOUND, e.message)
     }
+
+    @Test
+    fun shopsGoogleShoppersRateWellAreTrustedToo() {
+        // Real stores for the TCL NXTPAPER 14 (more_stores=true): CSMobiles and Movertix aren't on any
+        // list but have good, plentiful reviews; GreaTecno has too few stars; another has no reviews.
+        val search = """
+            {"shopping_results": [
+              {"title": "TCL NXTPAPER 14", "source": "Amazon.com.be", "extracted_price": 349.0, "immersive_product_page_token": "tok"}
+            ]}
+        """.trimIndent()
+        val page = """
+            {"product_results": {"stores": [
+              {"name": "Amazon.com.be", "link": "https://www.amazon.com.be/TCL-NXTPAPER/dp/B0", "extracted_price": 349.0},
+              {"name": "CSMobiles", "link": "https://csmobiles.com/fr/tablette-tcl", "extracted_price": 348.0, "rating": 4.4, "reviews": 171},
+              {"name": "Movertix", "link": "https://www.movertix.com/fr/tcl-nxtpaper-14", "extracted_price": 344.0, "rating": 4.7, "reviews": 69},
+              {"name": "Galaxus", "link": "https://www.galaxus.be/nl/s1/product/tcl-nxtpaper-14", "extracted_price": 437.93, "rating": 4.8, "reviews": 41},
+              {"name": "GreaTecno", "link": "https://greatecno.com/fr/tablette", "extracted_price": 407.76, "rating": 3.8, "reviews": 32},
+              {"name": "Garantie2ans.com", "link": "https://garantie2ans.com/x", "extracted_price": 299.0}
+            ]}}
+        """.trimIndent()
+        val trusted = { shop: String -> com.bartschram.franxit.data.TrustedShops.name(shop, emptySet()) }
+        val found = GoogleShopping.addStores(GoogleShopping.parse(search, "NXTPAPER 14", trusted), page, "NXTPAPER 14", trusted)
+        assertEquals(
+            listOf("Movertix", "CSMobiles", "Amazon.com.be", "Galaxus"),
+            found.result.offers.map { it.seller },
+        )
+    }
 }

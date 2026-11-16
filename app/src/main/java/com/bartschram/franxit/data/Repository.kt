@@ -302,9 +302,8 @@ class Repository private constructor(context: Context) {
         // it is another item or too good to be true (€ 37,99 for € 219 earbuds).
         val ownCheapest = own.minOfOrNull { it.price }
         val extras = extraShops(product, query)
-        val extra = extras.offers.filter {
-            (ownCheapest == null || it.price in ownCheapest * 0.5..ownCheapest * 1.25) && TrustedShops.isTrusted(appContext, it.seller)
-        }
+        // (Which shops are trusted was decided when Google's results were read.)
+        val extra = extras.offers.filter { ownCheapest == null || it.price in ownCheapest * 0.5..ownCheapest * 1.25 }
         if (query == null && ShoppingSettings.isExtra(appContext, product.id)) {
             // Said on the product page, so "doesn't do much" is never a mystery.
             val added = extra.count { e -> own.none { Shops.name(it.seller).equals(Shops.name(e.seller), ignoreCase = true) } }
