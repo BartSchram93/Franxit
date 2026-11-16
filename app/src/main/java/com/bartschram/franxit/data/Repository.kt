@@ -73,7 +73,9 @@ class Repository private constructor(context: Context) {
 
     /** Starts tracking [url] and checks its price right away. Returns the product id. */
     suspend fun add(url: String): Long = withContext(Dispatchers.IO) {
-        val placeholder = runCatching { URI(url).host }.getOrNull() ?: url
+        val host = runCatching { URI(url).host }.getOrNull() ?: url
+        // Until the first check names the product: the shop's address, or a plain label for a comparison page.
+        val placeholder = if (host.endsWith("vergelijk.be")) "New product" else host
         val id = db.insertProduct(url, placeholder)
         reload()
         db.products().firstOrNull { it.id == id }?.let { checkLock.withLock { check(it) } }
@@ -299,7 +301,7 @@ class Repository private constructor(context: Context) {
             throw e
         }
         // The page shows another product now: keep the history clean instead of saving its prices.
-        // Only once it has been read before: a new product's name is just the site ("www.vergelijk.be").
+        // Only once it has been read before: a new product's name is just a placeholder.
         if (query == null && product.history.isNotEmpty() && !Matching.isStillTheSame(product.name, result.name)) {
             val message = Scraper.goneMessage(product.url)
             db.markChecked(product.id, now, null, message)
