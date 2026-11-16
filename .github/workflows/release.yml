@@ -61,3 +61,20 @@ jobs:
           git log -1 --pretty=%B > notes.txt
           gh release create "v$VERSION" "franxit-$VERSION.apk" \
             --title "Franxit $VERSION" --notes-file notes.txt --target "$GITHUB_SHA"
+
+      # The public download page: the same APK as a release in the public repo (it needs the secret
+      # PUBLIC_REPO_TOKEN, a token that can write to that repo). The page and the app's update
+      # notice both read the latest release there.
+      - name: Publish to the download page
+        if: steps.key.outputs.signed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          VERSION: 1.0.${{ github.run_number }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::No PUBLIC_REPO_TOKEN secret: the download page isn't updated."
+            exit 0
+          fi
+          cp app/build/outputs/apk/release/app-release.apk franxit.apk
+          gh release create "v$VERSION" franxit.apk --repo BartSchram93/franxit-download \
+            --title "Franxit $VERSION" --notes "$(git log -1 --pretty=%s)"
