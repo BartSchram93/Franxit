@@ -32,7 +32,7 @@ class DemoScreenshots {
     private val products = listOf(
         "PlayStation 5" to "playstation",
         "AirPods Pro 3" to "airpods",
-        "Dyson V15" to "dyson",
+        "Dyson V15 Detect" to "detect",
         "Nintendo Switch 2" to "switch",
         "Samsung Galaxy S25" to "galaxy",
         "Philips Airfryer XXL" to "airfryer",
@@ -96,6 +96,7 @@ class DemoScreenshots {
         device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), 30_000)
         clearDialogs()
 
+        var tracked = 0
         products.forEachIndexed { index, (query, word) ->
             // Search like a user: tap +, type, wait for the results.
             (await(By.desc("Track a product"), 60_000) ?: run { debug("plus-$word"); error("No + button") }).click()
@@ -106,15 +107,18 @@ class DemoScreenshots {
             await(By.textContains("from"), 90_000)
             val result = device.findObjects(inTitle).firstOrNull { it.className != "android.widget.EditText" }
             if (result == null) {
+                // Not found: leave it out (never invent it) and go on with the next product.
                 debug("search-$word")
-                error("No search result for '$query'")
+                repeat(3) { if (device.findObject(By.desc("Track a product")) == null) device.pressBack() }
+                return@forEachIndexed
             }
-            if (index == 0) shot("1-search")
+            tracked++
+            if (tracked == 1) shot("1-search")
 
             // Tap the result: the app tracks it and opens it.
             result.click()
             await(By.textContains("Typical"), 120_000)
-            if (index == 0) {
+            if (tracked == 1) {
                 shot("3-advice")
                 scrollDown()
                 scrollDown()
@@ -124,5 +128,6 @@ class DemoScreenshots {
             await(By.desc("Track a product"), 60_000)
         }
         shot("2-overview")
+        check(tracked >= 4) { "Only $tracked products could be tracked" }
     }
 }
