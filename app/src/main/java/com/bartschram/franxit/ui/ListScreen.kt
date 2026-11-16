@@ -154,6 +154,8 @@ fun ListScreen(
     photoVersion: Int,
     onTipsSeen: () -> Unit,
     onShowTips: () -> Unit,
+    /** Opens the anonymous usage counts: null when this build doesn't count. */
+    onUsage: (() -> Unit)? = null,
     onDelete: (Product) -> Unit,
     onUndoDelete: (Product) -> Unit,
     /** A newer version is out (the app isn't in a store): say so, with the way to the download. */
@@ -267,6 +269,12 @@ fun ListScreen(
                                     text = { Text("Tips") },
                                     onClick = { menuOpen = false; onShowTips() },
                                 )
+                                onUsage?.let { open ->
+                                    DropdownMenuItem(
+                                        text = { Text("Usage statistics") },
+                                        onClick = { menuOpen = false; open() },
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text("Daily check at ${checkTime.format(DateTimeFormatter.ofPattern("HH:mm"))}") },
                                     onClick = { menuOpen = false; onChangeTime() },

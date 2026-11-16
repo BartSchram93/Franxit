@@ -37,6 +37,9 @@ import androidx.core.content.edit
 import com.bartschram.franxit.data.Discounts
 import com.bartschram.franxit.data.Photos
 import com.bartschram.franxit.data.Repository
+import com.bartschram.franxit.ui.UsageNotice
+import com.bartschram.franxit.ui.UsageDialog
+import com.bartschram.franxit.data.Usage
 import androidx.compose.ui.platform.LocalUriHandler
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -68,6 +71,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         handle(intent)
         setContent { FranxitTheme { App(sharedUrl, openProductId) } }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // One more use of the app, counted anonymously (see Usage); off the main thread.
+        val app = applicationContext
+        Thread { Usage.opened(app) }.start()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -115,6 +125,9 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     var discounts by remember { mutableStateOf(Discounts.load(context)) }
     var showDiscounts by rememberSaveable { mutableStateOf(false) }
     var showShopping by rememberSaveable { mutableStateOf(false) }
+    var showUsage by rememberSaveable { mutableStateOf(false) }
+    // The one-time explanation of the anonymous counts, only when this build counts at all.
+    var showUsageNotice by remember { mutableStateOf(Usage.configured && !Usage.noticeSeen(context)) }
     var shoppingKey by remember { mutableStateOf(ShoppingSettings.key(context) != null) }
     var extraOn by remember { mutableStateOf(ShoppingSettings.extraIds(context)) }
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
@@ -298,6 +311,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             discounts = discounts,
             onDiscounts = { showDiscounts = true },
             onGoogleShopping = { showShopping = true },
+            onUsage = if (Usage.configured) ({ showUsage = true }) else null,
             notificationsOn = notificationsOn,
             onTurnOnNotifications = { turnOnNotifications() },
             showTips = showTips,
@@ -313,6 +327,20 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                     checkTime = time
                 }, checkTime.hour, checkTime.minute, true).show()
             },
+        )
+    }
+
+    if (showUsageNotice) {
+        UsageNotice(
+            onOk = { Usage.setNoticeSeen(context); showUsageNotice = false },
+            onTurnOff = { Usage.setEnabled(context, false); Usage.setNoticeSeen(context); showUsageNotice = false },
+        )
+    }
+    if (showUsage) {
+        UsageDialog(
+            enabled = Usage.enabled(context),
+            onChange = { Usage.setEnabled(context, it) },
+            onDismiss = { showUsage = false },
         )
     }
 
