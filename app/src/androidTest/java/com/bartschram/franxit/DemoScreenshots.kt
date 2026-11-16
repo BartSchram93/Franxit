@@ -8,18 +8,15 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import com.bartschram.franxit.data.Db
-import com.bartschram.franxit.data.PricePoint
-import com.bartschram.franxit.data.Repository
-import kotlinx.coroutines.runBlocking
-import com.bartschram.franxit.data.ShopOffer
 import org.junit.Test
 import java.io.File
 import java.time.LocalDate
-import kotlin.math.sin
 
 /**
- * Takes the screenshots for the download page: the real app on an emulator with made-up
- * products and prices (no network, no real shops). Run by the "Screenshots" workflow.
+ * Takes the screenshots for the download page, with the real app doing real work: it starts empty,
+ * searches vergelijk.be for popular products like a user would, and tracks them. Every price,
+ * shop, photo and price history on the screenshots comes from the live site. Nothing is invented
+ * and nothing is seeded: if a search fails, the test fails. Run by the "Screenshots" workflow.
  */
 class DemoScreenshots {
 
@@ -28,97 +25,23 @@ class DemoScreenshots {
     private val device = UiDevice.getInstance(instrumentation)
     private val out = File(context.getExternalFilesDir(null), "shots").apply { mkdirs() }
 
-    /**
-     * The real thing first: the app's own search finds popular products on vergelijk.be and adds them,
-     * so prices, history, shops and photos are real. Returns how many worked; [seedDemo] is the fallback.
-     */
-    private fun seedReal(): Int {
+    /** (what the user types, a word the right result must contain) */
+    private val products = listOf(
+        "PlayStation 5" to "playstation",
+        "AirPods Pro 3" to "airpods",
+        "Dyson V15" to "dyson",
+        "Nintendo Switch 2" to "switch",
+        "Samsung Galaxy S25" to "galaxy",
+        "Philips Airfryer XXL" to "airfryer",
+    )
+
+    private fun startEmpty() {
         context.deleteDatabase("franxit.db")
-        context.getSharedPreferences("usage", Context.MODE_PRIVATE).edit().putBoolean("share", false).commit()
-        context.getSharedPreferences("update_check", Context.MODE_PRIVATE).edit()
-            .putString("checked", LocalDate.now().toString()).putInt("latest", 0).commit()
-        val repo = Repository.get(context)
-        val wanted = listOf(
-            "Sony PlayStation 5 Slim" to "playstation",
-            "Apple AirPods Pro 3" to "airpods",
-            "Dyson V15 Detect" to "dyson",
-            "Nintendo Switch 2" to "switch",
-            "Samsung Galaxy S25" to "galaxy",
-            "Philips Airfryer XXL" to "airfryer",
-        )
-        var added = 0
-        runBlocking {
-            for ((query, word) in wanted) {
-                runCatching {
-                    val hit = repo.search(query).firstOrNull { it.title.contains(word, ignoreCase = true) } ?: return@runCatching
-                    val id = repo.add(hit.url)
-                    if (added == 0) {
-                        repo.products.value.firstOrNull { it.id == id }?.latest?.price?.let { repo.setTarget(id, Math.round(it * 0.97).toDouble()) }
-                    }
-                    added++
-                }
-            }
-        }
-        return added
-    }
-
-    private fun seed() {
-        val real = runCatching { seedReal() }.getOrDefault(0)
-        File(out, "source.txt").writeText(if (real >= 3) "real:$real" else "demo")
-        if (real < 3) seedDemo()
-    }
-
-    private fun seedDemo() {
-        Db(context).also { it.writableDatabase.execSQL("DELETE FROM product"); it.close() }
         // No anonymous count and no update banner while taking screenshots.
         context.getSharedPreferences("usage", Context.MODE_PRIVATE).edit().putBoolean("share", false).commit()
         context.getSharedPreferences("update_check", Context.MODE_PRIVATE).edit()
             .putString("checked", LocalDate.now().toString()).putInt("latest", 0).commit()
-
-        val db = Db(context)
-        val today = LocalDate.now()
-        val now = System.currentTimeMillis()
-
-        fun product(url: String, name: String, base: Double, dip: Double, current: Double, wave: Double,
-                    offers: List<ShopOffer>, target: Double? = null) {
-            val id = db.insertProduct(url, name)
-            for (daysAgo in 365 downTo 1 step 3) {
-                var price = base + wave * sin(daysAgo / 17.0) + wave * 0.5 * sin(daysAgo / 5.0)
-                if (daysAgo in 150..156) price = dip
-                db.savePrice(id, PricePoint(today.minusDays(daysAgo.toLong()), Math.round(price).toDouble(), offers.first().seller, offers.size, now))
-            }
-            db.savePrice(id, PricePoint(today, current, offers.first().seller, offers.size, now))
-            db.replaceOffers(id, offers)
-            db.markChecked(id, now, null, null)
-            target?.let { db.setTargetPrice(id, it) }
-        }
-
-        product(
-            "https://example.test/ps5", "Sony PlayStation 5 Slim", 499.0, 449.0, 459.0, 12.0,
-            listOf(ShopOffer("Techhoek.be", 459.0, true), ShopOffer("Gadgetgigant.be", 469.0, true), ShopOffer("Huisplein.be", 479.0, true)),
-            target = 449.0,
-        )
-        product(
-            "https://example.test/airpods", "Apple AirPods Pro 3", 279.0, 229.0, 289.0, 8.0,
-            listOf(ShopOffer("Huisplein.be", 289.0, true), ShopOffer("Techhoek.be", 295.0, true)),
-        )
-        product(
-            "https://example.test/dyson", "Dyson V15 Detect", 649.0, 499.0, 579.0, 20.0,
-            listOf(ShopOffer("Gadgetgigant.be", 579.0, true), ShopOffer("Techhoek.be", 589.0, true), ShopOffer("Huisplein.be", 599.0, false)),
-        )
-        product(
-            "https://example.test/switch2", "Nintendo Switch 2", 469.0, 429.0, 449.0, 9.0,
-            listOf(ShopOffer("Techhoek.be", 449.0, true), ShopOffer("Huisplein.be", 459.0, true)),
-        )
-        product(
-            "https://example.test/galaxy", "Samsung Galaxy S25", 899.0, 749.0, 949.0, 25.0,
-            listOf(ShopOffer("Gadgetgigant.be", 949.0, true), ShopOffer("Techhoek.be", 959.0, true)),
-        )
-        product(
-            "https://example.test/airfryer", "Philips Airfryer XXL", 219.0, 169.0, 189.0, 7.0,
-            listOf(ShopOffer("Huisplein.be", 189.0, true), ShopOffer("Gadgetgigant.be", 199.0, true)),
-        )
-        db.close()
+        Db(context).close()
     }
 
     /** A slow emulator can show "isn't responding" boxes and the first-start tips: click them away. */
@@ -139,29 +62,43 @@ class DemoScreenshots {
         File(out, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
+    private fun scrollDown() =
+        device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 30)
+
     @Test
     fun takeScreenshots() {
         out.listFiles()?.forEach { it.delete() }
-        seed()
-        device.executeShellCommand("cmd uimode night no")
+        startEmpty()
 
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)!!
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
         context.startActivity(intent)
-        device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), 10_000)
-        // Android 13+ asks for the notification permission on first start.
-        device.findObject(By.text("Allow"))?.click()
-        device.wait(Until.hasObject(By.textContains("PlayStation")), 30_000)
+        device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), 30_000)
         clearDialogs()
-        shot("1-overview")
 
-        device.findObject(By.textContains("PlayStation")).click()
-        device.wait(Until.hasObject(By.textContains("Buy now")), 30_000)
-        shot("2-advice")
+        products.forEachIndexed { index, (query, word) ->
+            // Search like a user: tap +, type, wait for the results.
+            device.wait(Until.findObject(By.desc("Track a product")), 30_000).click()
+            val field = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 30_000)
+            field.text = query
+            val result = device.wait(
+                Until.findObject(By.clazz("android.widget.TextView").textContains(word)), 60_000,
+            ) ?: error("No search result for '$query'")
+            device.wait(Until.hasObject(By.textContains("from")), 10_000)
+            if (index == 0) shot("1-search")
 
-        device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 30)
-        device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 30)
-        shot("3-details")
-
+            // Tap the result: the app tracks it and opens it.
+            result.click()
+            device.wait(Until.hasObject(By.textContains("Typical")), 90_000)
+            if (index == 0) {
+                shot("3-advice")
+                scrollDown()
+                scrollDown()
+                shot("4-details")
+            }
+            device.pressBack()
+            device.wait(Until.hasObject(By.desc("Track a product")), 30_000)
+        }
+        shot("2-overview")
     }
 }
