@@ -31,4 +31,23 @@ class UpdateCheckTest {
         assertFalse(UpdateCheck.isNewer(null, "1.0.8"))
         assertFalse(UpdateCheck.isNewer(9, null))
     }
+
+    @Test
+    fun theFirstLineOfTheReleaseIsWhatsNew() {
+        val release = UpdateCheck.parseRelease("""{"tag_name": "v1.0.15", "body": "\n  Better Google Shopping results\nsecond line"}""")
+        assertEquals(15, release?.build)
+        assertEquals("Better Google Shopping results", release?.notes)
+    }
+
+    @Test
+    fun aReleaseWithoutTextHasNoNotes() {
+        assertNull(UpdateCheck.parseRelease("""{"tag_name": "v1.0.15", "body": ""}""")?.notes)
+        assertNull(UpdateCheck.parseRelease("""{"tag_name": "latest"}"""))
+    }
+
+    @Test
+    fun aVeryLongLineIsCutShort() {
+        val long = "a".repeat(300)
+        assertEquals(140, UpdateCheck.parseRelease("""{"tag_name": "v1.0.15", "body": "$long"}""")?.notes?.length)
+    }
 }

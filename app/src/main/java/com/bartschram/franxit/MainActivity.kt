@@ -194,6 +194,8 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) { UpdateCheck.refresh(context) }
         updateAvailable = UpdateCheck.available(context)
+        // The banner tells them now: no notification about this version later.
+        if (updateAvailable) UpdateCheck.markTold(context)
     }
     val uriHandler = LocalUriHandler.current
     LaunchedEffect(sharedUrl.value) {
@@ -268,6 +270,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     } else {
         ListScreen(
             updateAvailable = updateAvailable,
+            updateNotes = remember(updateAvailable) { UpdateCheck.notes(context) },
             onUpdate = { uriHandler.openUri(UpdateCheck.DOWNLOAD_PAGE) },
             products = products,
             refreshing = refreshing,

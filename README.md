@@ -95,6 +95,10 @@ vergelijk.be history and search. If anything breaks, it opens (or comments on) a
 
 ## Releases and auto-update
 
+`whats-new.txt` holds one short sentence about the next release, in plain words for the people who
+use the app: it is the text of the public release, shown in the app's update banner and notification.
+Change it before a release people should notice.
+
 Every push to `main` runs `.github/workflows/release.yml`: it runs the tests, builds an APK signed
 with the release key, and publishes it as a GitHub Release `v1.0.<run number>`.
 On the phone, [Obtainium](https://github.com/ImranR98/Obtainium) watches this repo's releases

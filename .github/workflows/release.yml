@@ -76,5 +76,8 @@ jobs:
             exit 0
           fi
           cp app/build/outputs/apk/release/app-release.apk franxit.apk
+          # The first line of whats-new.txt is what the app shows people ("New version available").
+          NOTES="$(head -n 1 whats-new.txt 2>/dev/null)"
+          [ -n "$NOTES" ] || NOTES="Small improvements."
           gh release create "v$VERSION" franxit.apk --repo BartSchram93/franxit-download \
-            --title "Franxit $VERSION" --notes "$(git log -1 --pretty=%s)"
+            --title "Franxit $VERSION" --notes "$NOTES"

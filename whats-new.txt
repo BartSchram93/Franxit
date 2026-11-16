@@ -1,0 +1,1 @@
+Franxit now tells you when a new version is out, and what's new.
