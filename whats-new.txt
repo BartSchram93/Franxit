@@ -1,1 +1,1 @@
-Franxit now tells you when a new version is out, and what's new.
+Products without enough history now say "No advice yet" in the list.
