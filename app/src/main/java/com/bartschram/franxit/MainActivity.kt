@@ -85,10 +85,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** The product this app was first built for; added once on first launch. */
-private const val STARTER_URL =
-    "https://www.vergelijk.be/tablet_pc/tcl/nxtpaper_14_alleen_wlan_14_30_256_gb_grijs_tablet_grijs_784877634/?catId=3900"
-
 @Composable
 private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Long?>) {
     val context = LocalContext.current
@@ -178,15 +174,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     LaunchedEffect(Unit) {
         repo.reload()
         if (Build.VERSION.SDK_INT >= 33 && !notificationsOn) requestNotifications()
-        val prefs = context.getSharedPreferences("app", Context.MODE_PRIVATE)
-        if (!prefs.getBoolean("seeded", false)) {
-            prefs.edit { putBoolean("seeded", true) }
-            if (repo.products.value.isEmpty()) {
-                refreshing = true
-                repo.add(STARTER_URL)
-                refreshing = false
-            }
-        }
     }
     LaunchedEffect(sharedUrl.value) {
         sharedUrl.value?.let { searchStart = it; searching = true; sharedUrl.value = null }
