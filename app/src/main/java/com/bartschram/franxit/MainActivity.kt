@@ -38,7 +38,6 @@ import com.bartschram.franxit.data.Discounts
 import com.bartschram.franxit.data.Photos
 import com.bartschram.franxit.data.Repository
 import com.bartschram.franxit.ui.UsageConsent
-import com.bartschram.franxit.data.Offers
 import com.bartschram.franxit.ui.UsageDialog
 import com.bartschram.franxit.data.Usage
 import androidx.compose.ui.platform.LocalUriHandler
@@ -254,12 +253,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                 if (on) askForNotifications()
             },
             discounts = discounts,
-            shopLink = { seller ->
-                // Only that "Buy at Bol.com" was tapped (see Usage), never which product.
-                val shop = seller ?: Offers.cheapest(selected.offers)?.seller
-                if (shop != null && Shops.name(shop).equals("Bol.com", ignoreCase = true)) Usage.boughtAtBol(context)
-                repo.shopLink(selected, seller)
-            },
+            shopLink = { seller -> repo.shopLink(selected, seller) },
             googleExtra = if (shoppingKey && GoogleShopping.queryOf(selected.url) == null) {
                 extraOn.contains(selected.id)
             } else null,

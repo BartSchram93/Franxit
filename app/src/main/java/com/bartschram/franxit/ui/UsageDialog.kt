@@ -23,8 +23,8 @@ import com.bartschram.franxit.data.UpdateCheck
 
 private const val EXPLANATION =
     "Franxit can count anonymously how often it's used, so the maker knows if people use it. " +
-        "It sends a random number made on your phone, the app version, how many times you open the app " +
-        "and how often you tap Buy at Bol.com. No name, no account, and never your products or prices."
+        "It sends a random number made on your phone, the app version and how many times you open the app. " +
+        "No name, no account, and never your products or prices."
 
 /** ⋮ → Usage statistics: what is counted, the switch, and deleting your number. */
 @Composable
