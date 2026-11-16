@@ -17,7 +17,7 @@ object Usage {
 
     /** Where the counts go: the maker's own small Google Sheets script. Empty: nothing is sent. */
     private const val ENDPOINT =
-        "https://script.google.com/macros/s/AKfycbyVwPdgF_xmoCbOsggmm5ujh5f3E8x-bMjz7XBG-aFddF2nJZwplQpO8cCTleI-tsJB/exec"
+        "https://script.google.com/macros/s/AKfycbyQjbFdhUHwOfemUyckpmQuvwP-sKAa4ilCEfAoE_m5TMEE-ub9OD0uTi5jauLNdTuq/exec"
 
     private const val PREFS = "usage"
     /** Coming back to the app within this time isn't a new use. */
