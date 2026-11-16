@@ -380,7 +380,7 @@ fun DetailScreen(
                     // The photo, for when the page's one is wrong: one option, only what makes sense now.
                     val (label, choice) = when {
                         photoChoice != Photos.Choice.SITE ->
-                            (if (host.endsWith("vergelijk.be")) "Use vergelijk.be photo again" else "Use the shop's photo again") to Photos.Choice.SITE
+                            (if (host.endsWith("vergelijk.be")) "Use the original photo again" else "Use the shop's photo again") to Photos.Choice.SITE
                         googlePhoto -> "Use Google Shopping photo" to Photos.Choice.GOOGLE
                         else -> "Remove photo" to Photos.Choice.NONE
                     }

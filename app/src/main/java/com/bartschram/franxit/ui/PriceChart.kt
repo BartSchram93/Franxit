@@ -206,7 +206,7 @@ fun PriceChart(points: List<PricePoint>, site: List<SitePoint> = emptyList(), mo
         if (firstOwn in 1 until line.size) {
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Legend(siteColor, "vergelijk.be")
+                Legend(siteColor, "Earlier history")
                 Legend(ChartLine, "Your checks")
             }
         }

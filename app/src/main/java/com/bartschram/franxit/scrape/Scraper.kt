@@ -33,7 +33,7 @@ object Scraper {
     )
 
     /** What a check says when a product page is gone: the site removed it, or sends you elsewhere. */
-    fun goneMessage(url: String) = "No longer on " + if ("vergelijk.be" in URL(url).host) "vergelijk.be" else shop(url)
+    fun goneMessage(url: String) = if ("vergelijk.be" in URL(url).host) "No longer listed" else "No longer on " + shop(url)
 
     fun fetch(url: String): Result {
         val (html, finalUrl) = try {
