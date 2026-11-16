@@ -62,6 +62,7 @@ class DemoScreenshots {
                 if (device.hasObject(By.textContains("isn't responding"))) device.findObject(By.text("Wait"))?.click()
             }
             runCatching { device.findObject(By.text("Got it"))?.click() }
+            runCatching { device.findObject(By.text("Begrepen"))?.click() }
             Thread.sleep(500)
         }
     }
