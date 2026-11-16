@@ -70,7 +70,8 @@ class DemoScreenshots {
     /** A slow emulator can show "isn't responding" boxes and the first-start tips: click them away. */
     private fun clearDialogs() {
         repeat(3) {
-            device.findObject(By.text("Wait"))?.click()
+            // "Wait" is also a verdict on a product card: only click it inside the system box.
+            if (device.hasObject(By.textContains("isn't responding"))) device.findObject(By.text("Wait"))?.click()
             device.findObject(By.text("Got it"))?.click()
             Thread.sleep(500)
         }
