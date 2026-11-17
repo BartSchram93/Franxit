@@ -1,1 +1,1 @@
-Een gedeeld product vraagt eerst of je het wil volgen. · Un produit partagé demande d'abord. · A shared product asks first.
+Een gedeeld product is nu enkel naam, prijs en link. · Partage : nom, prix et lien. · Sharing: name, price and link.
