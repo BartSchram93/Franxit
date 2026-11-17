@@ -109,7 +109,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Turn off" to "Désactiver",
     "Good deal" to "Bonne affaire",
     "Year low" to "Plus bas de l'année",
-    "10% off" to "10% moins cher",
+    "10% off" to "−10%",
     "Cheaper than on 4 out of 5 days this past year." to "Moins cher que 4 jours sur 5 l'année dernière.",
     "The lowest price of the past year." to "Le prix le plus bas de l'année écoulée.",
     "10% below today's price." to "10% sous le prix du jour.",
