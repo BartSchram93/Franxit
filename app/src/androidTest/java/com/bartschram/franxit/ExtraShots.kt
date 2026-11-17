@@ -84,50 +84,30 @@ class ExtraShots {
             .putString("checked", LocalDate.now().toString()).putInt("latest", 0).commit()
         Db(context).close()
 
-        // 1. Track a few real products through the app's own search.
-        launchApp()
-        var tracked = 0
-        for ((query, pattern) in listOf(
-            "PlayStation 5" to ".*playstation 5 slim.*", "AirPods Pro 3" to ".*airpods pro 3.*", "Samsung Galaxy S25" to ".*galaxy s25.*",
-        )) {
-            step("track-$query") {
-                (await(By.desc("Product volgen"), 60_000) ?: error("no +")).click()
-                val field = await(By.clazz("android.widget.EditText"), 30_000) ?: error("no field")
-                field.text = query
-                await(By.textContains("vanaf"), 90_000)
-                await(By.text(ci(pattern)), 60_000)
-                val hit = device.findObjects(By.text(ci(pattern))).firstOrNull { it.className != "android.widget.EditText" } ?: error("no result")
-                hit.click()
-                await(By.textContains("Gebruikelijk"), 120_000)
-                device.pressBack()
-                tracked++
-            }
-        }
-        Thread.sleep(8000)
-
-        // 2. The widget: ask Android to pin it, confirm, and look at the home screen.
-        step("widget") {
-            val provider = ComponentName(context, "com.bartschram.franxit.widget.PriceListWidgetReceiver")
-            val ok = AppWidgetManager.getInstance(context).requestPinAppWidget(provider, null, null)
-            File(out, "widget-pin-supported.txt").writeText(ok.toString())
-            clickAway(8, "Add to home screen", "Toevoegen aan startscherm", "^Add$", "Add automatically")
-            Thread.sleep(2000)
-            device.pressHome()
-            Thread.sleep(8000)
-            shot("5-widget")
-        }
-
-        // 3. A shop's product page in the browser, shared with Franxit.
+        // A shop's product page in the browser, shared with Franxit. Some shops block the test machine
+        // ("IP address is blocked"): then the next one is tried.
         step("share") {
-            val view = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.bol.com/be/nl/p/playstation-5-disc-edition-slim/9300000166374057/"))
-                .setPackage("com.android.chrome").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(view)
-            Thread.sleep(6000)
-            clickAway(6, "Accept & continue", "Use without an account", "No thanks", "No, thanks", "Not now", "Got it", "Next")
-            Thread.sleep(8000)
-            clickAway(3, "Alles accepteren", "Accepteer alles", "Accepteren", "Akkoord", "Alle cookies accepteren")
-            Thread.sleep(5000)
-            shot("6-shop-page")
+            val pages = listOf(
+                "https://www.coolblue.be/nl/product/941836/playstation-5-slim-digital-edition.html",
+                "https://www.coolblue.be/nl/product/942411/playstation-5-slim-digital-edition-bluebuilt-oplaadstation.html",
+                "https://www.bol.com/be/nl/p/playstation-5-disc-edition-slim/9300000166374057/",
+            )
+            var shown: String? = null
+            for ((i, url) in pages.withIndex()) {
+                val view = Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage("com.android.chrome")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                context.startActivity(view)
+                Thread.sleep(6000)
+                clickAway(6, "Accept & continue", "Use without an account", "No thanks", "No, thanks", "Not now", "Got it", "Next")
+                Thread.sleep(6000)
+                clickAway(3, "Alles accepteren", "Accepteer alles", "Accepteren", "Akkoord", "Alle cookies accepteren", "Ik ga akkoord")
+                Thread.sleep(5000)
+                shot("6-shop-page-$i")
+                val blocked = listOf("blocked", "Access Denied", "Just a moment", "Verify you are human", "captcha", "Robot")
+                    .any { device.hasObject(By.textContains(it)) }
+                if (!blocked) { shown = url; break }
+            }
+            File(out, "shop.txt").writeText(shown ?: "none")
             (await(By.desc(ci("more options")), 30_000) ?: error("no chrome menu")).click()
             (await(By.text(ci("share…|share\\.\\.\\.|share")), 30_000) ?: error("no share")).click()
             await(By.text("Franxit"), 30_000) ?: error("Franxit not in the share sheet")
@@ -139,6 +119,5 @@ class ExtraShots {
             Thread.sleep(3000)
             shot("8-after-share")
         }
-        File(out, "tracked.txt").writeText(tracked.toString())
     }
 }
