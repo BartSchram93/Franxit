@@ -64,7 +64,12 @@ import androidx.compose.ui.unit.dp
 import com.bartschram.franxit.data.Discounts
 import com.bartschram.franxit.data.PricePoint
 import com.bartschram.franxit.data.BuyAdvisor
+import android.content.Context
+import android.content.Intent
+import androidx.compose.material.icons.filled.Share
+import com.bartschram.franxit.data.BuyAdvice
 import com.bartschram.franxit.data.Product
+import com.bartschram.franxit.data.Verdict
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.ui.graphics.asImageBitmap
@@ -139,6 +144,8 @@ fun DetailScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
                 },
                 actions = {
+                    val shareContext = LocalContext.current
+                    IconButton(onClick = { shareAdvice(shareContext, product) }) { Icon(Icons.Default.Share, t("Share")) }
                     if (refreshing) {
                         SpinningRefresh()
                     } else {
@@ -542,4 +549,25 @@ private fun Stat(label: String, price: Double, color: androidx.compose.ui.graphi
             Text(line2, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
+}
+
+/** The product's price and Franxit's advice as a short text, for a friend: through any messaging app. */
+internal fun adviceText(product: Product, advice: BuyAdvice): String {
+    val latest = product.latest
+    val shop = latest?.seller?.takeIf { it.isNotBlank() }?.let(Shops::name)
+    val lines = mutableListOf(product.displayName)
+    if (latest != null) {
+        lines += if (shop != null) t("%1\$s at %2\$s", latest.price.euro(), shop) else latest.price.euro()
+    }
+    val verdict = t(shortTitle(advice.verdict))
+    lines += if (advice.verdict == Verdict.INSUFFICIENT_DATA) t("Franxit says: %s.", verdict)
+    else t("Franxit says: %1\$s. %2\$s", verdict, summary(advice))
+    lines += "https://franxit.be/"
+    return lines.joinToString("\n")
+}
+
+private fun shareAdvice(context: Context, product: Product) {
+    val text = adviceText(product, BuyAdvisor.advise(product))
+    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+    context.startActivity(Intent.createChooser(send, t("Share")))
 }

@@ -8,7 +8,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
-private val locale = Locale.forLanguageTag("nl-BE")
+// Prices as Belgians write them in each language: "€ 699,99" in Dutch, "699,99 €" in French.
+private val locale: Locale
+    get() = if (L10n.lang == L10n.Lang.FR) Locale.forLanguageTag("fr-BE") else Locale.forLanguageTag("nl-BE")
 
 fun Double.euro(): String = NumberFormat.getCurrencyInstance(locale).format(this)
 
