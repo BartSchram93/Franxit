@@ -37,6 +37,7 @@ fun LanguageDialog(choice: L10n.Choice, onChoose: (L10n.Choice) -> Unit, onDismi
                                 L10n.Choice.SYSTEM -> "Phone's language"
                                 L10n.Choice.ENGLISH -> "English"
                                 L10n.Choice.DUTCH -> "Nederlands"
+                                L10n.Choice.FRENCH -> "Français"
                             },
                             style = MaterialTheme.typography.bodyLarge,
                         )

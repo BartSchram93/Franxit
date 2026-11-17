@@ -1,14 +1,15 @@
 package com.bartschram.franxit.ui
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
-class DutchTextsTest {
+class TranslationsTest {
 
     private val sources = File("src/main/java/com/bartschram/franxit")
+
+    private val languages = mapOf("Dutch" to DUTCH_TEXTS, "French" to FRENCH_TEXTS)
 
     private fun unescape(s: String) = s.replace("\\\"", "\"").replace("\\n", "\n").replace("\\$", "$").replace("\\\\", "\\")
 
@@ -16,18 +17,20 @@ class DutchTextsTest {
     private fun placeholders(s: String) = Regex("%(\\d\\$)?[sd]|%%").findAll(s).map { it.value }.sorted().toList()
 
     @Test
-    fun theLanguageChoiceDecidesWhetherTheAppIsDutch() {
-        assertTrue(L10n.isDutch(L10n.Choice.DUTCH, "en"))
-        assertFalse(L10n.isDutch(L10n.Choice.ENGLISH, "nl"))
-        assertTrue(L10n.isDutch(L10n.Choice.SYSTEM, "nl"))
-        assertFalse(L10n.isDutch(L10n.Choice.SYSTEM, "fr"))
+    fun theLanguageChoiceDecidesWhatTheAppSpeaks() {
+        assertEquals(L10n.Lang.NL, L10n.resolve(L10n.Choice.DUTCH, "en"))
+        assertEquals(L10n.Lang.FR, L10n.resolve(L10n.Choice.FRENCH, "nl"))
+        assertEquals(L10n.Lang.EN, L10n.resolve(L10n.Choice.ENGLISH, "nl"))
+        assertEquals(L10n.Lang.NL, L10n.resolve(L10n.Choice.SYSTEM, "nl"))
+        assertEquals(L10n.Lang.FR, L10n.resolve(L10n.Choice.SYSTEM, "fr"))
+        assertEquals(L10n.Lang.EN, L10n.resolve(L10n.Choice.SYSTEM, "de"))
     }
 
     @Test
-    fun everyTextTheAppSaysHasItsDutch() {
+    fun everyTextTheAppSaysHasItsTranslations() {
         assertTrue("sources not found from ${File(".").absolutePath}", sources.exists())
         val missing = sortedSetOf<String>()
-        sources.walkTopDown().filter { it.extension == "kt" && it.name != "DutchTexts.kt" }.forEach { file ->
+        sources.walkTopDown().filter { it.extension == "kt" && !it.name.endsWith("Texts.kt") }.forEach { file ->
             val code = file.readText()
             // t("…") and the app's own Text("…"), but not Glance's (the widget calls t() itself).
             val calls = Regex("""\bt\(\s*"((?:[^"\\\n]|\\.)*)"""").findAll(code).map { it.groupValues[1] } +
@@ -38,10 +41,23 @@ class DutchTextsTest {
                 val text = unescape(raw)
                 // Plain symbols and templates built elsewhere have nothing to translate.
                 if (!Regex("[A-Za-z]{3}").containsMatchIn(text) || "$" in raw) continue
-                if (text !in DUTCH_TEXTS) missing += "${file.name}: $text"
+                for ((language, texts) in languages) if (text !in texts) missing += "$language, ${file.name}: $text"
             }
         }
-        assertTrue("No Dutch for these texts: $missing", missing.isEmpty())
+        assertTrue("No translation for these texts: $missing", missing.isEmpty())
+    }
+
+    @Test
+    fun theTranslationsKeepTheirPlaceholders() {
+        for ((language, texts) in languages) {
+            val broken = texts.filter { (en, translated) -> placeholders(en) != placeholders(translated) }.keys
+            assertTrue("$language: placeholders differ for: $broken", broken.isEmpty())
+        }
+    }
+
+    @Test
+    fun bothLanguagesCoverTheSameTexts() {
+        assertEquals(DUTCH_TEXTS.keys, FRENCH_TEXTS.keys)
     }
 
     @Test
@@ -50,25 +66,22 @@ class DutchTextsTest {
         val code = File("src/main/java/com/bartschram/franxit/data/Suggestions.kt").readText()
         val texts = Regex("""add\("([^"]+)",[^"]*"([^"]+)"\)""").findAll(code).flatMap { listOf(it.groupValues[1], it.groupValues[2]) }.toList()
         assertTrue("found no suggestions in $code", texts.size >= 6)
-        val missing = texts.filter { it !in DUTCH_TEXTS }
-        assertTrue("No Dutch for: $missing", missing.isEmpty())
+        for ((language, translations) in languages) {
+            val missing = texts.filter { it !in translations }
+            assertTrue("$language: no translation for: $missing", missing.isEmpty())
+        }
     }
 
     @Test
     fun theLongUsageTextIsTranslatedAsAWhole() {
         // Written as joined pieces in the code, so the scan above skips it: check it by hand.
-        assertTrue(DUTCH_TEXTS.keys.any { it.startsWith("Franxit counts anonymously") && it.endsWith("never your products or prices.") })
+        for ((language, texts) in languages) {
+            assertTrue(language, texts.keys.any { it.startsWith("Franxit counts anonymously") && it.endsWith("never your products or prices.") })
+        }
     }
 
     @Test
-    fun dutchTextsKeepTheirPlaceholders() {
-        val broken = DUTCH_TEXTS.filter { (en, nl) -> placeholders(en) != placeholders(nl) }.keys
-        assertEquals("Placeholders differ for: $broken", emptySet<String>(), broken)
-    }
-
-    @Test
-    fun dutchOnlyWhenAskedFor() {
-        // Without a stored choice and on an English test machine, texts stay English.
+    fun anUntranslatedTextStaysAsItIs() {
         assertEquals("Welcome", t("Welcome"))
     }
 }

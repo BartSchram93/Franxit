@@ -14,7 +14,10 @@ import java.util.Locale
  */
 object L10n {
 
-    enum class Choice { SYSTEM, ENGLISH, DUTCH }
+    enum class Choice { SYSTEM, ENGLISH, DUTCH, FRENCH }
+
+    /** The language the app actually speaks. */
+    enum class Lang { EN, NL, FR }
 
     private const val PREFS = "language"
 
@@ -32,20 +35,34 @@ object L10n {
         choice = new
     }
 
-    /** Pure, for tests: whether this [choice] on a phone set to [systemLanguage] shows Dutch. */
-    fun isDutch(choice: Choice, systemLanguage: String): Boolean = when (choice) {
-        Choice.DUTCH -> true
-        Choice.ENGLISH -> false
-        Choice.SYSTEM -> systemLanguage == "nl"
+    /** Pure, for tests: the language this [choice] gives on a phone set to [systemLanguage]. */
+    fun resolve(choice: Choice, systemLanguage: String): Lang = when (choice) {
+        Choice.DUTCH -> Lang.NL
+        Choice.FRENCH -> Lang.FR
+        Choice.ENGLISH -> Lang.EN
+        Choice.SYSTEM -> when (systemLanguage) {
+            "nl" -> Lang.NL
+            "fr" -> Lang.FR
+            else -> Lang.EN
+        }
     }
 
-    val dutch: Boolean get() = isDutch(choice, Locale.getDefault().language)
+    val lang: Lang get() = resolve(choice, Locale.getDefault().language)
 
     /** For dates: month names in the app's language. */
-    val locale: Locale get() = if (dutch) Locale.forLanguageTag("nl-BE") else Locale.ENGLISH
+    val locale: Locale
+        get() = when (lang) {
+            Lang.NL -> Locale.forLanguageTag("nl-BE")
+            Lang.FR -> Locale.forLanguageTag("fr-BE")
+            Lang.EN -> Locale.ENGLISH
+        }
 
-    /** The Dutch text for [en] when the app is Dutch and there is one; else [en] itself. */
-    fun t(en: String): String = if (dutch) DUTCH_TEXTS[en] ?: en else en
+    /** The text for [en] in the app's language; [en] itself when there is none (or the app is English). */
+    fun t(en: String): String = when (lang) {
+        Lang.NL -> DUTCH_TEXTS[en] ?: en
+        Lang.FR -> FRENCH_TEXTS[en] ?: en
+        Lang.EN -> en
+    }
 }
 
 /** [en] in the app's language. */
@@ -59,7 +76,7 @@ fun t(en: String, vararg args: Any?): String = String.format(L10n.locale, L10n.t
  * matched by their shape ("No longer on Coolblue.be"), the rest by their text.
  */
 fun tMessage(message: String): String {
-    if (!L10n.dutch) return message
+    if (L10n.lang == L10n.Lang.EN) return message
     Regex("""No longer on (.+)""").matchEntire(message)?.let { return t("No longer on %s", it.groupValues[1]) }
     Regex("""Found (\d+) extra shops""").matchEntire(message)?.let { return t("Found %d extra shops", it.groupValues[1].toInt()) }
     if (message.startsWith("Google Shopping: ")) return "Google Shopping: " + t(message.removePrefix("Google Shopping: "))
