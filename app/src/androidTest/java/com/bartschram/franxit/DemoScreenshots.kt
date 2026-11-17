@@ -33,7 +33,7 @@ class DemoScreenshots {
         "PlayStation 5" to ".*playstation 5.*",
         "AirPods Pro 3" to ".*airpods pro 3.*",
         "Dyson V15 Detect" to ".*v15 detect.*",
-        "Nintendo Switch 2" to "(nintendo )?switch 2( .*)?",
+        "Sony WH-1000XM5" to ".*wh-?1000xm5.*",
         "Samsung Galaxy S25" to ".*galaxy s25.*",
         "Philips Airfryer XXL" to ".*airfryer xxl.*",
     )
