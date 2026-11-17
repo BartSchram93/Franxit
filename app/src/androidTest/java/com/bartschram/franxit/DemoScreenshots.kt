@@ -38,13 +38,15 @@ class DemoScreenshots {
         "Philips Airfryer XXL" to ".*airfryer xxl.*",
     )
 
-    // The screenshots are in Dutch, as the app is for Flemish users; these are the words the test looks for.
-    private val TRACK = "Product volgen"
-    private val FROM = "vanaf"
-    private val TYPICAL = "Gebruikelijk"
+    // One language per run ("ENGLISH", "DUTCH" or "FRENCH"): the app is set to it, and these are the words it shows.
+    private val language = InstrumentationRegistry.getArguments().getString("lang") ?: "DUTCH"
+    private val TRACK = mapOf("ENGLISH" to "Track a product", "DUTCH" to "Product volgen", "FRENCH" to "Suivre un produit").getValue(language)
+    private val FROM = mapOf("ENGLISH" to "from", "DUTCH" to "vanaf", "FRENCH" to "dès").getValue(language)
+    private val TYPICAL = mapOf("ENGLISH" to "Typical", "DUTCH" to "Gebruikelijk", "FRENCH" to "Habituel").getValue(language)
+    private val GOT_IT = mapOf("ENGLISH" to "Got it", "DUTCH" to "Begrepen", "FRENCH" to "Compris").getValue(language)
 
     private fun startEmpty() {
-        context.getSharedPreferences("language", Context.MODE_PRIVATE).edit().putString("choice", "DUTCH").commit()
+        context.getSharedPreferences("language", Context.MODE_PRIVATE).edit().putString("choice", language).commit()
         context.deleteDatabase("franxit.db")
         // No anonymous count and no update banner while taking screenshots.
         context.getSharedPreferences("usage", Context.MODE_PRIVATE).edit().putBoolean("share", false).commit()
@@ -61,8 +63,7 @@ class DemoScreenshots {
                 // "Wait" is also a verdict on a product card: only click it inside the system box.
                 if (device.hasObject(By.textContains("isn't responding"))) device.findObject(By.text("Wait"))?.click()
             }
-            runCatching { device.findObject(By.text("Got it"))?.click() }
-            runCatching { device.findObject(By.text("Begrepen"))?.click() }
+            runCatching { device.findObject(By.text(GOT_IT))?.click() }
             Thread.sleep(500)
         }
     }

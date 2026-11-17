@@ -14,6 +14,10 @@ jobs:
   shots:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        lang: [ENGLISH, DUTCH, FRENCH]
     steps:
       - uses: actions/checkout@v5
 
@@ -48,23 +52,38 @@ jobs:
             adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             adb shell settings put global hide_error_dialogs 1
             adb shell pm grant com.bartschram.franxit android.permission.POST_NOTIFICATIONS
-            adb shell am instrument -w -e class com.bartschram.franxit.FrenchLayoutShots com.bartschram.franxit.test/androidx.test.runner.AndroidJUnitRunner
+            adb shell am instrument -w -e lang ${{ matrix.lang }} -e class com.bartschram.franxit.DemoScreenshots com.bartschram.franxit.test/androidx.test.runner.AndroidJUnitRunner
             mkdir -p shots
             adb pull /sdcard/Android/data/com.bartschram.franxit/files/shots/. shots/
             ls -l shots
 
       - uses: actions/upload-artifact@v4
         with:
-          name: screenshots
+          name: screenshots-${{ matrix.lang }}
           path: shots/*
 
-      - name: Put the screenshots on the screenshot-images branch
+  publish:
+    needs: shots
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+
+      - name: Put the screenshots on the screenshot-images branch, one folder per language
         run: |
+          ls -R out
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
           git checkout --orphan screenshots-out
           git rm -rf -q . || true
-          cp shots/* .
+          for l in ENGLISH DUTCH FRENCH; do
+            code=$(echo "$l" | cut -c1-2 | tr 'A-Z' 'a-z'); [ "$l" = "ENGLISH" ] && code=en; [ "$l" = "DUTCH" ] && code=nl; [ "$l" = "FRENCH" ] && code=fr
+            mkdir -p "$code"; cp out/screenshots-$l/* "$code"/ 2>/dev/null || true
+          done
           git add .
           git commit -q -m "Screenshots from run ${{ github.run_number }}"
           git push -f origin HEAD:screenshot-images
