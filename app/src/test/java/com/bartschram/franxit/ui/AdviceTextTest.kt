@@ -25,7 +25,7 @@ class AdviceTextTest {
         val lines = text.lines()
         assertEquals(2, lines.size)
         assertTrue(lines[0], lines[0].startsWith("Sony PlayStation 5 Slim: ") && lines[0].contains("240"))
-        assertEquals(ShareLink.forProduct("https://example.test/p", "Sony PlayStation 5 Slim"), lines[1])
+        assertEquals(ShareLink.forProduct("https://example.test/p"), lines[1])
         // No advice and no shop.
         assertFalse(text.contains("Franxit says"))
         assertFalse(text.contains("Coolblue"))
@@ -34,6 +34,6 @@ class AdviceTextTest {
     @Test
     fun aProductWithoutAPriceSharesItsNameAndLink() {
         val p = product(emptyList())
-        assertEquals(listOf("Sony PlayStation 5 Slim", ShareLink.forProduct("https://example.test/p", "Sony PlayStation 5 Slim")), shareText(p).lines())
+        assertEquals(listOf("Sony PlayStation 5 Slim", ShareLink.forProduct("https://example.test/p")), shareText(p).lines())
     }
 }

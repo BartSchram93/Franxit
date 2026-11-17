@@ -8,15 +8,22 @@ import org.junit.Test
 class ShareLinkTest {
 
     @Test
-    fun aPriceSiteProductTravelsAsAPathWithItsName() {
+    fun aPriceSiteProductTravelsAsAReadablePathWithoutItsName() {
         val url = "https://www.vergelijk.be/p/sony-playstation-5-slim-digital-edition/123/"
-        val link = ShareLink.forProduct(url, "Sony PlayStation 5 Slim Digital Edition")
-        assertEquals(ShareLink.Shared(url, "Sony PlayStation 5 Slim Digital Edition"), ShareLink.parse(link))
+        val link = ShareLink.forProduct(url)
+        assertEquals("https://franxit.be/p/?v=/p/sony-playstation-5-slim-digital-edition/123/", link)
+        assertEquals(ShareLink.Shared(url, ""), ShareLink.parse(link))
+    }
+
+    @Test
+    fun linksWithTheNameOrEncodedSlashesStillOpen() {
+        val url = "https://www.vergelijk.be/p/sony-ps5/123/"
+        assertEquals(ShareLink.Shared(url, "Sony PS5"), ShareLink.parse("https://franxit.be/p/?v=%2Fp%2Fsony-ps5%2F123%2F&n=Sony+PS5"))
     }
 
     @Test
     fun theLinkNeverNamesThePriceSite() {
-        val link = ShareLink.forProduct("https://www.vergelijk.be/p/sony-ps5/123/?x=1&y=a b", "Sony PS5")
+        val link = ShareLink.forProduct("https://www.vergelijk.be/p/sony-ps5/123/?x=1&y=a b")
         assertFalse(link, link.contains("vergelijk", ignoreCase = true))
         assertEquals("https://www.vergelijk.be/p/sony-ps5/123/?x=1&y=a b", ShareLink.parse(link)!!.url)
     }
@@ -24,7 +31,7 @@ class ShareLinkTest {
     @Test
     fun aShopProductTravelsWhole() {
         val url = "https://www.coolblue.be/nl/product/941836/playstation-5-slim-digital-edition.html"
-        assertEquals(url, ShareLink.parse(ShareLink.forProduct(url, "PS5"))!!.url)
+        assertEquals(url, ShareLink.parse(ShareLink.forProduct(url))!!.url)
     }
 
     @Test
@@ -36,7 +43,7 @@ class ShareLinkTest {
     @Test
     fun theNameIsOptionalAndKeptShort() {
         assertEquals("", ShareLink.parse(ShareLink.forProduct("https://a.example/p"))!!.name)
-        assertEquals(80, ShareLink.parse(ShareLink.forProduct("https://a.example/p", "x".repeat(300)))!!.name.length)
+        assertEquals(80, ShareLink.parse("https://franxit.be/p/?u=https%3A%2F%2Fa.example%2Fp&n=" + "x".repeat(300))!!.name.length)
     }
 
     @Test
@@ -67,6 +74,8 @@ class ShareLinkTest {
         assertNull(ShareLink.parse("https://franxit.be/p/?v=%2F%40evil.example"))
         assertNull(ShareLink.parse("https://franxit.be/p/?v=https%3A%2F%2Fevil.example"))
         assertNull(ShareLink.parse("https://franxit.be/p/?v=%5Cevil.example"))
+        assertNull(ShareLink.parse("https://franxit.be/p/?v=//evil.example/x"))
+        assertNull(ShareLink.parse("https://franxit.be/p/?v=/@evil.example"))
     }
 
     @Test

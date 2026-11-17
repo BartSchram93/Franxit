@@ -556,7 +556,7 @@ private fun Stat(label: String, price: Double, color: androidx.compose.ui.graphi
 internal fun shareText(product: Product): String {
     val price = product.latest?.price?.euro()
     val first = if (price != null) t("%1\$s: %2\$s", product.displayName, price) else product.displayName
-    return first + "\n" + ShareLink.forProduct(product.url, product.displayName)
+    return first + "\n" + ShareLink.forProduct(product.url)
 }
 
 private fun shareProduct(context: Context, product: Product) {
