@@ -146,7 +146,7 @@ fun DetailScreen(
                 },
                 actions = {
                     val shareContext = LocalContext.current
-                    IconButton(onClick = { shareAdvice(shareContext, product) }) { Icon(Icons.Default.Share, t("Share")) }
+                    IconButton(onClick = { shareProduct(shareContext, product) }) { Icon(Icons.Default.Share, t("Share")) }
                     if (refreshing) {
                         SpinningRefresh()
                     } else {
@@ -552,23 +552,14 @@ private fun Stat(label: String, price: Double, color: androidx.compose.ui.graphi
     }
 }
 
-/** The product's price and Franxit's advice as a short text, for a friend: through any messaging app. */
-internal fun adviceText(product: Product, advice: BuyAdvice): String {
-    val latest = product.latest
-    val shop = latest?.seller?.takeIf { it.isNotBlank() }?.let(Shops::name)
-    val lines = mutableListOf(product.displayName)
-    if (latest != null) {
-        lines += if (shop != null) t("%1\$s at %2\$s", latest.price.euro(), shop) else latest.price.euro()
-    }
-    val verdict = t(shortTitle(advice.verdict))
-    lines += if (advice.verdict == Verdict.INSUFFICIENT_DATA) t("Franxit says: %s.", verdict)
-    else t("Franxit says: %1\$s. %2\$s", verdict, summary(advice))
-    lines += ShareLink.forProduct(product.url)
-    return lines.joinToString("\n")
+/** What is shared: the product's name and price, and under it the link that opens it in a friend's Franxit. */
+internal fun shareText(product: Product): String {
+    val price = product.latest?.price?.euro()
+    val first = if (price != null) t("%1\$s: %2\$s", product.displayName, price) else product.displayName
+    return first + "\n" + ShareLink.forProduct(product.url, product.displayName)
 }
 
-private fun shareAdvice(context: Context, product: Product) {
-    val text = adviceText(product, BuyAdvisor.advise(product))
-    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+private fun shareProduct(context: Context, product: Product) {
+    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, shareText(product))
     context.startActivity(Intent.createChooser(send, t("Share")))
 }

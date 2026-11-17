@@ -1,10 +1,10 @@
 package com.bartschram.franxit.ui
 
-import com.bartschram.franxit.data.BuyAdvisor
 import com.bartschram.franxit.data.PricePoint
-import com.bartschram.franxit.data.ShareLink
 import com.bartschram.franxit.data.Product
+import com.bartschram.franxit.data.ShareLink
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -19,20 +19,21 @@ class AdviceTextTest {
     )
 
     @Test
-    fun theSharedTextHasTheNameThePriceTheAdviceAndTheSite() {
-        // Long enough for an advice: 60 days, three price levels.
+    fun theSharedTextIsTheNameThePriceAndTheLinkOnly() {
         val p = product(List(25) { 300.0 } + List(20) { 280.0 } + List(15) { 240.0 })
-        val lines = adviceText(p, BuyAdvisor.advise(p)).lines()
-        assertEquals("Sony PlayStation 5 Slim", lines.first())
-        assertTrue(lines[1].contains("Coolblue.be"))
-        assertTrue(lines[2], lines[2].startsWith("Franxit says: "))
-        assertEquals(ShareLink.forProduct("https://example.test/p"), lines.last())
+        val text = shareText(p)
+        val lines = text.lines()
+        assertEquals(2, lines.size)
+        assertTrue(lines[0], lines[0].startsWith("Sony PlayStation 5 Slim: ") && lines[0].contains("240"))
+        assertEquals(ShareLink.forProduct("https://example.test/p", "Sony PlayStation 5 Slim"), lines[1])
+        // No advice and no shop.
+        assertFalse(text.contains("Franxit says"))
+        assertFalse(text.contains("Coolblue"))
     }
 
     @Test
-    fun withoutEnoughHistoryItSaysSoWithoutAnExplanation() {
-        val p = product(listOf(250.0, 249.0))
-        val lines = adviceText(p, BuyAdvisor.advise(p)).lines()
-        assertEquals("Franxit says: No advice yet.", lines[2])
+    fun aProductWithoutAPriceSharesItsNameAndLink() {
+        val p = product(emptyList())
+        assertEquals(listOf("Sony PlayStation 5 Slim", ShareLink.forProduct("https://example.test/p", "Sony PlayStation 5 Slim")), shareText(p).lines())
     }
 }
