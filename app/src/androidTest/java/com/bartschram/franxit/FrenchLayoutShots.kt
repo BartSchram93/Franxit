@@ -1,0 +1,153 @@
+package com.bartschram.franxit
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.BySelector
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
+import androidx.test.uiautomator.Until
+import com.bartschram.franxit.data.Db
+import org.junit.Test
+import java.io.File
+import java.time.LocalDate
+import java.util.regex.Pattern
+
+/**
+ * Walks through the app in Dutch, to see whether the longer Dutch texts still fit: the menu, every
+ * dialog, a search, a product with its advice. Then again with a larger font. Screenshots only; run by
+ * the "Screenshots" workflow.
+ */
+class FrenchLayoutShots {
+
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
+    private val context: Context = instrumentation.targetContext
+    private val device = UiDevice.getInstance(instrumentation)
+    private val out = File(context.getExternalFilesDir(null), "shots").apply { mkdirs() }
+
+    private fun ci(regex: String) = Pattern.compile(regex, Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
+
+    private fun await(selector: BySelector, timeoutMs: Long): UiObject2? {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) {
+            runCatching { if (device.hasObject(By.textContains("isn't responding"))) device.findObject(By.text("Wait"))?.click() }
+            runCatching { device.findObject(selector) }.getOrNull()?.let { return it }
+            Thread.sleep(700)
+        }
+        return null
+    }
+
+    private fun shot(name: String) {
+        device.waitForIdle()
+        Thread.sleep(1200)
+        val bmp = instrumentation.uiAutomation.takeScreenshot()
+        File(out, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
+    /** Runs one step; if it fails, keeps what the screen looked like and goes on. */
+    private fun step(name: String, block: () -> Unit) {
+        runCatching(block).onFailure {
+            runCatching { shot("fail-$name") }
+            runCatching { device.dumpWindowHierarchy(File(out, "fail-$name.xml")) }
+            File(out, "fail-$name.txt").writeText(it.toString())
+            // Back to the app, however far the failed step got (a blind "back" would leave it).
+            runCatching { launch() }
+        }
+    }
+
+    private fun clickDesc(regex: String) = (await(By.desc(ci(regex)), 30_000) ?: error("no $regex")).click()
+    private fun clickText(regex: String) = (await(By.text(ci(regex)), 30_000) ?: error("no $regex")).click()
+
+    /** Clicks a result's title: not the search field, which holds the same words. */
+    private fun clickResult(regex: String) {
+        await(By.text(ci(regex)), 60_000)
+        val hit = device.findObjects(By.text(ci(regex))).firstOrNull { it.className != "android.widget.EditText" }
+            ?: error("no result $regex")
+        hit.click()
+    }
+
+    private fun scrollDown() =
+        device.swipe(device.displayWidth / 2, device.displayHeight * 3 / 4, device.displayWidth / 2, device.displayHeight / 4, 30)
+
+    private fun scrollUp() =
+        device.swipe(device.displayWidth / 2, device.displayHeight / 4, device.displayWidth / 2, device.displayHeight * 3 / 4, 30)
+
+    private fun launch() {
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)!!
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        context.startActivity(intent)
+        device.wait(Until.hasObject(By.pkg(context.packageName).depth(0)), 30_000)
+    }
+
+    @Test
+    fun walkThroughInFrench() {
+        out.listFiles()?.forEach { it.delete() }
+        context.deleteDatabase("franxit.db")
+        context.getSharedPreferences("app", Context.MODE_PRIVATE).edit().clear().commit()
+        context.getSharedPreferences("language", Context.MODE_PRIVATE).edit().putString("choice", "FRENCH").commit()
+        context.getSharedPreferences("usage", Context.MODE_PRIVATE).edit().putBoolean("share", false).commit()
+        context.getSharedPreferences("update_check", Context.MODE_PRIVATE).edit()
+            .putString("checked", LocalDate.now().toString()).putInt("latest", 0).commit()
+        Db(context).close()
+
+        launch()
+        // The tips sit on the empty overview itself.
+        step("tips") { await(By.text("Compris").pkg(context.packageName).clazz("android.widget.Button"), 5_000)?.click(); Thread.sleep(500) }
+        step("empty") { await(By.text("Tu ne suis encore rien."), 30_000); shot("fr-01-empty-with-tips") }
+        step("menu") { clickDesc("Plus"); await(By.text("Langue"), 10_000); shot("fr-03-menu"); device.pressBack() }
+        step("sort") { clickDesc("Trier et filtrer"); await(By.text("Trier par"), 10_000); shot("fr-04-sort"); device.pressBack() }
+        for ((item, name) in listOf(
+            "Langue" to "fr-05-language", "Statistiques d'utilisation" to "fr-06-usage",
+            "Google Shopping" to "fr-07-google", "Mes réductions" to "fr-08-discounts",
+        )) {
+            step(name) {
+                clickDesc("Plus"); clickText(item); Thread.sleep(800); shot(name)
+                device.pressBack()
+            }
+        }
+        step("search") {
+            clickDesc("Suivre un produit")
+            val field = await(By.clazz("android.widget.EditText"), 30_000) ?: error("no field")
+            field.text = "PlayStation 5"
+            await(By.textContains("dès"), 90_000)
+            shot("fr-09-search")
+            clickResult(".*playstation 5 slim.*")
+            await(By.textContains("Habituel"), 120_000)
+            scrollUp(); scrollUp()
+            shot("fr-10-detail-top")
+            scrollDown(); shot("fr-11-detail-middle")
+            scrollDown(); shot("fr-12-detail-bottom")
+            scrollUp(); scrollUp(); scrollUp()
+            step("alert") { clickText("Alerte de prix"); Thread.sleep(800); shot("fr-13-alert"); device.pressBack() }
+            step("share-advice") { clickDesc("Partager"); Thread.sleep(2500); shot("fr-15-share-advice"); device.pressBack() }
+            step("rename") { clickDesc("Renommer|Nom"); Thread.sleep(500); shot("fr-14-rename"); device.pressBack() }
+            device.pressBack()
+        }
+        step("second") {
+            clickDesc("Suivre un produit")
+            val field = await(By.clazz("android.widget.EditText"), 30_000) ?: error("no field")
+            field.text = "AirPods Pro 3"
+            await(By.textContains("dès"), 90_000)
+            clickResult(".*airpods pro 3.*")
+            await(By.textContains("Habituel"), 120_000)
+            device.pressBack()
+        }
+        step("overview") { Thread.sleep(8000); shot("fr-15-overview") }
+
+        // The same again with a larger font, the usual way text gets squeezed.
+        device.executeShellCommand("settings put system font_scale 1.3")
+        launch()
+        step("big-overview") { Thread.sleep(3000); shot("fr-20-big-overview") }
+        step("big-menu") { clickDesc("Plus"); await(By.text("Langue"), 10_000); shot("fr-21-big-menu"); device.pressBack() }
+        step("big-detail") {
+            clickResult(".*playstation.*")
+            await(By.textContains("Habituel"), 60_000)
+            shot("fr-22-big-detail-top")
+            scrollDown(); shot("fr-23-big-detail-middle")
+            scrollDown(); shot("fr-24-big-detail-bottom")
+        }
+        device.executeShellCommand("settings put system font_scale 1.0")
+    }
+}
