@@ -2,6 +2,7 @@ package com.bartschram.franxit.ui
 
 import com.bartschram.franxit.data.BuyAdvisor
 import com.bartschram.franxit.data.PricePoint
+import com.bartschram.franxit.data.ShareLink
 import com.bartschram.franxit.data.Product
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -25,7 +26,7 @@ class AdviceTextTest {
         assertEquals("Sony PlayStation 5 Slim", lines.first())
         assertTrue(lines[1].contains("Coolblue.be"))
         assertTrue(lines[2], lines[2].startsWith("Franxit says: "))
-        assertEquals("https://franxit.be/", lines.last())
+        assertEquals(ShareLink.forProduct("https://example.test/p"), lines.last())
     }
 
     @Test

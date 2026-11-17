@@ -37,6 +37,7 @@ import androidx.core.content.edit
 import com.bartschram.franxit.data.Discounts
 import com.bartschram.franxit.data.Photos
 import com.bartschram.franxit.data.Repository
+import com.bartschram.franxit.data.ShareLink
 import com.bartschram.franxit.ui.UsageDialog
 import com.bartschram.franxit.ui.L10n
 import com.bartschram.franxit.ui.LanguageDialog
@@ -95,6 +96,8 @@ class MainActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_SEND) {
             sharedUrl.value = intent.getStringExtra(Intent.EXTRA_TEXT)?.let { URL_REGEX.find(it)?.value }
         }
+        // A link from a friend's shared advice: the search opens with that product, to track with one tap.
+        if (intent.action == Intent.ACTION_VIEW) ShareLink.productUrl(intent.dataString)?.let { sharedUrl.value = it }
         intent.getLongExtra(EXTRA_PRODUCT_ID, -1).takeIf { it >= 0 }?.let { openProductId.value = it }
     }
 
