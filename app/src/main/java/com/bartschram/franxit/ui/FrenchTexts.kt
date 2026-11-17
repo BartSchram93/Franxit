@@ -130,7 +130,6 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Skip it" to "À éviter",
     "No advice yet" to "Pas encore de conseil",
     "Consider buying" to "Achat à envisager",
-    "Skip it — currently expensive" to "À éviter — actuellement cher",
     "Insufficient data" to "Données insuffisantes",
     "The current price is historically very attractive" to "Le prix actuel est historiquement très intéressant",
     "The current price is good, but not exceptional" to "Le prix actuel est bon, mais pas exceptionnel",
