@@ -69,6 +69,7 @@ import android.content.Intent
 import androidx.compose.material.icons.filled.Share
 import com.bartschram.franxit.data.BuyAdvice
 import com.bartschram.franxit.data.Product
+import com.bartschram.franxit.data.ShareLink
 import com.bartschram.franxit.data.Verdict
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -562,7 +563,7 @@ internal fun adviceText(product: Product, advice: BuyAdvice): String {
     val verdict = t(shortTitle(advice.verdict))
     lines += if (advice.verdict == Verdict.INSUFFICIENT_DATA) t("Franxit says: %s.", verdict)
     else t("Franxit says: %1\$s. %2\$s", verdict, summary(advice))
-    lines += "https://franxit.be/"
+    lines += ShareLink.forProduct(product.url)
     return lines.joinToString("\n")
 }
 
