@@ -26,7 +26,7 @@ class AdviceTextTest {
         assertEquals("Sony PlayStation 5 Slim", lines.first())
         assertTrue(lines[1].contains("Coolblue.be"))
         assertTrue(lines[2], lines[2].startsWith("Franxit says: "))
-        assertEquals(ShareLink.forProduct("https://example.test/p"), lines.last())
+        assertEquals(ShareLink.forProduct("https://example.test/p", "Sony PlayStation 5 Slim"), lines.last())
     }
 
     @Test

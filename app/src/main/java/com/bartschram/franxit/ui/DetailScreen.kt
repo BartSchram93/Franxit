@@ -563,7 +563,7 @@ internal fun adviceText(product: Product, advice: BuyAdvice): String {
     val verdict = t(shortTitle(advice.verdict))
     lines += if (advice.verdict == Verdict.INSUFFICIENT_DATA) t("Franxit says: %s.", verdict)
     else t("Franxit says: %1\$s. %2\$s", verdict, summary(advice))
-    lines += ShareLink.forProduct(product.url)
+    lines += ShareLink.forProduct(product.url, product.displayName)
     return lines.joinToString("\n")
 }
 

@@ -68,6 +68,8 @@ import java.time.LocalTime
 class MainActivity : ComponentActivity() {
 
     private val sharedUrl = mutableStateOf<String?>(null)
+    // A product a friend shared (from its link): the app asks whether to track it.
+    private val sharedProduct = mutableStateOf<ShareLink.Shared?>(null)
     private val openProductId = mutableStateOf<Long?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,7 +78,7 @@ class MainActivity : ComponentActivity() {
         handle(intent)
         L10n.init(applicationContext)
         // key(): when the language changes, everything is drawn again in the new one.
-        setContent { FranxitTheme { androidx.compose.runtime.key(L10n.choice) { App(sharedUrl, openProductId) } } }
+        setContent { FranxitTheme { androidx.compose.runtime.key(L10n.choice) { App(sharedUrl, openProductId, sharedProduct) } } }
     }
 
     override fun onStart() {
@@ -96,8 +98,8 @@ class MainActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_SEND) {
             sharedUrl.value = intent.getStringExtra(Intent.EXTRA_TEXT)?.let { URL_REGEX.find(it)?.value }
         }
-        // A link from a friend's shared advice: the search opens with that product, to track with one tap.
-        if (intent.action == Intent.ACTION_VIEW) ShareLink.productUrl(intent.dataString)?.let { sharedUrl.value = it }
+        // A link from a friend's shared advice: ask whether to track that product.
+        if (intent.action == Intent.ACTION_VIEW) ShareLink.parse(intent.dataString)?.let { sharedProduct.value = it }
         intent.getLongExtra(EXTRA_PRODUCT_ID, -1).takeIf { it >= 0 }?.let { openProductId.value = it }
     }
 
@@ -108,7 +110,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Long?>) {
+private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Long?>, sharedProduct: MutableState<ShareLink.Shared?>) {
     val context = LocalContext.current
     val repo = remember { Repository.get(context) }
     val allProducts by repo.products.collectAsState()
@@ -338,6 +340,22 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                     Scheduler.setTime(context, time)
                     checkTime = time
                 }, checkTime.hour, checkTime.minute, true).show()
+            },
+        )
+    }
+
+    sharedProduct.value?.let { shared ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { sharedProduct.value = null },
+            title = { com.bartschram.franxit.ui.Text("Track this product?") },
+            text = { com.bartschram.franxit.ui.Text(shared.name.ifBlank { "A shared product" }) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { sharedProduct.value = null; add(shared.url) }) {
+                    com.bartschram.franxit.ui.Text("Track")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { sharedProduct.value = null }) { com.bartschram.franxit.ui.Text("Cancel") }
             },
         )
     }
