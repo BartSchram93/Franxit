@@ -130,7 +130,6 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Skip it" to "Beter niet",
     "No advice yet" to "Nog geen advies",
     "Consider buying" to "Overweeg te kopen",
-    "Skip it — currently expensive" to "Beter niet — nu duur",
     "Insufficient data" to "Te weinig gegevens",
     "The current price is historically very attractive" to "De huidige prijs is historisch erg aantrekkelijk",
     "The current price is good, but not exceptional" to "De huidige prijs is goed, maar niet uitzonderlijk",
