@@ -201,7 +201,7 @@ internal fun shortTitle(verdict: Verdict) = when (verdict) {
     Verdict.BUY_NOW -> "Buy now"
     Verdict.CONSIDER_BUYING -> "Consider"
     Verdict.WAIT -> "Wait"
-    Verdict.WAIT_EXPENSIVE -> "Expensive"
+    Verdict.WAIT_EXPENSIVE -> "Skip it"
     Verdict.INSUFFICIENT_DATA -> "No advice yet"
 }
 
@@ -217,7 +217,7 @@ private fun title(verdict: Verdict) = when (verdict) {
     Verdict.BUY_NOW -> t("Buy now")
     Verdict.CONSIDER_BUYING -> t("Consider buying")
     Verdict.WAIT -> t("Wait")
-    Verdict.WAIT_EXPENSIVE -> t("Wait — currently expensive")
+    Verdict.WAIT_EXPENSIVE -> t("Skip it — currently expensive")
     Verdict.INSUFFICIENT_DATA -> t("Insufficient data")
 }
 
