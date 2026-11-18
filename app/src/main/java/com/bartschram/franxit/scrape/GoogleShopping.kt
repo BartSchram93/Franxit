@@ -245,6 +245,8 @@ object GoogleShopping {
             val price = (s.opt("extracted_price") as? Number)?.toDouble() ?: return@mapNotNull null
             val link = storeUrl(s.optString("link")) ?: return@mapNotNull null
             val title = s.optString("title")
+            // Google groups colours and variants of one model together: the shop's own title tells them apart.
+            if (title.isNotBlank() && Matching.isOtherVariant(title, query)) return@mapNotNull null
             if (name.isBlank() || price <= 0 || isForeignShop(name) || isMarketplace(name)) return@mapNotNull null
             if (SECOND_HAND.containsMatchIn("$name $title ${s.optJSONArray("details_and_offers")}")) return@mapNotNull null
             // Dutch or English pages only (bol.com's French page is left out; its Dutch one is listed too).

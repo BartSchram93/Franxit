@@ -80,4 +80,22 @@ class MatchingTest {
         // A different model code still is another product.
         assertFalse(Matching.isSameProduct("Hercules KB210B keyboardbank 8GB", "Hercules KB200B"))
     }
+
+    @Test
+    fun anotherColourIsAnotherProduct() {
+        val wanted = "Casio G-shock G-steel Heren Horloge Zilverkleurig GM-2100YM-8AER"
+        assertFalse(Matching.isSameProduct("Casio G-Shock G-Steel Heren Horloge Zwart", wanted))
+        assertTrue(Matching.isSameProduct("Casio G-Shock GM-2100YM-8AER Heren Horloge Zilverkleurig", wanted))
+    }
+
+    @Test
+    fun aShopGoogleGroupsMustCarryTheModelCodeAndTheColour() {
+        val wanted = "Casio G-shock G-steel Heren Horloge Zilverkleurig GM-2100YM-8AER"
+        assertTrue(Matching.isOtherVariant("Casio G-Shock GM-2100-1AER zwart", wanted))
+        assertTrue(Matching.isOtherVariant("Casio G-Shock Heren Horloge Zwart", wanted))
+        assertTrue(Matching.isOtherVariant("Casio G-Shock Heren Horloge", wanted))
+        assertFalse(Matching.isOtherVariant("Casio G-SHOCK GM-2100YM-8AER", wanted))
+        // Without a model code in the name, titles are not held to one.
+        assertFalse(Matching.isOtherVariant("TCL e-reader tablet 14.3 inch NXTPAPER 14", "TCL Nxtpaper 14"))
+    }
 }

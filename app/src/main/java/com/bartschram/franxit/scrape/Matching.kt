@@ -65,6 +65,8 @@ object Matching {
         val haveCompact = compact(title)
         val wantCompact = compact(wanted)
         if (!wantCodes.all { it in haveCompact }) return false
+        // The same product in another colour (a black watch for the silver one) is not this product.
+        if (otherColour(title, wanted)) return false
         // Specs ("8GB", "256gb", "6000mah") aren't model codes: shops add them to titles, they don't make another product.
         if (have.filter { isModelCode(it) && !isSpec(it) }.any { it !in wantCompact }) return false
         // Numbers in the name must be in the title too: "TCL Smartphone 60 SE Nxtpaper 5G" isn't the
@@ -72,6 +74,43 @@ object Matching {
         if (want.filter { w -> w.all(Char::isDigit) }.any { it !in have }) return false
         // Without a model code, most of the words have to match.
         return wantCodes.isNotEmpty() || want.count { it in have }.toDouble() / want.size >= 0.6
+    }
+
+    /** Colour words in Dutch, English and French, each to one colour. */
+    private val COLOURS = mapOf(
+        "zwart" to "black", "black" to "black", "noir" to "black",
+        "wit" to "white", "white" to "white", "blanc" to "white",
+        "zilver" to "silver", "zilverkleurig" to "silver", "silver" to "silver", "argent" to "silver",
+        "grijs" to "grey", "grey" to "grey", "gray" to "grey", "gris" to "grey",
+        "blauw" to "blue", "blue" to "blue", "bleu" to "blue",
+        "rood" to "red", "red" to "red", "rouge" to "red",
+        "groen" to "green", "green" to "green", "vert" to "green",
+        "goud" to "gold", "goudkleurig" to "gold", "gold" to "gold",
+        "roze" to "pink", "pink" to "pink", "rose" to "pink",
+        "paars" to "purple", "purple" to "purple", "violet" to "purple",
+        "bruin" to "brown", "brown" to "brown", "brun" to "brown",
+        "oranje" to "orange", "orange" to "orange",
+        "geel" to "yellow", "yellow" to "yellow", "jaune" to "yellow",
+    )
+
+    private fun colours(text: String): Set<String> = words(text).mapNotNull { COLOURS[it] }.toSet()
+
+    /** True when both name a colour and have none in common: the same model, another colour. */
+    internal fun otherColour(title: String, wanted: String): Boolean {
+        val w = colours(wanted)
+        val t = colours(title)
+        return w.isNotEmpty() && t.isNotEmpty() && w.none { it in t }
+    }
+
+    /**
+     * For a shop Google groups under the product (titles aren't matched there): true when its title is
+     * clearly another variant: another colour, or (when your name has a model code) a title without that code.
+     */
+    fun isOtherVariant(title: String, wanted: String): Boolean {
+        if (otherColour(title, wanted)) return true
+        val wantCodes = words(wanted.replace(SIZE, " ")).filter(::isModelCode)
+        // With a model code in the name, a shop's title has to carry it too: a watch is told from its sibling by that code.
+        return wantCodes.isNotEmpty() && !wantCodes.all { it in compact(title) }
     }
 
     private val SIZE = Regex("""\d+([.,]\d+)?\s?("|″|”|''|-?inch\b|-?cm\b)|\d+[.,]\d+""", RegexOption.IGNORE_CASE)

@@ -153,10 +153,12 @@ class Repository private constructor(context: Context) {
         val today = LocalDate.now().toString()
         ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return Extras(it) }
         val name = product.displayName
+        // What results are held against: the name with its model code ("… Zilverkleurig" + "GM-2100YM-8AER"), so another colour's code is out.
+        val matchName = matchName(product)
         // The wording that worked last time first, then the product's name, its fuller name, and "kopen".
         val terms = listOfNotNull(ShoppingSettings.extraTerm(appContext, product.id), name, fullNameQuery(product), "$name kopen")
         val found = try {
-            searchGoogleShopping(product.id, name, terms, reference) { ShoppingSettings.setExtraTerm(appContext, product.id, it) }
+            searchGoogleShopping(product.id, matchName, terms, reference) { ShoppingSettings.setExtraTerm(appContext, product.id, it) }
         } catch (e: Exception) {
             return when (e.message) {
                 // Nothing for this product: asked once a day, not at every refresh.
@@ -181,6 +183,12 @@ class Repository private constructor(context: Context) {
      * The name with the first thing after its comma ("Bose QuietComfort Ultra Earbuds" + "(2e gen) Zwart"),
      * as a second wording to search for; null when that is no short variant, but specs ("36,3 cm", "256 GB").
      */
+    private fun matchName(product: Product): String {
+        val extra = product.name.split(',').getOrNull(1)?.trim().orEmpty()
+        val isCode = Regex("""[A-Za-z0-9][A-Za-z0-9./-]{3,}""").matches(extra) && extra.any(Char::isDigit) && extra.any(Char::isLetter)
+        return if (isCode) "${product.displayName} $extra" else product.displayName
+    }
+
     private fun fullNameQuery(product: Product): String? {
         val extra = product.name.split(',').getOrNull(1)?.trim().orEmpty()
         val spec = Regex("""\d\s?(cm|inch|"|gb|mb|tb|mm|hz|mah|w|x)\b|^[\d.\s]+$""", RegexOption.IGNORE_CASE)
