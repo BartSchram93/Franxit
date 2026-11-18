@@ -1,0 +1,43 @@
+# Every morning: how many Google Shopping (SerpApi) searches are left this month. Under the limit,
+# one issue is opened (GitHub emails the owner); it closes itself when the searches are back.
+name: SerpApi quota
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  quota:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the searches left
+        env:
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          LIMIT: "50"
+          TITLE: "Google Shopping: bijna geen zoekopdrachten meer"
+        run: |
+          if [ -z "$SERPAPI_KEY" ]; then
+            echo "::warning::No SERPAPI_KEY secret, nothing to check."
+            exit 0
+          fi
+          json="$(curl -fsS "https://serpapi.com/account?api_key=$SERPAPI_KEY")" || { echo "::warning::Couldn't ask SerpApi."; exit 0; }
+          left="$(echo "$json" | jq -r '.total_searches_left // .plan_searches_left // empty')"
+          if [ -z "$left" ]; then
+            echo "::warning::SerpApi gave no number of searches left."
+            exit 0
+          fi
+          echo "Searches left: $left"
+          open="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$TITLE\" in:title" --json number -q '.[0].number')"
+          if [ "$left" -le "$LIMIT" ]; then
+            if [ -z "$open" ]; then
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" \
+                --body "Nog $left zoekopdrachten over deze maand. Daarna voegt de app geen extra winkels meer toe (klanten merken niets) tot het tegoed terug is."
+            fi
+          elif [ -n "$open" ]; then
+            gh issue close "$open" --repo "$GITHUB_REPOSITORY" --comment "Er zijn weer $left zoekopdrachten over."
+          fi

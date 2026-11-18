@@ -5,6 +5,9 @@ name: Release
 on:
   push:
     branches: [main]
+    # Only the quota check changed: no new release for that.
+    paths-ignore:
+      - ".github/workflows/serpapi-quota.yml"
   workflow_dispatch:
 
 permissions:
