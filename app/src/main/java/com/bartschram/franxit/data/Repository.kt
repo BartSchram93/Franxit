@@ -326,7 +326,9 @@ class Repository private constructor(context: Context) {
         // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
         val ownCheapest = own.minOfOrNull { it.price }
         val ownShops = own.map { Shops.name(it.seller).lowercase() }.distinct().size
-        val extras = extraShops(product, query, ownCheapest, ownShops)
+        // A product just added is still called "New product": Google is asked for the name the shop gave it.
+        val named = product.copy(name = result.name.ifBlank { product.name })
+        val extras = extraShops(named, query, ownCheapest, ownShops)
         // (Which shops are trusted was decided when Google's results were read.)
         val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
         if (searchesExtra(query, ownShops) && extras.error == null) {
@@ -336,7 +338,7 @@ class Repository private constructor(context: Context) {
                 appContext, product.id,
                 run {
                     // Says what happened, so "nothing" is never a mystery: no match, prices that didn't fit, or shops you already had.
-                    val term = ShoppingSettings.extraTerm(appContext, product.id) ?: product.displayName
+                    val term = ShoppingSettings.extraTerm(appContext, product.id) ?: named.displayName
                     when {
                         extras.offers.isEmpty() -> "Nothing matched “$term” on Google"
                         extra.isEmpty() -> "Google found ${extras.offers.size} shops for “$term”, but their prices didn't fit"

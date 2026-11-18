@@ -26,7 +26,7 @@ object ShoppingSettings {
         prefs(context).edit { putString("extra_term_$productId", term) }
 
     /** Bumped when the way results are found or filtered changes, so older saved results aren't reused. */
-    private const val EXTRA_VERSION = 3
+    private const val EXTRA_VERSION = 4
 
     /** Google Shopping offers for a product, saved so a later refresh doesn't search again: used for [days] days (more for "nothing found": no searches wasted). */
     fun saveExtraOffers(context: Context, productId: Long, day: String, offers: List<ShopOffer>, days: Int = 1) {
