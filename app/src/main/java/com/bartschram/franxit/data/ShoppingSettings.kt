@@ -49,7 +49,7 @@ object ShoppingSettings {
         val json = JSONObject().put("v", EXTRA_VERSION).put("day", day)
             .put("until", java.time.LocalDate.parse(day).plusDays(days - 1L).toString()).put(
             "offers",
-            org.json.JSONArray(offers.map { JSONObject().put("seller", it.seller).put("price", it.price) }),
+            org.json.JSONArray(offers.map { JSONObject().put("seller", it.seller).put("price", it.price).also { o -> it.inStock?.let { s -> o.put("inStock", s) } } }),
         )
         prefs(context).edit { putString("extra_offers_$productId", json.toString()) }
     }
@@ -58,7 +58,7 @@ object ShoppingSettings {
         val json = prefs(context).getString("extra_offers_$productId", null)?.let(::JSONObject) ?: return null
         if (json.optInt("v", 0) != EXTRA_VERSION || day > json.optString("until", "") || day < json.optString("day")) return null
         val list = json.getJSONArray("offers")
-        return (0 until list.length()).map { list.getJSONObject(it).let { o -> ShopOffer(o.getString("seller"), o.getDouble("price")) } }
+        return (0 until list.length()).map { list.getJSONObject(it).let { o -> ShopOffer(o.getString("seller"), o.getDouble("price"), if (o.has("inStock")) o.getBoolean("inStock") else null) } }
     }
 
     /** Keeps a shop's page found earlier when the new search only has a token to look it up again. */

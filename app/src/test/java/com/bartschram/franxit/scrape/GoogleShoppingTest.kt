@@ -269,4 +269,21 @@ class GoogleShoppingTest {
         assertEquals(false, GoogleShopping.isOtherLanguage("Tablette TCL NXTPAPER 14", fr, frenchToo = true))
         assertEquals(true, GoogleShopping.isOtherLanguage("TCL Tablet für Kinder", "https://www.example.de/de/x", frenchToo = true))
     }
+
+    @Test
+    fun aStoreThatSaysSoldOutIsMarkedOutOfStock() {
+        val search = """
+            {"shopping_results": [{"title": "Sony PlayStation 5 Slim", "source": "Coolblue", "extracted_price": 699.0, "link": "https://www.coolblue.be/nl/p/1"}]}
+        """.trimIndent()
+        val page = """
+            {"product_results": {"stores": [
+              {"name": "Dreamland", "link": "https://www.dreamland.be/nl/ps5", "title": "Sony PlayStation 5 Slim", "extracted_price": 499.99,
+               "details_and_offers": ["Uitverkocht"]},
+              {"name": "Fnac", "link": "https://www.fnac.be/nl/ps5", "title": "Sony PlayStation 5 Slim", "extracted_price": 549.0}
+            ]}}
+        """.trimIndent()
+        val found = GoogleShopping.addStores(GoogleShopping.parse(search, "Sony PlayStation 5 Slim") { it }, page, "Sony PlayStation 5 Slim") { it }
+        assertEquals(false, found.result.offers.first { it.seller == "Dreamland" }.inStock)
+        assertNull(found.result.offers.first { it.seller == "Fnac" }.inStock)
+    }
 }

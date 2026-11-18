@@ -44,8 +44,7 @@ object Discounts {
 
     /** The offer that's cheapest for you, preferring ones in stock. Null when there are none. */
     fun bestForYou(offers: List<ShopOffer>, discounts: Map<String, Double>): ShopOffer? =
-        offers.filter { it.inStock != false }.minByOrNull { yourPrice(it, discounts) }
-            ?: offers.minByOrNull { yourPrice(it, discounts) }
+        Offers.best(offers) { yourPrice(it, discounts) }
 
     /** "5" or "2,5", for "−5%". */
     fun label(percent: Double): String =

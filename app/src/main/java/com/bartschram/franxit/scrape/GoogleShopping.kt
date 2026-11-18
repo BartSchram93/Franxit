@@ -191,7 +191,9 @@ object GoogleShopping {
             // of reviews): a fake shop rarely has plenty of both.
             val shown = site?.takeIf { trusted(it) != null }?.let(Shops::name) ?: trusted(name)
                 ?: name.takeIf { reliable || (wellReviewed(s) && site != null && sellsToBelgium(site)) } ?: return@mapNotNull null
-            Scraper.Offer(shown, price, link = link) to otherLanguage
+            // Google's store details sometimes say it is sold out; otherwise the stock is unknown (null).
+            val soldOut = OUT_OF_STOCK.containsMatchIn(s.optJSONArray("details_and_offers")?.toString().orEmpty())
+            Scraper.Offer(shown, price, inStock = if (soldOut) false else null, link = link) to otherLanguage
         }
             // A reliable shop's page in another language only counts when no Dutch or English one is as cheap.
             .sortedBy { it.second }.map { it.first }
@@ -293,6 +295,11 @@ object GoogleShopping {
     private val MARKETPLACES = listOf("ebay", "ubuy", "u-buy", "aliexpress", "temu", "wish", "fruugo", "desertcart", "joom")
 
     internal fun isMarketplace(shop: String): Boolean = shop.lowercase().let { s -> MARKETPLACES.any { it in s } }
+
+    private val OUT_OF_STOCK = Regex(
+        """out of stock|sold out|uitverkocht|niet op voorraad|niet beschikbaar|tijdelijk niet|[ée]puis[ée]|rupture de stock|indisponible""",
+        RegexOption.IGNORE_CASE,
+    )
 
     private val SECOND_HAND = Regex(
         """\b(used|refurbished|renewed|reconditioned|second.?hand|tweedehands|2e hands|gebruikt|occasion|refurb|seconde main|d'occasion|reconditionn[ée])\b""",

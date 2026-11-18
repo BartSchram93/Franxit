@@ -477,6 +477,8 @@ private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopLin
                 Text(names[offer.seller] ?: Shops.name(offer.seller), style = MaterialTheme.typography.bodyMedium)
                 if (offer.inStock == false) {
                     Text("Out of stock", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else if (offer.inStock == null) {
+                    Text("Stock unknown", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (opening == offer.seller) {

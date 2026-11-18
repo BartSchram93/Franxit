@@ -312,7 +312,9 @@ class Repository private constructor(context: Context) {
         val today = LocalDate.now()
         // Shops selling their own products (e.g. Coolblue) don't name a seller; use the shop's domain.
         val host = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
-        val own = result.offers.map { ShopOffer(it.seller.ifBlank { host }, it.price, it.inStock) }
+        // The shop's own page (or vergelijk.be) lists what you can buy: in stock unless it says otherwise.
+        // Google Shopping's shops stay "unknown" (null) and don't set the headline price while a known one exists.
+        val own = result.offers.map { ShopOffer(it.seller.ifBlank { host }, it.price, it.inStock ?: true) }
         // vergelijk.be's shops (and a shop page you added yourself) are trusted for Google Shopping too.
         if (query == null) TrustedShops.learn(appContext, own.map { it.seller })
         // Optionally Google Shopping's shops too; one shop, one offer (the cheaper), by shop site.
