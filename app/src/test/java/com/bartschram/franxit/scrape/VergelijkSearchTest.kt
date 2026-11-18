@@ -25,4 +25,18 @@ class VergelijkSearchTest {
         assertEquals("https://www.vergelijk.be/tablet_hoes/etuitab/tablethoes_tcl_nxtpaper_14_123456789/", hits.single().url)
         assertEquals(19.95, hits.single().price!!, 0.001)
     }
+
+    @Test
+    fun theSameTitleWrittenDifferentlyIsListedOnce() {
+        val hits = listOf(
+            VergelijkSearch.Hit("Nxtpaper 14", "https://www.vergelijk.be/a/b/c_111111111/", 364.6),
+            VergelijkSearch.Hit("NXTPAPER  14", "https://www.vergelijk.be/a/b/d_222222222/", 360.0),
+            VergelijkSearch.Hit("Nxtpaper 14 Pro", "https://www.vergelijk.be/a/b/e_333333333/", 400.0),
+            VergelijkSearch.Hit("Nxtpaper 70 Pro - 256 Gb Blauw", "https://www.vergelijk.be/a/b/f_444444444/", 258.89),
+            VergelijkSearch.Hit("Nxtpaper 70 Pro - 256 Gb Grijs", "https://www.vergelijk.be/a/b/g_555555555/", 258.89),
+        )
+        val kept = VergelijkSearch.withoutDuplicates(hits).map { it.title }
+        // The duplicate goes; other models, colours and sizes stay.
+        assertEquals(listOf("Nxtpaper 14", "Nxtpaper 14 Pro", "Nxtpaper 70 Pro - 256 Gb Blauw", "Nxtpaper 70 Pro - 256 Gb Grijs"), kept)
+    }
 }

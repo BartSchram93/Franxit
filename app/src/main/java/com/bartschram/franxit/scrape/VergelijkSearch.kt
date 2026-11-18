@@ -20,8 +20,17 @@ object VergelijkSearch {
         val results = runCatching {
             parseResults(Scraper.download("$BASE/api/v1/search/results/enhanced/combined?searchText=$q&page=1", "application/json"))
         }.getOrDefault(emptyList())
-        return (suggestions + results).distinctBy { productId(it.url) ?: it.url }.take(40)
+        return withoutDuplicates(suggestions + results).take(40)
     }
+
+    /**
+     * The same product once: by its id, and by its title when only the writing differs
+     * (capitals, dashes, spaces). The first (the more precise suggestion) stays. Titles that differ
+     * in any word, colour or size are different products and all stay.
+     */
+    internal fun withoutDuplicates(hits: List<Hit>): List<Hit> =
+        hits.distinctBy { productId(it.url) ?: it.url }
+            .distinctBy { hit -> hit.title.lowercase().filter { it.isLetterOrDigit() }.ifEmpty { hit.url } }
 
     fun parseSuggestions(json: String): List<Hit> {
         val items = JSONObject(json).optJSONArray("items") ?: return emptyList()

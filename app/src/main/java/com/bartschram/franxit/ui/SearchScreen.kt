@@ -167,7 +167,7 @@ fun SearchScreen(
                         )
                     }
                 }
-                items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, hit.price) { onPick(hit.url) } }
+                items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null) { onPick(hit.url) } }
                 // For products vergelijk.be doesn't have: Google Shopping, one search of your plan a day.
                 val google = shoppingQuery?.takeIf { onGoogleShopping != null && !searching && it.length >= 2 }
                 if (google != null && (link == null || shopLink != null)) {
