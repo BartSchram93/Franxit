@@ -283,7 +283,7 @@ class GoogleShoppingTest {
             ]}}
         """.trimIndent()
         val found = GoogleShopping.addStores(GoogleShopping.parse(search, "Sony PlayStation 5 Slim") { it }, page, "Sony PlayStation 5 Slim") { it }
-        assertEquals(false, found.result.offers.first { it.seller == "Dreamland" }.inStock)
-        assertNull(found.result.offers.first { it.seller == "Fnac" }.inStock)
+        assertEquals(false, found.result.offers.first { "dreamland" in it.seller.lowercase() }.inStock)
+        assertNull(found.result.offers.first { "fnac" in it.seller.lowercase() }.inStock)
     }
 }
