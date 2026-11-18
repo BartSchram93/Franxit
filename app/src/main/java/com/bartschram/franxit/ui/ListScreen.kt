@@ -258,16 +258,16 @@ fun ListScreen(
                                     onClick = { menuOpen = false; onGoogleShopping() },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Tips") },
-                                    onClick = { menuOpen = false; onShowTips() },
+                                    text = { Text(t("Price check at %s", checkTime.format(DateTimeFormatter.ofPattern("HH:mm")))) },
+                                    onClick = { menuOpen = false; onChangeTime() },
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Language") },
                                     onClick = { menuOpen = false; onLanguage() },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(t("Price check at %s", checkTime.format(DateTimeFormatter.ofPattern("HH:mm")))) },
-                                    onClick = { menuOpen = false; onChangeTime() },
+                                    text = { Text("Tips") },
+                                    onClick = { menuOpen = false; onShowTips() },
                                 )
                                 HorizontalDivider()
                                 // Free and without ads; one quiet line for whoever wants to say thanks (no account needed).
