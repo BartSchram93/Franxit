@@ -75,7 +75,26 @@ object GoogleShopping {
             runCatching { addStores(searched, serp("engine=google_immersive_product&page_token=$t&more_stores=true", key), query, reference, trusted) }.getOrNull()
         } ?: searched
         if (found.result.offers.isEmpty()) throw IOException(NOT_FOUND)
-        return found
+        return resolveLinks(found, key)
+    }
+
+    private const val MAX_LOOKUPS = 3
+
+    /**
+     * Google's lookup tokens expire within minutes, so a shop's own page can't wait for the tap:
+     * for the cheapest shops that still only have a token, the page is looked up now (a search each).
+     * A shop whose page isn't found keeps its token.
+     */
+    private fun resolveLinks(found: Found, key: String): Found {
+        val links = found.links.toMutableMap()
+        found.result.offers.filter { links[it.seller]?.startsWith(TOKEN) == true }.take(MAX_LOOKUPS).forEach { offer ->
+            val token = links.getValue(offer.seller).removePrefix(TOKEN)
+            val page = runCatching {
+                storeLink(token, offer.seller, key) { a, b -> com.bartschram.franxit.data.TrustedShops.same(a, b) }
+            }.getOrNull()
+            if (page != null) links[offer.seller] = page
+        }
+        return found.copy(links = links)
     }
 
     /** One SerpApi request, with its errors in plain words. */
