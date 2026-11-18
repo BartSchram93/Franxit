@@ -141,7 +141,7 @@ object GoogleShopping {
             Item(title, shop, price, link, o.optString("thumbnail").takeIf { it.startsWith("http") }, site, token)
         }.filter {
             Matching.isSameProduct(it.title, query) && !isForeignShop(it.shop) && !isMarketplace(it.shop) &&
-                !isOtherLanguage(it.title, it.link)
+                (!isOtherLanguage(it.title, it.link) || isReliableShop(it.shop, it.site))
         }
         if (same.isEmpty()) throw IOException(NOT_FOUND)
         // Google's page for the best match, whichever shop it came from: it lists the trusted ones too.
@@ -155,9 +155,10 @@ object GoogleShopping {
                 when {
                     item.site != null && trusted(item.site) != null -> item.copy(shop = Shops.name(item.site))
                     else -> trusted(item.shop)?.let { item.copy(shop = it) }
+                        ?: item.takeIf { isReliableShop(it.shop, it.site) }
                 }
             }
-            .let { withoutOutliers(it) { item -> item.price } }
+            .let { withoutOutliers(it, { item -> isReliableShop(item.shop, item.site) }) { item -> item.price } }
 
         val cheapest = matching.groupBy { it.shop.lowercase() }.values.map { group -> group.minBy { it.price } }.sortedBy { it.price }
         return Found(
@@ -182,16 +183,20 @@ object GoogleShopping {
             if (name.isBlank() || price <= 0 || isForeignShop(name) || isMarketplace(name)) return@mapNotNull null
             if (SECOND_HAND.containsMatchIn("$name $title ${s.optJSONArray("details_and_offers")}")) return@mapNotNull null
             // Dutch or English pages only (bol.com's French page is left out; its Dutch one is listed too).
-            if (isOtherLanguage(title, link)) return@mapNotNull null
             val site = storeSite(s)
+            val reliable = isReliableShop(name, site)
+            val otherLanguage = isOtherLanguage(title, link)
+            if (otherLanguage && !reliable) return@mapNotNull null
             // Trusted by the lists, or by what Google's shoppers say about the shop (stars and number
             // of reviews): a fake shop rarely has plenty of both.
             val shown = site?.takeIf { trusted(it) != null }?.let(Shops::name) ?: trusted(name)
-                ?: name.takeIf { wellReviewed(s) && site != null && sellsToBelgium(site) } ?: return@mapNotNull null
-            Scraper.Offer(shown, price, link = link)
+                ?: name.takeIf { reliable || (wellReviewed(s) && site != null && sellsToBelgium(site)) } ?: return@mapNotNull null
+            Scraper.Offer(shown, price, link = link) to otherLanguage
         }
+            // A reliable shop's page in another language only counts when no Dutch or English one is as cheap.
+            .sortedBy { it.second }.map { it.first }
         // The page's own links first: on the same price, its direct link wins.
-        val offers = withoutOutliers(extra + found.result.offers) { it.price }
+        val offers = withoutOutliers(extra + found.result.offers, { isReliableShop(it.seller, null) }) { it.price }
             .groupBy { it.seller.lowercase() }.values.map { group -> group.minBy { it.price } }.sortedBy { it.price }
         val links = offers.mapNotNull { o -> (o.link ?: found.links[o.seller])?.let { o.seller to it } }.toMap()
         return Found(found.result.copy(offers = offers), links, found.token)
@@ -288,12 +293,22 @@ object GoogleShopping {
      * Prices far from the middle of the results are odd ones out, not alternatives: over 1.5× (import
      * prices), or under half (another item, or too good to be true: € 37,99 for € 219 earbuds).
      */
-    private fun <T> withoutOutliers(items: List<T>, price: (T) -> Double): List<T> {
+    private fun <T> withoutOutliers(items: List<T>, reliable: (T) -> Boolean, price: (T) -> Double): List<T> {
         if (items.size < 3) return items
         val sorted = items.map(price).sorted()
         val median = sorted[sorted.size / 2]
-        return items.filter { price(it) in median * 0.5..median * 1.5 }
+        // Reliable shops stay, whatever their price.
+        return items.filter { reliable(it) || price(it) in median * 0.5..median * 1.5 }
     }
+
+    /**
+     * Big, reliable shops: always shown, whatever the page's language or the price (a dearer bol.com is
+     * still worth showing). Matched by the shop's name or its site.
+     */
+    private val RELIABLE_SHOPS = listOf("bol.com", "coolblue", "fnac", "mediamarkt", "media markt", "krefel", "krëfel")
+
+    internal fun isReliableShop(name: String, site: String?): Boolean =
+        "$name ${site.orEmpty()}".lowercase().let { text -> RELIABLE_SHOPS.any { it in text } }
 
     private fun JSONArray?.objects(): List<JSONObject> =
         if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }

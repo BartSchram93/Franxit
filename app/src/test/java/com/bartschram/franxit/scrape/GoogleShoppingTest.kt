@@ -237,4 +237,28 @@ class GoogleShoppingTest {
         assertEquals(true, GoogleShopping.isOtherLanguage("Coque pour TCL NXTPAPER 14", null))
         assertEquals(true, GoogleShopping.isOtherLanguage("TCL NXTPAPER 14", "https://www.movertix.com/fr/tcl-nxtpaper-14"))
     }
+
+    @Test
+    fun reliableShopsAreAlwaysShownWhateverTheLanguageOrPrice() {
+        val search = """
+            {"shopping_results": [
+              {"title": "TCL NXTPAPER 14 Tablet", "source": "Coolblue", "extracted_price": 349.0, "link": "https://www.coolblue.be/nl/p/1"},
+              {"title": "TCL NXTPAPER 14 Tablet", "source": "Other shop", "extracted_price": 350.0, "link": "https://www.coolblue.be/nl/p/2"}
+            ]}
+        """.trimIndent()
+        val page = """
+            {"product_results": {"stores": [
+              {"name": "Krëfel", "link": "https://www.krefel.be/fr/tcl-nxtpaper-14", "title": "Tablette TCL NXTPAPER 14", "extracted_price": 1200.0},
+              {"name": "MediaMarkt", "link": "https://www.mediamarkt.be/fr/product/tcl", "title": "Tablette TCL NXTPAPER 14", "extracted_price": 120.0},
+              {"name": "Fnac", "link": "https://www.fnac.be/tcl-nxtpaper-14", "title": "Tablette TCL NXTPAPER 14", "extracted_price": 380.0}
+            ]}}
+        """.trimIndent()
+        val found = GoogleShopping.addStores(GoogleShopping.parse(search, "TCL NXTPAPER 14"), page, "TCL NXTPAPER 14") { it }
+        val sellers = found.result.offers.map { it.seller.lowercase() }
+        assertEquals(true, sellers.any { "krëfel" in it || "krefel" in it })
+        assertEquals(true, sellers.any { "mediamarkt" in it })
+        assertEquals(true, sellers.any { "fnac" in it })
+        assertEquals(true, GoogleShopping.isReliableShop("bol", null))
+        assertEquals(false, GoogleShopping.isReliableShop("Movertix", "movertix.com"))
+    }
 }
