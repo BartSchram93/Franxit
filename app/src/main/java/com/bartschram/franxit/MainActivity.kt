@@ -132,7 +132,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     var discounts by remember { mutableStateOf(Discounts.load(context)) }
     var showDiscounts by rememberSaveable { mutableStateOf(false) }
     var showLanguage by rememberSaveable { mutableStateOf(false) }
-    val shoppingKey = remember { ShoppingSettings.key(context) != null }
+    val shoppingKey = remember { ShoppingSettings.enabled() }
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
 
     fun notificationsAllowed() = NotificationManagerCompat.from(context).areNotificationsEnabled() &&

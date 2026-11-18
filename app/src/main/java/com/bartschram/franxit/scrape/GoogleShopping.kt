@@ -46,7 +46,7 @@ object GoogleShopping {
      * lists more shops, each with its own link (two searches; the second is skipped when it fails).
      */
     fun fetch(
-        query: String, key: String, trusted: (String) -> String?, terms: List<String> = listOf(query), reference: Double? = null,
+        query: String, trusted: (String) -> String?, terms: List<String> = listOf(query), reference: Double? = null,
     ): Found {
         // Google's results depend a lot on the wording: "TCL Nxtpaper 14" gets only screen protectors,
         // "TCL Nxtpaper 14 kopen" gets the tablet. When a wording finds nothing, the next is tried
@@ -55,7 +55,7 @@ object GoogleShopping {
         var nothing: IOException? = null
         for (term in wordings.ifEmpty { listOf(query) }) {
             try {
-                return search(term, query, key, trusted, reference).copy(term = term)
+                return search(term, query, trusted, reference).copy(term = term)
             } catch (e: IOException) {
                 if (e.message != NOT_FOUND) throw e
                 nothing = e
@@ -67,15 +67,15 @@ object GoogleShopping {
     private const val MAX_WORDINGS = 3
 
     /** Searches for [term]; the results must be [query] (they may be found under a fuller wording). */
-    private fun search(term: String, query: String, key: String, trusted: (String) -> String?, reference: Double?): Found {
+    private fun search(term: String, query: String, trusted: (String) -> String?, reference: Double?): Found {
         val q = URLEncoder.encode(term, "UTF-8")
-        val searched = parse(serp("engine=google_shopping&q=$q&gl=be&hl=nl&google_domain=google.be", key), query, reference, trusted)
+        val searched = parse(serp("/search?q=$q"), query, reference, trusted)
         val found = searched.token?.let { token ->
             val t = URLEncoder.encode(token, "UTF-8")
-            runCatching { addStores(searched, serp("engine=google_immersive_product&page_token=$t&more_stores=true", key), query, reference, trusted) }.getOrNull()
+            runCatching { addStores(searched, serp("/stores?page_token=$t"), query, reference, trusted) }.getOrNull()
         } ?: searched
         if (found.result.offers.isEmpty()) throw IOException(NOT_FOUND)
-        return resolveLinks(found, key)
+        return resolveLinks(found)
     }
 
     private const val MAX_LOOKUPS = 3
@@ -85,23 +85,28 @@ object GoogleShopping {
      * for the cheapest shops that still only have a token, the page is looked up now (a search each).
      * A shop whose page isn't found keeps its token.
      */
-    private fun resolveLinks(found: Found, key: String): Found {
+    private fun resolveLinks(found: Found): Found {
         val links = found.links.toMutableMap()
         found.result.offers.filter { links[it.seller]?.startsWith(TOKEN) == true }.take(MAX_LOOKUPS).forEach { offer ->
             val token = links.getValue(offer.seller).removePrefix(TOKEN)
             val page = runCatching {
-                storeLink(token, offer.seller, key) { a, b -> com.bartschram.franxit.data.TrustedShops.same(a, b) }
+                storeLink(token, offer.seller) { a, b -> com.bartschram.franxit.data.TrustedShops.same(a, b) }
             }.getOrNull()
             if (page != null) links[offer.seller] = page
         }
         return found.copy(links = links)
     }
 
-    /** One SerpApi request, with its errors in plain words. */
-    private fun serp(params: String, key: String): String {
-        val k = URLEncoder.encode(key, "UTF-8")
+    /**
+     * Franxit's own search service (a Cloudflare Worker), which holds the SerpApi key and shares
+     * answers between everyone: the app never has a key. A path like "/search?q=…".
+     */
+    const val PROXY = "https://franxit-zoeken.schram-bart.workers.dev"
+
+    /** One request to the search service, with its errors in plain words. */
+    private fun serp(path: String): String {
         try {
-            return Scraper.download("https://serpapi.com/search.json?$params&api_key=$k", "application/json")
+            return Scraper.download(PROXY + path, "application/json")
         } catch (e: IOException) {
             throw when (e.message) {
                 "HTTP 401" -> IOException(BAD_KEY)
@@ -122,9 +127,9 @@ object GoogleShopping {
      * The shop's own page for a product, from Google's product page (SerpApi's immersive product
      * engine, one search): the store whose name or site is [shop]. Null when it isn't listed.
      */
-    fun storeLink(token: String, shop: String, key: String, sameShop: (String, String) -> Boolean): String? {
+    fun storeLink(token: String, shop: String, sameShop: (String, String) -> Boolean): String? {
         val t = URLEncoder.encode(token, "UTF-8")
-        return storeLinkIn(serp("engine=google_immersive_product&page_token=$t&more_stores=true", key), shop, sameShop)
+        return storeLinkIn(serp("/stores?page_token=$t"), shop, sameShop)
     }
 
     internal fun storeLinkIn(json: String, shop: String, sameShop: (String, String) -> Boolean): String? {

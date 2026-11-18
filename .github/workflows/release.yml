@@ -54,7 +54,6 @@ jobs:
           FRANXIT_KEYSTORE_PASSWORD: ${{ secrets.FRANXIT_KEYSTORE_PASSWORD }}
           FRANXIT_KEY_ALIAS: franxit
           FRANXIT_BUILD: ${{ env.BUILD }}
-          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
         run: |
           chmod +x gradlew
           ./gradlew testDebugUnitTest assembleRelease --console=plain

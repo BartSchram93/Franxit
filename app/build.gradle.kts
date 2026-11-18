@@ -39,9 +39,6 @@ android {
         targetSdk = 36
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
-        // The Google Shopping key (SerpApi), from the CI secret SERPAPI_KEY; empty when it isn't set,
-        // then Google Shopping is simply off. It is never in the repository.
-        buildConfigField("String", "SERPAPI_KEY", "\"${System.getenv("SERPAPI_KEY").orEmpty().trim()}\"")
     }
 
     signingConfigs {
@@ -67,7 +64,6 @@ android {
     }
     buildFeatures {
         compose = true
-        buildConfig = true
     }
     testOptions {
         unitTests.all {

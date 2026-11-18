@@ -144,7 +144,7 @@ class Repository private constructor(context: Context) {
      * searched once a day, then reused. Never fails the check; without results it's just vergelijk.be.
      */
     private fun searchesExtra(query: String?, ownShops: Int) =
-        query == null && ownShops <= FEW_SHOPS && ShoppingSettings.key(appContext) != null
+        query == null && ownShops <= FEW_SHOPS && ShoppingSettings.enabled()
 
     private class Extras(val offers: List<ShopOffer>, val error: String? = null)
 
@@ -208,10 +208,9 @@ class Repository private constructor(context: Context) {
         reference: Double? = null,
         onTerm: (String) -> Unit = {},
     ): Scraper.Result {
-        val key = ShoppingSettings.key(appContext) ?: throw IOException("Turn on Google Shopping in ⋮ → Google Shopping")
         // With the app in French, French pages are welcome too.
         GoogleShopping.allowFrench = com.bartschram.franxit.ui.L10n.lang == com.bartschram.franxit.ui.L10n.Lang.FR
-        val found = GoogleShopping.fetch(query, key, { TrustedShops.name(appContext, it) }, terms, reference)
+        val found = GoogleShopping.fetch(query, { TrustedShops.name(appContext, it) }, terms, reference)
         found.term?.let(onTerm)
         // Every search keeps its best result's photo, for "Use Google Shopping photo".
         found.result.image?.let { Photos.saveGooglePhoto(appContext, productId, it) }
@@ -244,9 +243,8 @@ class Repository private constructor(context: Context) {
      */
     private fun lookUpStoreLink(product: Product, shop: String, token: String): String {
         val fallback = GoogleShopping.fallbackUrl(GoogleShopping.queryOf(product.url) ?: product.displayName, shop)
-        val key = ShoppingSettings.key(appContext) ?: return fallback
         val link = runCatching {
-            GoogleShopping.storeLink(token, shop, key) { a, b -> TrustedShops.same(a, b) }
+            GoogleShopping.storeLink(token, shop) { a, b -> TrustedShops.same(a, b) }
         }.getOrNull() ?: return fallback
         ShoppingSettings.saveLink(appContext, product.id, shop, link)
         return link

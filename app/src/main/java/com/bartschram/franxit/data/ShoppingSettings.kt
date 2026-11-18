@@ -15,9 +15,9 @@ object ShoppingSettings {
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    /** The app's own Google Shopping key (built in at release time); null when the build has none. */
+    /** Google Shopping goes through Franxit's own search service; always on. */
     @Suppress("UNUSED_PARAMETER")
-    fun key(context: Context): String? = com.bartschram.franxit.BuildConfig.SERPAPI_KEY.takeIf { it.isNotBlank() }
+    fun enabled(context: Context? = null): Boolean = GoogleShopping.PROXY.isNotBlank()
 
     /** The wording of the search that worked last time for this product: tried first next time. */
     fun extraTerm(context: Context, productId: Long): String? = prefs(context).getString("extra_term_$productId", null)
