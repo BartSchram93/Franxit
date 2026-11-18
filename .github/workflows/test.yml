@@ -27,3 +27,9 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew testDebugUnitTest --console=plain
+
+      # The Google Play build has no Aptabase: it must compile on its own too.
+      - name: Compile the Play build
+        env:
+          FRANXIT_PLAY: "true"
+        run: ./gradlew compileReleaseKotlin --console=plain

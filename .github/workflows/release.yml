@@ -59,6 +59,27 @@ jobs:
           chmod +x gradlew
           ./gradlew testDebugUnitTest assembleRelease --console=plain
 
+      # The bundle for Google Play: the same app without Aptabase. Not published; download it from this
+      # run's page (Artifacts) and upload it in Play Console.
+      - name: Play bundle
+        if: steps.key.outputs.signed == 'true'
+        env:
+          FRANXIT_KEYSTORE: ${{ runner.temp }}/release.jks
+          FRANXIT_KEYSTORE_PASSWORD: ${{ secrets.FRANXIT_KEYSTORE_PASSWORD }}
+          FRANXIT_KEY_ALIAS: franxit
+          FRANXIT_BUILD: ${{ env.BUILD }}
+          APP_TOKEN: ${{ secrets.APP_TOKEN }}
+          FRANXIT_PLAY: "true"
+        run: ./gradlew bundleRelease --console=plain
+
+      - name: Keep the Play bundle
+        if: steps.key.outputs.signed == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: franxit-play-bundle
+          path: app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
       - name: Publish release
         if: steps.key.outputs.signed == 'true'
         env:

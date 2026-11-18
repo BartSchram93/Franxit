@@ -20,6 +20,9 @@ val releaseKey: Properties? = System.getenv("FRANXIT_KEYSTORE")?.takeIf { it.isN
     .takeIf { it.exists() }
     ?.let { file -> Properties().apply { file.inputStream().use { load(it) } } }
 
+// The Google Play build (FRANXIT_PLAY=true) has no usage statistics: another Analytics.kt and no Aptabase library.
+val playBuild = System.getenv("FRANXIT_PLAY") == "true"
+
 // Each CI run gets a higher version so updaters see it as new.
 val buildNumber = System.getenv("FRANXIT_BUILD")?.toIntOrNull() ?: 1
 
@@ -54,6 +57,8 @@ android {
         }
     }
 
+    sourceSets.getByName("main").java.srcDir(if (playBuild) "src/play/java" else "src/web/java")
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -87,7 +92,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons)
     implementation(libs.androidx.work.runtime)
-    implementation(libs.aptabase)
+    if (!playBuild) implementation(libs.aptabase)
     implementation(libs.androidx.glance.appwidget)
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
