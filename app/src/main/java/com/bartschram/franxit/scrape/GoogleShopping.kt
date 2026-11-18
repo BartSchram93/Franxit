@@ -18,6 +18,23 @@ object GoogleShopping {
 
     fun urlFor(query: String): String = SEARCH + URLEncoder.encode(query.trim(), "UTF-8")
 
+    /**
+     * Where to send you when the shop's own page isn't known: the shop's own search for the
+     * product when it is one of the big shops, else Google's search.
+     */
+    fun fallbackUrl(query: String, shop: String): String {
+        val q = URLEncoder.encode(query.trim(), "UTF-8")
+        val s = shop.lowercase()
+        return when {
+            s == "bol" || s.startsWith("bol.com") -> "https://www.bol.com/be/nl/s/?searchtext=$q"
+            "coolblue" in s -> "https://www.coolblue.be/nl/zoeken?query=$q"
+            "fnac" in s -> "https://www.fnac.be/SearchResult/ResultList.aspx?Search=$q"
+            "mediamarkt" in s -> "https://www.mediamarkt.be/nl/search.html?query=$q"
+            "krefel" in s || "krëfel" in s -> "https://www.krefel.be/nl/search?q=$q"
+            else -> urlFor("$query $shop")
+        }
+    }
+
     /** The search behind a Google Shopping product url; null for any other url. */
     fun queryOf(url: String): String? = url.takeIf { it.startsWith(SEARCH) }?.let { URLDecoder.decode(it.removePrefix(SEARCH), "UTF-8") }
 
@@ -141,7 +158,7 @@ object GoogleShopping {
             val direct = o.optString("link").takeIf { it.startsWith("http") && "google." !in it }
             // Without it, the token to look the shop's page up when you tap it (one search, see [storeLink]).
             val token = o.optString("immersive_product_page_token").takeIf { it.isNotBlank() }
-            val link = direct ?: token?.let { TOKEN + it } ?: urlFor("$query $shop")
+            val link = direct ?: token?.let { TOKEN + it } ?: fallbackUrl(query, shop)
             val site = direct?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.removePrefix("www.")
             Item(title, shop, price, link, o.optString("thumbnail").takeIf { it.startsWith("http") }, site, token)
         }.filter {

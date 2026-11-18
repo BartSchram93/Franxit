@@ -606,4 +606,11 @@ class GoogleShoppingTest {
         val offers = GoogleShopping.parse(search, "TCL Nxtpaper 14", 364.6) { it }.result.offers
         assertEquals(listOf(349.0), offers.map { it.price })
     }
+
+    @Test
+    fun bigShopsFallBackToTheirOwnSearchNotGoogle() {
+        assertEquals("https://www.bol.com/be/nl/s/?searchtext=TCL+Nxtpaper+14", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "bol"))
+        assertEquals("https://www.bol.com/be/nl/s/?searchtext=TCL+Nxtpaper+14", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "bol.com"))
+        assertTrue(GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Dreamland").contains("google"))
+    }
 }

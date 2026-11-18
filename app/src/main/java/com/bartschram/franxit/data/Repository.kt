@@ -239,7 +239,7 @@ class Repository private constructor(context: Context) {
      * the Google Shopping search for the product at that shop.
      */
     private fun lookUpStoreLink(product: Product, shop: String, token: String): String {
-        val fallback = GoogleShopping.urlFor("${GoogleShopping.queryOf(product.url) ?: product.displayName} $shop")
+        val fallback = GoogleShopping.fallbackUrl(GoogleShopping.queryOf(product.url) ?: product.displayName, shop)
         val key = ShoppingSettings.key(appContext) ?: return fallback
         val link = runCatching {
             GoogleShopping.storeLink(token, shop, key) { a, b -> TrustedShops.same(a, b) }
