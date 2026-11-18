@@ -570,14 +570,15 @@ private fun shareProduct(context: Context, product: Product) {
 /** While Google Shopping searches, a changing word says what it is up to, so the line doesn't sit still. */
 @Composable
 internal fun SearchingWords(first: String = "Searching…") {
+    // A few calm words, one after the other; the last one stays when it takes longer.
     val words = remember(first) {
-        listOf(first, "Comparing prices…", "Almost there…")
+        listOf(first, "Reading the details…", "Checking the shops…", "Comparing prices…", "Looking for the best price…", "Almost there…")
     }
     var index by remember { mutableStateOf(0) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(1800)
-            index = (index + 1) % words.size
+        while (index < words.lastIndex) {
+            kotlinx.coroutines.delay(2000)
+            index++
         }
     }
     Text(words[index], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
