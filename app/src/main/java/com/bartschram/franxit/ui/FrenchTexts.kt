@@ -43,7 +43,6 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Swipe a product left to remove it" to "Glisse un produit vers la gauche pour le supprimer",
     "Sort or show only alerts" to "Trie, ou affiche uniquement les produits avec une alerte",
     "Buy now / Wait: what the price history says (details at the bottom of a product)" to "Acheter / Attendre : ce que dit l'historique des prix (les détails sont en bas de chaque produit)",
-    "More shops: turn on ⋮ → Google Shopping" to "Plus de magasins : active ⋮ → Google Shopping",
     "Got it" to "Compris",
     "Price alert" to "Alerte de prix",
     "%s · muted" to "%s · en sourdine",

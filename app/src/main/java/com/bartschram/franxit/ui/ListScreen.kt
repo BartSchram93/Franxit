@@ -563,7 +563,6 @@ private fun Tips(onDone: (() -> Unit)?) {
             Tip(Icons.Default.Delete, "Swipe a product left to remove it")
             Tip(FilterListIcon, "Sort or show only alerts")
             Tip(Icons.Default.KeyboardArrowDown, "Buy now / Wait: what the price history says (details at the bottom of a product)")
-            Tip(Icons.Default.Search, "More shops: turn on ⋮ → Google Shopping")
             onDone?.let { TextButton(onClick = it, modifier = Modifier.align(Alignment.End)) { Text("Got it") } }
         }
     }

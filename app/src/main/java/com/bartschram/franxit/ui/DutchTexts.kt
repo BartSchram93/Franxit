@@ -43,7 +43,6 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Swipe a product left to remove it" to "Veeg een product naar links om het te verwijderen",
     "Sort or show only alerts" to "Sorteer, of toon enkel producten met een alert",
     "Buy now / Wait: what the price history says (details at the bottom of a product)" to "Nu kopen / Wachten: wat de prijsgeschiedenis zegt (de details staan onderaan bij een product)",
-    "More shops: turn on ⋮ → Google Shopping" to "Meer winkels: zet ⋮ → Google Shopping aan",
     "Got it" to "Begrepen",
     "Price alert" to "Prijsalert",
     "%s · muted" to "%s · gedempt",
