@@ -15,7 +15,6 @@ object UpdateCheck {
 
     private const val LATEST = "https://api.github.com/repos/BartSchram93/franxit-download/releases/latest"
     const val DOWNLOAD_PAGE = "https://franxit.be/"
-    const val PRIVACY_PAGE = DOWNLOAD_PAGE + "privacy.html"
     private const val PREFS = "update_check"
 
     /** The build number in a release tag: "v1.0.12" is 12. Null for anything else. */
