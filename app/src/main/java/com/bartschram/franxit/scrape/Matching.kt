@@ -59,7 +59,8 @@ object Matching {
         val haveCompact = compact(title)
         val wantCompact = compact(wanted)
         if (!wantCodes.all { it in haveCompact }) return false
-        if (have.filter(::isModelCode).any { it !in wantCompact }) return false
+        // Specs ("8GB", "256gb", "6000mah") aren't model codes: shops add them to titles, they don't make another product.
+        if (have.filter { isModelCode(it) && !isSpec(it) }.any { it !in wantCompact }) return false
         // Numbers in the name must be in the title too: "TCL Smartphone 60 SE Nxtpaper 5G" isn't the
         // "TCL Nxtpaper 14", though it shares two of its three words.
         if (want.filter { w -> w.all(Char::isDigit) }.any { it !in have }) return false
@@ -70,6 +71,10 @@ object Matching {
     private val BUNDLE = Regex("""\s\+\s|\bbundel\b|\bbundle\b|\bset met\b|\bincl\.?\b|\binclusief\b""", RegexOption.IGNORE_CASE)
 
     private fun compact(text: String) = text.lowercase().filter { it.isLetterOrDigit() }
+
+    private val SPEC = Regex("""\d+(gb|tb|mb|mah|hz|ghz|mm|cm|inch|mp|kg|ml|w|v|wh)""")
+
+    private fun isSpec(word: String) = SPEC.matches(word)
 
     private fun isModelCode(word: String) = word.length >= 3 && word.any(Char::isDigit) && word.any(Char::isLetter)
 

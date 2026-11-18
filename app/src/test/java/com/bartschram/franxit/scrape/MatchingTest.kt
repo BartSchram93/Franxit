@@ -54,4 +54,12 @@ class MatchingTest {
         assertFalse(Matching.isSameProduct("TCL Smartphone 60 Se Nxtpaper 5g", "TCL Nxtpaper 14"))
         assertTrue(Matching.isSameProduct("TCL NXTPAPER 14 (14.3\") tablet", "TCL Nxtpaper 14"))
     }
+
+    @Test
+    fun storageAndOtherSpecsInATitleDoNotMakeItAnotherProduct() {
+        assertTrue(Matching.isSameProduct("TCL E-reader Tablet - 14.3 inch - NXTPAPER 14 - 8GB RAM 256GB - Grijs", "TCL Nxtpaper 14"))
+        assertTrue(Matching.isSameProduct("TCL NXTPAPER 14 Tablet 8GB 256GB WiFi", "TCL Nxtpaper 14"))
+        // A different model code still is another product.
+        assertFalse(Matching.isSameProduct("Hercules KB210B keyboardbank 8GB", "Hercules KB200B"))
+    }
 }
