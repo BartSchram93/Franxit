@@ -41,12 +41,16 @@ jobs:
             echo "signed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # The version counts from 1 again (the workflow had run 39 times before the fresh start).
+      - name: Version
+        run: echo "BUILD=$((GITHUB_RUN_NUMBER - 39))" >> "$GITHUB_ENV"
+
       - name: Test and build
         env:
           FRANXIT_KEYSTORE: ${{ steps.key.outputs.signed == 'true' && format('{0}/release.jks', runner.temp) || '' }}
           FRANXIT_KEYSTORE_PASSWORD: ${{ secrets.FRANXIT_KEYSTORE_PASSWORD }}
           FRANXIT_KEY_ALIAS: franxit
-          FRANXIT_BUILD: ${{ github.run_number }}
+          FRANXIT_BUILD: ${{ env.BUILD }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
         run: |
           chmod +x gradlew
@@ -56,7 +60,7 @@ jobs:
         if: steps.key.outputs.signed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: 1.0.${{ github.run_number }}
+          VERSION: 1.0.${{ env.BUILD }}
         run: |
           cp app/build/outputs/apk/release/app-release.apk "franxit-$VERSION.apk"
           git log -1 --pretty=%B > notes.txt
@@ -70,7 +74,7 @@ jobs:
         if: steps.key.outputs.signed == 'true'
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
-          VERSION: 1.0.${{ github.run_number }}
+          VERSION: 1.0.${{ env.BUILD }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
             echo "::warning::No PUBLIC_REPO_TOKEN secret: the download page isn't updated."
