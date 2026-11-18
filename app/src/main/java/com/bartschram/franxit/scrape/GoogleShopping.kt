@@ -160,12 +160,12 @@ object GoogleShopping {
             }
             .let { all ->
                 // The big shops may be dearer, but a price far below the other shops' is an accessory (a € 23 case
-                // for a € 349 tablet): measured against the other shops' middle price (or the big ones' when alone).
+                // for a € 349 tablet): measured against the cheapest of the other shops.
                 val others = all.filterNot { isReliableShop(it.shop, it.site) }.map { it.price }
-                val prices = others.ifEmpty { all.map { it.price } }.sorted()
-                val middle = prices.getOrNull(prices.size / 2)
+                // Alone, the big shops' own middle price is all there is to measure against.
+                val lowest = others.minOrNull() ?: all.map { it.price }.sorted().let { it.getOrNull(it.size / 2) }
                 all.filter { item ->
-                    middle == null || !isReliableShop(item.shop, item.site) || item.price in middle * 0.5..middle * 2.0
+                    lowest == null || !isReliableShop(item.shop, item.site) || item.price in lowest * 0.5..lowest * 2.0
                 }
             }
             .let { withoutOutliers(it, { item -> isReliableShop(item.shop, item.site) }) { item -> item.price } }
