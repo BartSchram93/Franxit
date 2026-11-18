@@ -30,6 +30,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Track a product" to "Suivre un produit",
     "Cheapest offer" to "Offre la moins chère",
     "Out of stock" to "Épuisé",
+    "Looking up the product…" to "Recherche du produit…",
     "Comparing prices…" to "Je compare les prix…",
     "Almost there…" to "Presque fini…",
     "Couldn't read price: %s" to "Prix illisible : %s",

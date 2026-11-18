@@ -368,6 +368,8 @@ fun ListScreen(
                         },
                     ) { ProductCard(
                             product, discounts, photoVersion,
+                            // A product just added, still being looked up: say so, instead of "not checked yet".
+                            loading = refreshing && product.latest == null && product.lastError == null,
                             onClick = { onOpen(product) },
                             // A price alert needs a price; without one, long-press does nothing.
                             onLongClick = if (product.latest != null) ({ alertFor = product }) else null,
@@ -420,6 +422,7 @@ private fun ProductCard(
     product: Product,
     discounts: Map<String, Double>,
     photoVersion: Int,
+    loading: Boolean,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
 ) {
@@ -475,6 +478,10 @@ private fun ProductCard(
             val indent = ThumbnailSize + ThumbnailGap
             if (latest == null) {
                 Spacer(Modifier.height(10.dp))
+                if (loading) {
+                    Box(Modifier.padding(start = indent)) { SearchingWords("Looking up the product…") }
+                    return@Column
+                }
                 Text(
                     if (product.lastError != null) t("Couldn't read price: %s", tMessage(product.lastError)) else "Not checked yet · pull down to check",
                     style = MaterialTheme.typography.bodySmall,

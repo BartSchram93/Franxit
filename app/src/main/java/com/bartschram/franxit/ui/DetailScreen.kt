@@ -391,7 +391,7 @@ fun DetailScreen(
                         Spacer(Modifier.width(14.dp))
                         Column {
                             Text("Photo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            TextButton(onClick = { renaming = false; onPhoto(choice) }, contentPadding = PaddingValues(0.dp)) { Text(label) }
+                            TextButton(onClick = { onPhoto(choice) }, contentPadding = PaddingValues(0.dp)) { Text(label) }
                         }
                     }
                 }
@@ -569,9 +569,9 @@ private fun shareProduct(context: Context, product: Product) {
 
 /** While Google Shopping searches, a changing word says what it is up to, so the line doesn't sit still. */
 @Composable
-private fun SearchingWords() {
-    val words = remember {
-        listOf("Searching…", "Comparing prices…", "Almost there…")
+internal fun SearchingWords(first: String = "Searching…") {
+    val words = remember(first) {
+        listOf(first, "Comparing prices…", "Almost there…")
     }
     var index by remember { mutableStateOf(0) }
     androidx.compose.runtime.LaunchedEffect(Unit) {

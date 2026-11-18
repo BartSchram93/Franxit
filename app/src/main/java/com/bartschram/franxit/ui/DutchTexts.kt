@@ -30,6 +30,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Track a product" to "Product volgen",
     "Cheapest offer" to "Goedkoopste aanbod",
     "Out of stock" to "Niet op voorraad",
+    "Looking up the product…" to "Product opzoeken…",
     "Comparing prices…" to "Prijzen vergelijken…",
     "Almost there…" to "Bijna klaar…",
     "Couldn't read price: %s" to "Prijs lezen mislukt: %s",
