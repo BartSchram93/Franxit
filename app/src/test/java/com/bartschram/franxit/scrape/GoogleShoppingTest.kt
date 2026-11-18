@@ -287,4 +287,18 @@ class GoogleShoppingTest {
         assertEquals(false, found.result.offers.first { "dreamland" in it.seller.lowercase() }.inStock)
         assertNull(found.result.offers.first { "fnac" in it.seller.lowercase() }.inStock)
     }
+
+    @Test
+    fun aBigShopsCheapAccessoryIsLeftOutButItsTabletStays() {
+        val search = """
+            {"shopping_results": [
+              {"title": "TCL NXTPAPER 14", "source": "Amazon.com.be", "extracted_price": 349.0, "link": "https://www.amazon.com.be/dp/B0"},
+              {"title": "EtuiTab Szkło hartowane tcl nxtpaper 14", "source": "bol", "extracted_price": 23.49, "immersive_product_page_token": "t1"},
+              {"title": "Screenprotector voor TCL NxtPaper 14 Pro Beschermglas", "source": "bol.com", "extracted_price": 31.08, "immersive_product_page_token": "t2"},
+              {"title": "TCL NXTPAPER 14", "source": "bol", "extracted_price": 441.13, "immersive_product_page_token": "t3"}
+            ]}
+        """.trimIndent()
+        val offers = GoogleShopping.parse(search, "TCL Nxtpaper 14").result.offers
+        assertEquals(listOf(349.0, 441.13), offers.map { it.price })
+    }
 }
