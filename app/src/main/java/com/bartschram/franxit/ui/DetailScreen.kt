@@ -113,8 +113,6 @@ fun DetailScreen(
     shopLink: suspend (seller: String?) -> String?,
     /** "Also search Google Shopping": null when it doesn't apply (no key, or a Google Shopping product). */
     googleAuto: Boolean = false,
-    /** What the last Google Shopping search found ("Found 2 extra shops"), null before the first. */
-    googleStatus: String? = null,
     photoChoice: Photos.Choice = Photos.Choice.SITE,
     /** Whether a Google Shopping photo is there to switch to. */
     googlePhoto: Boolean = false,
@@ -293,20 +291,10 @@ fun DetailScreen(
             }
 
             ShopsToday(product, discounts) { seller -> shopLink(seller) }
-            // Few shops without it: Google Shopping is searched by itself, once a day. Said here, so "nothing" is never a mystery.
-            if (googleAuto && (refreshing || googleStatus != null)) {
+            // Few shops: more are searched for by themselves; the customer only sees the usual searching words.
+            if (googleAuto && refreshing) {
                 Spacer(Modifier.height(12.dp))
-                val ok = googleStatus == null || googleStatus.startsWith("Found") || googleStatus.startsWith("Google found") ||
-                    googleStatus.startsWith("Nothing matched") || googleStatus == "No extra shops found"
-                if (refreshing) {
-                    SearchingWords()
-                } else if (googleStatus != null) {
-                    Text(
-                        tMessage(googleStatus),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (ok) MaterialTheme.colorScheme.onSurfaceVariant else Warning,
-                    )
-                }
+                SearchingWords()
             }
 
             if (product.history.isNotEmpty() || product.siteHistory.isNotEmpty()) {

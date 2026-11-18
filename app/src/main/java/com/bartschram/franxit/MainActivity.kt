@@ -253,8 +253,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             discounts = discounts,
             shopLink = { seller -> repo.shopLink(selected, seller) },
             googleAuto = shoppingKey && GoogleShopping.queryOf(selected.url) == null &&
-                (ShoppingSettings.extraStatus(context, selected.id) != null || mergeSameShop(selected.offers).size <= 3),
-            googleStatus = remember(selected.id, selected.lastChecked) { ShoppingSettings.extraStatus(context, selected.id) },
+                mergeSameShop(selected.offers).size <= 3,
         )
     } else {
         ListScreen(

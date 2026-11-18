@@ -331,15 +331,6 @@ class Repository private constructor(context: Context) {
         val extras = extraShops(named, query, ownCheapest, ownShops)
         // (Which shops are trusted was decided when Google's results were read.)
         val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
-        if (searchesExtra(query, ownShops) && extras.error == null) {
-            // Only good news is said on the product page ("Found 2 extra shops"); nothing found is not mentioned.
-            val added = extra.count { e -> own.none { Shops.name(it.seller).equals(Shops.name(e.seller), ignoreCase = true) } }
-            when {
-                added == 1 -> ShoppingSettings.setExtraStatus(appContext, product.id, "Found 1 extra shop")
-                added > 1 -> ShoppingSettings.setExtraStatus(appContext, product.id, "Found $added extra shops")
-                else -> ShoppingSettings.clearExtraStatus(appContext, product.id)
-            }
-        }
         // Sold-out shops aren't shown; only when every shop is sold out, they are (so the product still has a price).
         val offers = (own + extra).let { all -> all.filter { it.inStock != false }.ifEmpty { all } }
             .groupBy { Shops.name(it.seller).lowercase() }.values
