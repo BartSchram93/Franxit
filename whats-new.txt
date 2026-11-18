@@ -1,1 +1,1 @@
-Voorraad: uitverkocht bepaalt de prijs niet meer. · Stock : épuisé ne fixe plus le prix. · Sold out no longer sets the price.
+Uitverkochte winkels worden niet meer getoond. · Boutiques épuisées masquées. · Sold-out shops are hidden.

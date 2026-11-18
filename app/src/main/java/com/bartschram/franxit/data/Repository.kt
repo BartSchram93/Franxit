@@ -331,7 +331,8 @@ class Repository private constructor(context: Context) {
                 extras.error ?: when (added) { 0 -> "No extra shops found"; 1 -> "Found 1 extra shop"; else -> "Found $added extra shops" },
             )
         }
-        val offers = (own + extra)
+        // Sold-out shops aren't shown; only when every shop is sold out, they are (so the product still has a price).
+        val offers = (own + extra).let { all -> all.filter { it.inStock != false }.ifEmpty { all } }
             .groupBy { Shops.name(it.seller).lowercase() }.values
             .map { same -> same.minBy { it.price } }
             .sortedBy { it.price }
