@@ -66,7 +66,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "of the past year" to "de l'année écoulée",
     "Use the original photo again" to "Réutiliser la photo d'origine",
     "Use the shop's photo again" to "Réutiliser la photo du magasin",
-    "Use Google Shopping photo" to "Utiliser la photo de Google Shopping",
+    "Try another photo" to "Essayer une autre photo",
     "Remove photo" to "Supprimer la photo",
     "Save" to "Enregistrer",
     "Use site name" to "Utiliser le nom du site",

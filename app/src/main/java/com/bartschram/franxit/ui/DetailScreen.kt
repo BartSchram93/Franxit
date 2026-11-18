@@ -372,7 +372,7 @@ fun DetailScreen(
                     val (label, choice) = when {
                         photoChoice != Photos.Choice.SITE ->
                             (if (host.endsWith("vergelijk.be")) "Use the original photo again" else "Use the shop's photo again") to Photos.Choice.SITE
-                        googlePhoto -> "Use Google Shopping photo" to Photos.Choice.GOOGLE
+                        googlePhoto -> "Try another photo" to Photos.Choice.GOOGLE
                         else -> "Remove photo" to Photos.Choice.NONE
                     }
                     TextButton(onClick = { renaming = false; onPhoto(choice) }, contentPadding = PaddingValues(0.dp)) { Text(label) }
