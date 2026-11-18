@@ -19,7 +19,6 @@ import com.bartschram.franxit.data.Shops
 import com.bartschram.franxit.data.Alert
 import com.bartschram.franxit.data.AlertKind
 import com.bartschram.franxit.data.Product
-import com.bartschram.franxit.data.UpdateCheck
 import com.bartschram.franxit.ui.euro
 import com.bartschram.franxit.ui.t
 
@@ -75,33 +74,6 @@ object Notifier {
     }
 
     private const val DISCOUNT_ID_OFFSET = 1_000_000
-
-    private const val UPDATES = "app_updates"
-    private const val UPDATE_ID = 2_000_000
-
-    /**
-     * Says a newer Franxit is out (it isn't in a store), once per version: quietly, with what's new,
-     * and a tap opens the download page. False when notifications aren't allowed.
-     */
-    fun newVersion(context: Context, notes: String?): Boolean {
-        if (!allowed(context)) return false
-        context.getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel(UPDATES, t("App updates"), NotificationManager.IMPORTANCE_LOW))
-        val open = Intent(Intent.ACTION_VIEW, Uri.parse(UpdateCheck.DOWNLOAD_PAGE)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        val pending = PendingIntent.getActivity(context, UPDATE_ID, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val text = notes ?: t("A new version is ready to download.")
-        val notification = NotificationCompat.Builder(context, UPDATES)
-            .setSmallIcon(R.drawable.ic_stat_price)
-            .setContentTitle(t("New version of Franxit"))
-            .setContentText(text)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-            .setContentIntent(pending)
-            .setAutoCancel(true)
-            .setOnlyAlertOnce(true)
-            .build()
-        NotificationManagerCompat.from(context).notify(UPDATE_ID, notification)
-        return true
-    }
 
     private fun show(context: Context, product: Product, title: String, seller: String, id: Int) {
         val open = Intent(context, MainActivity::class.java)

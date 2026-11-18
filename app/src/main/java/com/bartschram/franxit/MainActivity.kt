@@ -46,7 +46,6 @@ import androidx.compose.ui.platform.LocalUriHandler
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import com.bartschram.franxit.data.Analytics
-import com.bartschram.franxit.data.UpdateCheck
 import com.bartschram.franxit.ui.mergeSameShop
 import com.bartschram.franxit.scrape.GoogleShopping
 import com.bartschram.franxit.data.ShoppingSettings
@@ -197,14 +196,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
         repo.reload()
         if (Build.VERSION.SDK_INT >= 33 && !notificationsOn) requestNotifications()
     }
-    // Not in a store: ask GitHub once a day whether a newer version is out.
-    var updateAvailable by remember { mutableStateOf(UpdateCheck.available(context)) }
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) { UpdateCheck.refresh(context) }
-        updateAvailable = UpdateCheck.available(context)
-        // The banner tells them now: no notification about this version later.
-        if (updateAvailable) UpdateCheck.markTold(context)
-    }
     val uriHandler = LocalUriHandler.current
     LaunchedEffect(sharedUrl.value) {
         sharedUrl.value?.let { searchStart = it; searching = true; sharedUrl.value = null }
@@ -267,9 +258,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
         )
     } else {
         ListScreen(
-            updateAvailable = updateAvailable,
-            updateNotes = remember(updateAvailable) { UpdateCheck.notes(context) },
-            onUpdate = { uriHandler.openUri(UpdateCheck.DOWNLOAD_PAGE) },
             products = products,
             refreshing = refreshing,
             progress = progress,

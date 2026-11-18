@@ -146,10 +146,7 @@ fun ListScreen(
     onDelete: (Product) -> Unit,
     onUndoDelete: (Product) -> Unit,
     /** A newer version is out (the app isn't in a store): say so, with the way to the download. */
-    updateAvailable: Boolean = false,
     /** What's new in that version, in a short sentence. */
-    updateNotes: String? = null,
-    onUpdate: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var filterOpen by remember { mutableStateOf(false) }
@@ -263,18 +260,6 @@ fun ListScreen(
                                     onClick = { menuOpen = false; onShowTips() },
                                 )
                             }
-                        }
-                    }
-                    if (updateAvailable) {
-                        Spacer(Modifier.height(4.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("New version available", style = MaterialTheme.typography.bodyMedium, color = ChartLine)
-                                updateNotes?.let {
-                                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                            TextButton(onClick = onUpdate) { Text("Download") }
                         }
                     }
                     // How far a refresh is, so a long one doesn't look stuck.
