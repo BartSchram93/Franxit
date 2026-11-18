@@ -1,1 +1,1 @@
-Foto-knop heet nu 'Andere foto proberen'; winkels van vergelijk blijven altijd staan. · Autre photo. · Try another photo.
+Nieuw scherm 'Naam en foto' met voorbeeld van de foto. · Nouvel écran 'Nom et photo'. · New 'Name and photo' screen.
