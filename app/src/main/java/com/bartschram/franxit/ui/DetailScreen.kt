@@ -301,15 +301,15 @@ fun DetailScreen(
                         Text("Also search Google Shopping", style = MaterialTheme.typography.bodyMedium)
                         val ok = googleStatus == null || googleStatus.startsWith("Found") || googleStatus.startsWith("Google found") ||
                             googleStatus.startsWith("Nothing matched") || googleStatus == "No extra shops found"
-                        Text(
-                            when {
-                                on && refreshing -> "Searching…"
-                                on && googleStatus != null -> tMessage(googleStatus)
-                                else -> "Find more shops, once a day"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (on && !refreshing && !ok) Warning else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        if (on && refreshing) {
+                            SearchingWords()
+                        } else {
+                            Text(
+                                if (on && googleStatus != null) tMessage(googleStatus) else "Find more shops, once a day",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (on && !ok) Warning else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     Switch(checked = on, onCheckedChange = onGoogleExtra)
                 }
@@ -478,8 +478,6 @@ private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopLin
                 Text(names[offer.seller] ?: Shops.name(offer.seller), style = MaterialTheme.typography.bodyMedium)
                 if (offer.inStock == false) {
                     Text("Out of stock", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                } else if (offer.inStock == null) {
-                    Text("Stock unknown", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (opening == offer.seller) {
@@ -566,4 +564,24 @@ private fun shareProduct(context: Context, product: Product) {
     com.bartschram.franxit.data.Analytics.track("product_shared")
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, shareText(product))
     context.startActivity(Intent.createChooser(send, t("Share")))
+}
+
+
+/** While Google Shopping searches, a changing word says what it is up to, so the line doesn't sit still. */
+@Composable
+private fun SearchingWords() {
+    val words = remember {
+        listOf(
+            "Searching…", "Sniffing around…", "Walking the shops…", "Comparing prices…", "Looking at price tags…",
+            "Pushing the cases aside…", "Almost there…",
+        )
+    }
+    var index by remember { mutableStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1800)
+            index = (index + 1) % words.size
+        }
+    }
+    Text(words[index], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
