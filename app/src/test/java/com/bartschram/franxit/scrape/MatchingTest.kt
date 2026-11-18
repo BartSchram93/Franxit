@@ -56,6 +56,14 @@ class MatchingTest {
     }
 
     @Test
+    fun aScreenSizeInTheNameIsNotRequiredInTheTitle() {
+        assertTrue(Matching.isSameProduct("TCL NXTPAPER 14", "TCL NXTPAPER 14 14,3\""))
+        assertTrue(Matching.isSameProduct("TCL NXTPAPER 14", "TCL NXTPAPER 14 14.3 inch"))
+        // Other models still differ by their number.
+        assertFalse(Matching.isSameProduct("TCL Smartphone 60 Se Nxtpaper 5g", "TCL NXTPAPER 14 14,3\""))
+    }
+
+    @Test
     fun aReliableShopMaySellItWithACaseAndStylus() {
         val title = "TCL NXTPAPER 14 - 14 inch - 8GB RAM 256GB - Grijs + Flip Case & Stylus"
         assertFalse(Matching.isSameProduct(title, "TCL Nxtpaper 14"))

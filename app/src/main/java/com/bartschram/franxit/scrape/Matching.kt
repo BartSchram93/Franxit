@@ -45,7 +45,8 @@ object Matching {
      * and it isn't an accessory (unless you're looking for one).
      */
     fun isSameProduct(title: String, wanted: String, lenient: Boolean = false): Boolean {
-        val want = words(wanted)
+        // A screen size in the name ("14,3"", "10.95 inch") is no part of what shops call the product.
+        val want = words(wanted.replace(SIZE, " "))
         if (want.isEmpty()) return false
         // A big, reliable shop often sells the product with a case or stylus ("TCL NXTPAPER 14 - 8GB - Grijs + Flip Case
         // & Stylus"): fine. A loose accessory is kept out by the price check (50-200% of the usual price), not by its title.
@@ -72,6 +73,8 @@ object Matching {
         // Without a model code, most of the words have to match.
         return wantCodes.isNotEmpty() || want.count { it in have }.toDouble() / want.size >= 0.6
     }
+
+    private val SIZE = Regex("""\d+([.,]\d+)?\s?("|″|”|''|-?inch\b|-?cm\b)|\d+[.,]\d+""", RegexOption.IGNORE_CASE)
 
     private val BUNDLE = Regex("""\s\+\s|\bbundel\b|\bbundle\b|\bset met\b|\bincl\.?\b|\binclusief\b""", RegexOption.IGNORE_CASE)
 
