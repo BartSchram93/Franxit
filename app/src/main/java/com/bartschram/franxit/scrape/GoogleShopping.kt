@@ -217,7 +217,8 @@ object GoogleShopping {
                 ?: name.takeIf { reliable || (wellReviewed(s) && site != null && sellsToBelgium(site)) } ?: return@mapNotNull null
             // Google's store details sometimes say it is sold out; otherwise the stock is unknown (null).
             val soldOut = OUT_OF_STOCK.containsMatchIn(s.optJSONArray("details_and_offers")?.toString().orEmpty())
-            Scraper.Offer(shown, price, inStock = if (soldOut) false else null, link = link) to otherLanguage
+            // Pages that look Dutch or English by their own address or title come first on the same price.
+            Scraper.Offer(shown, price, inStock = if (soldOut) false else null, link = link) to isOtherLanguage(title, link, amazonOk = false)
         }
             // A reliable shop's page in another language only counts when no Dutch or English one is as cheap.
             .sortedBy { it.second }.map { it.first }
@@ -234,12 +235,12 @@ object GoogleShopping {
      * ("/fr/", "/de/", "/be/fr/", "/-/fr/"), or its title has words or letters of another language
      * ("Tablette", "pour", "Kopfhörer", "ç", "ß"). A brand like "Le Creuset" alone doesn't count.
      */
-    internal fun isOtherLanguage(title: String, link: String?, frenchToo: Boolean = allowFrench): Boolean {
+    internal fun isOtherLanguage(title: String, link: String?, frenchToo: Boolean = allowFrench, amazonOk: Boolean = true): Boolean {
         val path = link?.takeIf { it.startsWith("http") && "google." !in it }
             ?.let { runCatching { java.net.URI(it) }.getOrNull() }
         val folders = path?.path.orEmpty().lowercase().split('/').filter { it.isNotEmpty() }
         // Amazon shows one page in any language: its title says nothing about the page you get.
-        if (path?.host?.removePrefix("www.") in setOf("amazon.com.be", "amazon.nl")) return false
+        if (amazonOk && path?.host?.removePrefix("www.") in setOf("amazon.com.be", "amazon.nl")) return false
         if (folders.any { it in OTHER_LANGUAGE_FOLDERS && !(frenchToo && it in FRENCH_FOLDERS) }) return true
         val languages = if (frenchToo) "de|es|it|pt|pl" else "fr|de|es|it|pt|pl"
         if (Regex("""[?&](lang|language|locale)=($languages)""").containsMatchIn(path?.rawQuery?.let { "?$it" }.orEmpty().lowercase())) return true
