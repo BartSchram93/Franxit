@@ -362,28 +362,45 @@ fun DetailScreen(
 
     if (renaming) {
         var text by rememberSaveable { mutableStateOf(product.displayName) }
+        val context = LocalContext.current
+        val photo by produceState<ImageBitmap?>(null, product.id, product.lastChecked, photoVersion) {
+            value = withContext(Dispatchers.IO) { Images.load(context, product.id)?.asImageBitmap() }
+        }
         AlertDialog(
             onDismissRequest = { renaming = false },
-            title = { Text("Name") },
+            title = { Text("Name and photo") },
             text = {
                 Column {
-                    OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true)
-                    Spacer(Modifier.height(8.dp))
-                    // The photo, for when the page's one is wrong: one option, only what makes sense now.
+                    OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true, label = { Text("Name") })
+                    // Back to the shop's own name: only when you changed it.
+                    if (!product.customName.isNullOrBlank()) {
+                        TextButton(onClick = { renaming = false; onRename(null) }, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                            Text("Use site name", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    // The photo you see now, with the one option that makes sense: when the page's one is wrong.
                     val (label, choice) = when {
                         photoChoice != Photos.Choice.SITE ->
                             (if (host.endsWith("vergelijk.be")) "Use the original photo again" else "Use the shop's photo again") to Photos.Choice.SITE
                         googlePhoto -> "Try another photo" to Photos.Choice.GOOGLE
                         else -> "Remove photo" to Photos.Choice.NONE
                     }
-                    TextButton(onClick = { renaming = false; onPhoto(choice) }, contentPadding = PaddingValues(0.dp)) { Text(label) }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        ProductPhoto(photo, 56.dp, 14.dp)
+                        Spacer(Modifier.width(14.dp))
+                        Column {
+                            Text("Photo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            TextButton(onClick = { renaming = false; onPhoto(choice) }, contentPadding = PaddingValues(0.dp)) { Text(label) }
+                        }
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { renaming = false; onRename(text.takeIf { it.isNotBlank() }) }) { Text("Save") }
+                Button(onClick = { renaming = false; onRename(text.takeIf { it.isNotBlank() }) }) { Text("Save") }
             },
             dismissButton = {
-                TextButton(onClick = { renaming = false; onRename(null) }) { Text("Site name") }
+                TextButton(onClick = { renaming = false }) { Text("Cancel") }
             },
         )
     }
