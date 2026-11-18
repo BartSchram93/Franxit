@@ -168,11 +168,11 @@ fun SearchScreen(
                     }
                 }
                 items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null) { onPick(hit.url) } }
-                // For products vergelijk.be doesn't have: Google Shopping, one search of your plan a day.
+                // Only for products vergelijk.be doesn't have: not advised next to its results, one search a day.
                 val google = shoppingQuery?.takeIf { onGoogleShopping != null && !searching && it.length >= 2 }
-                if (google != null && (link == null || shopLink != null)) {
+                if (google != null && results.isEmpty() && (link == null || shopLink != null)) {
                     item {
-                        ResultRow(t("Track via Google Shopping: \"%s\"", google), "Checked once a day", null) {
+                        ResultRow(t("Track \"%s\" in more shops", google), "Checked once a day", null) {
                             onGoogleShopping?.invoke(google)
                         }
                     }

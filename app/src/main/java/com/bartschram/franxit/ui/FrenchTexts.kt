@@ -91,7 +91,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Search failed. Check your connection." to "La recherche a échoué. Vérifie ta connexion.",
     "No products found." to "Aucun produit trouvé.",
     "Type a product name, or paste a link to a product page." to "Tape le nom d'un produit, ou colle un lien vers une page de produit.",
-    "Track via Google Shopping: \"%s\"" to "Suivre via Google Shopping : « %s »",
+    "Track \"%s\" in more shops" to "Suivre « %s » dans plus de magasins",
     "Checked once a day" to "Vérifié une fois par jour",
     "Track this link only" to "Suivre uniquement ce lien",
     "from %s" to "dès %s",

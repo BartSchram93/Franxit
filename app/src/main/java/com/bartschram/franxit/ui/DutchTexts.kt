@@ -91,7 +91,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Search failed. Check your connection." to "Zoeken mislukt. Controleer je verbinding.",
     "No products found." to "Geen producten gevonden.",
     "Type a product name, or paste a link to a product page." to "Typ een productnaam, of plak een link naar een productpagina.",
-    "Track via Google Shopping: \"%s\"" to "Volgen via Google Shopping: \"%s\"",
+    "Track \"%s\" in more shops" to "\"%s\" volgen in meer winkels",
     "Checked once a day" to "Eén keer per dag gecontroleerd",
     "Track this link only" to "Enkel deze link volgen",
     "from %s" to "vanaf %s",
