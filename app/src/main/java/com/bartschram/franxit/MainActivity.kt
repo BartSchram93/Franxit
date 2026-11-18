@@ -47,7 +47,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import com.bartschram.franxit.data.Analytics
 import com.bartschram.franxit.data.UpdateCheck
-import com.bartschram.franxit.ui.ShoppingDialog
 import com.bartschram.franxit.ui.mergeSameShop
 import com.bartschram.franxit.scrape.GoogleShopping
 import com.bartschram.franxit.data.ShoppingSettings
@@ -133,10 +132,8 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     var alertsOnly by remember { mutableStateOf(prefs.getBoolean("alerts_only", false)) }
     var discounts by remember { mutableStateOf(Discounts.load(context)) }
     var showDiscounts by rememberSaveable { mutableStateOf(false) }
-    var showShopping by rememberSaveable { mutableStateOf(false) }
     var showLanguage by rememberSaveable { mutableStateOf(false) }
-    var shoppingKey by remember { mutableStateOf(ShoppingSettings.key(context) != null) }
-    var extraOn by remember { mutableStateOf(ShoppingSettings.extraIds(context)) }
+    val shoppingKey = remember { ShoppingSettings.key(context) != null }
     fun toast(text: String) = Toast.makeText(context, text, Toast.LENGTH_LONG).show()
 
     fun notificationsAllowed() = NotificationManagerCompat.from(context).areNotificationsEnabled() &&
@@ -264,22 +261,9 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             },
             discounts = discounts,
             shopLink = { seller -> repo.shopLink(selected, seller) },
-            googleExtra = if (shoppingKey && GoogleShopping.queryOf(selected.url) == null) {
-                extraOn.contains(selected.id)
-            } else null,
-            suggestGoogle = !shoppingKey && GoogleShopping.queryOf(selected.url) == null &&
-                mergeSameShop(selected.offers).size in 1..3,
-            onSuggestGoogle = { showShopping = true },
-            googleStatus = remember(selected.id, selected.lastChecked, extraOn) { ShoppingSettings.extraStatus(context, selected.id) },
-            onGoogleExtra = { on ->
-                ShoppingSettings.setExtra(context, selected.id, on)
-                extraOn = if (on) extraOn + selected.id else extraOn - selected.id
-                scope.launch {
-                    refreshing = true
-                    repo.checkOne(selected.id)
-                    refreshing = false
-                }
-            },
+            googleAuto = shoppingKey && GoogleShopping.queryOf(selected.url) == null &&
+                (ShoppingSettings.extraStatus(context, selected.id) != null || mergeSameShop(selected.offers).size <= 3),
+            googleStatus = remember(selected.id, selected.lastChecked) { ShoppingSettings.extraStatus(context, selected.id) },
         )
     } else {
         ListScreen(
@@ -326,7 +310,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             },
             discounts = discounts,
             onDiscounts = { showDiscounts = true },
-            onGoogleShopping = { showShopping = true },
             onLanguage = { showLanguage = true },
             notificationsOn = notificationsOn,
             onTurnOnNotifications = { turnOnNotifications() },
@@ -371,18 +354,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                 scope.launch { runCatching { PriceListWidget().updateAll(context) } }
             },
             onDismiss = { showLanguage = false },
-        )
-    }
-
-    if (showShopping) {
-        ShoppingDialog(
-            hasKey = shoppingKey,
-            onSave = { key ->
-                ShoppingSettings.setKey(context, key)
-                shoppingKey = key != null
-                if (key == null) showShopping = false
-            },
-            onDismiss = { showShopping = false },
         )
     }
 

@@ -136,7 +136,6 @@ fun ListScreen(
     onSetAlert: (Product, Double?) -> Unit,
     discounts: Map<String, Double>,
     onDiscounts: () -> Unit,
-    onGoogleShopping: () -> Unit,
     notificationsOn: Boolean,
     onTurnOnNotifications: () -> Unit,
     showTips: Boolean,
@@ -252,10 +251,6 @@ fun ListScreen(
                                 DropdownMenuItem(
                                     text = { Text("My discounts") },
                                     onClick = { menuOpen = false; onDiscounts() },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Google Shopping") },
-                                    onClick = { menuOpen = false; onGoogleShopping() },
                                 )
                                 DropdownMenuItem(
                                     text = { Text(t("Price check at %s", checkTime.format(DateTimeFormatter.ofPattern("HH:mm")))) },

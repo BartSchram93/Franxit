@@ -112,11 +112,7 @@ fun DetailScreen(
     discounts: Map<String, Double>,
     shopLink: suspend (seller: String?) -> String?,
     /** "Also search Google Shopping": null when it doesn't apply (no key, or a Google Shopping product). */
-    googleExtra: Boolean? = null,
-    /** Google Shopping is off and this product has few shops: a quiet line to turn it on. */
-    suggestGoogle: Boolean = false,
-    onSuggestGoogle: () -> Unit = {},
-    onGoogleExtra: (Boolean) -> Unit = {},
+    googleAuto: Boolean = false,
     /** What the last Google Shopping search found ("Found 2 extra shops"), null before the first. */
     googleStatus: String? = null,
     photoChoice: Photos.Choice = Photos.Choice.SITE,
@@ -297,36 +293,19 @@ fun DetailScreen(
             }
 
             ShopsToday(product, discounts) { seller -> shopLink(seller) }
-            if (suggestGoogle) {
+            // Few shops without it: Google Shopping is searched by itself, once a day. Said here, so "nothing" is never a mystery.
+            if (googleAuto && (refreshing || googleStatus != null)) {
                 Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                val ok = googleStatus == null || googleStatus.startsWith("Found") || googleStatus.startsWith("Google found") ||
+                    googleStatus.startsWith("Nothing matched") || googleStatus == "No extra shops found"
+                if (refreshing) {
+                    SearchingWords()
+                } else if (googleStatus != null) {
                     Text(
-                        "Few shops found. Google Shopping often finds more.",
+                        tMessage(googleStatus),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
+                        color = if (ok) MaterialTheme.colorScheme.onSurfaceVariant else Warning,
                     )
-                    TextButton(onClick = onSuggestGoogle) { Text("Turn on") }
-                }
-            }
-            googleExtra?.let { on ->
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Also search Google Shopping", style = MaterialTheme.typography.bodyMedium)
-                        val ok = googleStatus == null || googleStatus.startsWith("Found") || googleStatus.startsWith("Google found") ||
-                            googleStatus.startsWith("Nothing matched") || googleStatus == "No extra shops found"
-                        if (on && refreshing) {
-                            SearchingWords()
-                        } else {
-                            Text(
-                                if (on && googleStatus != null) tMessage(googleStatus) else "Find more shops, once a day",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (on && !ok) Warning else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    Switch(checked = on, onCheckedChange = onGoogleExtra)
                 }
             }
 

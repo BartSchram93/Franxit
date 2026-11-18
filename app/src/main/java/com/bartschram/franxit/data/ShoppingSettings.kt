@@ -15,25 +15,9 @@ object ShoppingSettings {
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun key(context: Context): String? = prefs(context).getString("key", null)?.takeIf { it.isNotBlank() }
-
-    fun setKey(context: Context, key: String?) = prefs(context).edit {
-        if (key.isNullOrBlank()) remove("key") else putString("key", key.trim())
-    }
-
-    /** Products that also search Google Shopping, next to vergelijk.be. */
-    fun extraIds(context: Context): Set<Long> =
-        prefs(context).getStringSet("extra", emptySet())!!.mapNotNull { it.toLongOrNull() }.toSet()
-
-    fun isExtra(context: Context, productId: Long): Boolean =
-        prefs(context).getStringSet("extra", emptySet())!!.contains(productId.toString())
-
-    fun setExtra(context: Context, productId: Long, on: Boolean) {
-        val now = prefs(context).getStringSet("extra", emptySet())!!.toMutableSet()
-        if (on) now += productId.toString() else now -= productId.toString()
-        // Switching it on or off starts afresh: a new search, a new result.
-        prefs(context).edit { putStringSet("extra", now); remove("extra_offers_$productId"); remove("extra_status_$productId") }
-    }
+    /** The app's own Google Shopping key (built in at release time); null when the build has none. */
+    @Suppress("UNUSED_PARAMETER")
+    fun key(context: Context): String? = com.bartschram.franxit.BuildConfig.SERPAPI_KEY.takeIf { it.isNotBlank() }
 
     /** The wording of the search that worked last time for this product: tried first next time. */
     fun extraTerm(context: Context, productId: Long): String? = prefs(context).getString("extra_term_$productId", null)

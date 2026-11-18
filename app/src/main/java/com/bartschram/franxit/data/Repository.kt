@@ -143,10 +143,13 @@ class Repository private constructor(context: Context) {
      * Google Shopping's shops for a vergelijk.be product with "Also search Google Shopping" on:
      * searched once a day, then reused. Never fails the check; without results it's just vergelijk.be.
      */
+    private fun searchesExtra(query: String?, ownShops: Int) =
+        query == null && ownShops <= FEW_SHOPS && ShoppingSettings.key(appContext) != null
+
     private class Extras(val offers: List<ShopOffer>, val error: String? = null)
 
-    private fun extraShops(product: Product, query: String?, reference: Double?): Extras {
-        if (query != null || !ShoppingSettings.isExtra(appContext, product.id)) return Extras(emptyList())
+    private fun extraShops(product: Product, query: String?, reference: Double?, ownShops: Int): Extras {
+        if (!searchesExtra(query, ownShops)) return Extras(emptyList())
         val today = LocalDate.now().toString()
         ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return Extras(it) }
         val name = product.displayName
@@ -161,8 +164,9 @@ class Repository private constructor(context: Context) {
                     ShoppingSettings.saveExtraOffers(appContext, product.id, today, emptyList(), days = 3)
                     Extras(emptyList())
                 }
-                GoogleShopping.BAD_KEY, GoogleShopping.NO_SEARCHES_LEFT -> Extras(emptyList(), e.message)
-                else -> Extras(emptyList(), "Couldn't reach Google Shopping")
+                // Out of searches, a key that doesn't work, no connection: the customer isn't told, it just
+                // doesn't add shops until it works again (asked again at the next check).
+                else -> Extras(emptyList(), SILENT)
             }
         }
         found.image?.let { photo ->
@@ -300,6 +304,8 @@ class Repository private constructor(context: Context) {
         val result = try {
             if (query == null) Scraper.fetch(product.url) else searchGoogleShopping(product.id, query)
         } catch (e: Exception) {
+            // Google Shopping used up (or its key refused): not the customer's problem, tried again at the next check.
+            if (query != null && e.message in setOf(GoogleShopping.NO_SEARCHES_LEFT, GoogleShopping.BAD_KEY)) return null
             db.markChecked(product.id, now, null, e.message ?: e.javaClass.simpleName)
             throw e
         }
@@ -321,15 +327,16 @@ class Repository private constructor(context: Context) {
         // Optionally Google Shopping's shops too; one shop, one offer (the cheaper), by shop site.
         // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
         val ownCheapest = own.minOfOrNull { it.price }
-        val extras = extraShops(product, query, ownCheapest)
+        val ownShops = own.map { Shops.name(it.seller).lowercase() }.distinct().size
+        val extras = extraShops(product, query, ownCheapest, ownShops)
         // (Which shops are trusted was decided when Google's results were read.)
         val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
-        if (query == null && ShoppingSettings.isExtra(appContext, product.id)) {
+        if (searchesExtra(query, ownShops) && extras.error == null) {
             // Said on the product page, so "doesn't do much" is never a mystery.
             val added = extra.count { e -> own.none { Shops.name(it.seller).equals(Shops.name(e.seller), ignoreCase = true) } }
             ShoppingSettings.setExtraStatus(
                 appContext, product.id,
-                extras.error ?: run {
+                run {
                     // Says what happened, so "nothing" is never a mystery: no match, prices that didn't fit, or shops you already had.
                     val term = ShoppingSettings.extraTerm(appContext, product.id) ?: product.displayName
                     when {
@@ -397,6 +404,9 @@ class Repository private constructor(context: Context) {
 
     companion object {
         private const val PARALLEL_CHECKS = 4
+        /** Google Shopping is searched for products with this many shops or fewer without it. */
+        private const val FEW_SHOPS = 3
+        private const val SILENT = "silent"
         private const val DISCOUNT_ALERTS = "discount_alerts"
         private const val PENDING_DELETES = "pending_deletes"
         /** A little longer than the Undo bar shows (Snackbar "short" is 4 s). */

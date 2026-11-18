@@ -22,7 +22,6 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Download" to "Downloaden",
     "Checking %1\$d of %2\$d…" to "Controleren: %1\$d van %2\$d…",
     "Notifications are off" to "Meldingen staan uit",
-    "Few shops found. Google Shopping often finds more." to "Weinig winkels gevonden. Google Shopping vindt er vaak meer.",
     "Turn on" to "Aanzetten",
     "Show all" to "Alles tonen",
     "Nothing tracked yet." to "Je volgt nog niets.",
