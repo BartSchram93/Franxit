@@ -152,7 +152,6 @@ fun ListScreen(
     onUpdate: () -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    val uri = androidx.compose.ui.platform.LocalUriHandler.current
     var filterOpen by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
     // One swipe can report "dismissed" more than once; only the first one counts.
@@ -262,12 +261,6 @@ fun ListScreen(
                                 DropdownMenuItem(
                                     text = { Text("Tips") },
                                     onClick = { menuOpen = false; onShowTips() },
-                                )
-                                HorizontalDivider()
-                                // Free and without ads; one quiet line for whoever wants to say thanks (no account needed).
-                                DropdownMenuItem(
-                                    text = { Text("Buy me a coffee") },
-                                    onClick = { menuOpen = false; runCatching { uri.openUri("https://buymeacoffee.com/bartschram") } },
                                 )
                             }
                         }
