@@ -48,8 +48,7 @@ class DemoScreenshots {
     private fun startEmpty() {
         context.getSharedPreferences("language", Context.MODE_PRIVATE).edit().putString("choice", language).commit()
         context.deleteDatabase("franxit.db")
-        // No anonymous count and no update banner while taking screenshots.
-        context.getSharedPreferences("usage", Context.MODE_PRIVATE).edit().putBoolean("share", false).commit()
+        // No update banner while taking screenshots.
         context.getSharedPreferences("update_check", Context.MODE_PRIVATE).edit()
             .putString("checked", LocalDate.now().toString()).putInt("latest", 0).commit()
         Db(context).close()

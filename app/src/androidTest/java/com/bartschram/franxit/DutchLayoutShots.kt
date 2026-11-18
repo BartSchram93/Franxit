@@ -87,7 +87,6 @@ class DutchLayoutShots {
         context.deleteDatabase("franxit.db")
         context.getSharedPreferences("app", Context.MODE_PRIVATE).edit().clear().commit()
         context.getSharedPreferences("language", Context.MODE_PRIVATE).edit().putString("choice", "DUTCH").commit()
-        context.getSharedPreferences("usage", Context.MODE_PRIVATE).edit().putBoolean("share", false).commit()
         context.getSharedPreferences("update_check", Context.MODE_PRIVATE).edit()
             .putString("checked", LocalDate.now().toString()).putInt("latest", 0).commit()
         Db(context).close()
