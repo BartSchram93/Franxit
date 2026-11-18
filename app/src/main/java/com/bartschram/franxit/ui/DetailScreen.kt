@@ -571,10 +571,7 @@ private fun shareProduct(context: Context, product: Product) {
 @Composable
 private fun SearchingWords() {
     val words = remember {
-        listOf(
-            "Searching…", "Sniffing around…", "Walking the shops…", "Comparing prices…", "Looking at price tags…",
-            "Pushing the cases aside…", "Almost there…",
-        )
+        listOf("Searching…", "Comparing prices…", "Almost there…")
     }
     var index by remember { mutableStateOf(0) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
