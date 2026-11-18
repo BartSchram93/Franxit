@@ -328,7 +328,17 @@ class Repository private constructor(context: Context) {
             val added = extra.count { e -> own.none { Shops.name(it.seller).equals(Shops.name(e.seller), ignoreCase = true) } }
             ShoppingSettings.setExtraStatus(
                 appContext, product.id,
-                extras.error ?: when (added) { 0 -> "No extra shops found"; 1 -> "Found 1 extra shop"; else -> "Found $added extra shops" },
+                extras.error ?: run {
+                    // Says what happened, so "nothing" is never a mystery: no match, prices that didn't fit, or shops you already had.
+                    val term = ShoppingSettings.extraTerm(appContext, product.id) ?: product.displayName
+                    when {
+                        extras.offers.isEmpty() -> "Nothing matched “$term” on Google"
+                        extra.isEmpty() -> "Google found ${extras.offers.size} shops for “$term”, but their prices didn't fit"
+                        added == 0 -> "Google found ${extra.size} shops for “$term”, all already listed"
+                        added == 1 -> "Found 1 extra shop"
+                        else -> "Found $added extra shops"
+                    }
+                },
             )
         }
         // Sold-out shops aren't shown; only when every shop is sold out, they are (so the product still has a price).

@@ -79,6 +79,13 @@ fun tMessage(message: String): String {
     if (L10n.lang == L10n.Lang.EN) return message
     Regex("""No longer on (.+)""").matchEntire(message)?.let { return t("No longer on %s", it.groupValues[1]) }
     Regex("""Found (\d+) extra shops""").matchEntire(message)?.let { return t("Found %d extra shops", it.groupValues[1].toInt()) }
+    Regex("""Nothing matched “(.+)” on Google""").matchEntire(message)?.let { return t("Nothing matched “%s” on Google", it.groupValues[1]) }
+    Regex("""Google found (\d+) shops for “(.+)”, but their prices didn't fit""").matchEntire(message)?.let {
+        return t("Google found %1\$d shops for “%2\$s”, but their prices didn't fit", it.groupValues[1].toInt(), it.groupValues[2])
+    }
+    Regex("""Google found (\d+) shops for “(.+)”, all already listed""").matchEntire(message)?.let {
+        return t("Google found %1\$d shops for “%2\$s”, all already listed", it.groupValues[1].toInt(), it.groupValues[2])
+    }
     if (message.startsWith("Google Shopping: ")) return "Google Shopping: " + t(message.removePrefix("Google Shopping: "))
     return t(message)
 }

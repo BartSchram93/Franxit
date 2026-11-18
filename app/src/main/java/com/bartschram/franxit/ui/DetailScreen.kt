@@ -299,7 +299,8 @@ fun DetailScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Also search Google Shopping", style = MaterialTheme.typography.bodyMedium)
-                        val ok = googleStatus == null || googleStatus.startsWith("Found") || googleStatus == "No extra shops found"
+                        val ok = googleStatus == null || googleStatus.startsWith("Found") || googleStatus.startsWith("Google found") ||
+                            googleStatus.startsWith("Nothing matched") || googleStatus == "No extra shops found"
                         Text(
                             when {
                                 on && refreshing -> "Searching…"
