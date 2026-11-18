@@ -3,7 +3,7 @@ package com.bartschram.franxit.ui
 /** The French for each English text in the app (see [L10n]). Written to read naturally, not word for word. */
 internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Overview" to "Aperçu",
-    "Order added" to "Ordre d'ajout",
+    "Date added" to "Date d'ajout",
     "Lowest price" to "Prix le plus bas",
     "Highest price" to "Prix le plus haut",
     "Best deals first" to "Meilleures affaires d'abord",

@@ -3,7 +3,7 @@ package com.bartschram.franxit.ui
 /** The Dutch for each English text in the app (see [L10n]). Written to read naturally, not word for word. */
 internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Overview" to "Overzicht",
-    "Order added" to "Volgorde van toevoegen",
+    "Date added" to "Datum toegevoegd",
     "Lowest price" to "Laagste prijs",
     "Highest price" to "Hoogste prijs",
     "Best deals first" to "Beste deals eerst",

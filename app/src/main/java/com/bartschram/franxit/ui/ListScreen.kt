@@ -101,7 +101,7 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 enum class SortOrder(val label: String) {
-    ADDED("Order added"),
+    ADDED("Date added"),
     PRICE_UP("Lowest price"),
     PRICE_DOWN("Highest price"),
     BEST_DEALS("Best deals first"),
