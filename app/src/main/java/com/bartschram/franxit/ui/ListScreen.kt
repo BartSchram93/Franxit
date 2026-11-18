@@ -266,7 +266,7 @@ fun ListScreen(
                                     onClick = { menuOpen = false; onLanguage() },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(t("Daily at %s", checkTime.format(DateTimeFormatter.ofPattern("HH:mm")))) },
+                                    text = { Text(t("Price check at %s", checkTime.format(DateTimeFormatter.ofPattern("HH:mm")))) },
                                     onClick = { menuOpen = false; onChangeTime() },
                                 )
                                 HorizontalDivider()
