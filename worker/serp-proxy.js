@@ -3,13 +3,11 @@
 // - The SerpApi key lives here only, as the secret SERPAPI_KEY; the app never has it.
 // - The app can only ask for two things (a search and a product's shops), with fixed settings.
 // - Answers are kept for a day and shared by everyone: the same product costs one search a day.
-// - Limits on fresh searches (the ones that cost a SerpApi search): per IP address per day, and for
-//   everyone together per day, so a day of misuse can never use up the month.
+// - A limit on fresh searches (the ones that cost a SerpApi search) per IP address per day.
 // - Optional: the secret APP_TOKEN. When it is set, only requests that carry it (the app does) pass.
 
 const DAY = 86400;
 const MAX_FRESH_PER_IP = 30;      // fresh searches per IP address per day
-const DEFAULT_FRESH_PER_DAY = 20; // for everyone together; change with the variable GLOBAL_DAILY
 
 const bad = () => new Response("Bad request", { status: 400 });
 
@@ -42,21 +40,13 @@ export default {
 
     const day = new Date().toISOString().slice(0, 10);
 
-    // A fresh search is counted per IP address per day ...
+    // A fresh search is counted per IP address per day.
     const ip = request.headers.get("CF-Connecting-IP") || "unknown";
     const counterKey = new Request(`https://cache.invalid/count/${ip}/${day}`);
     const counted = await cache.match(counterKey);
     const used = counted ? parseInt(await counted.text(), 10) || 0 : 0;
     if (used >= MAX_FRESH_PER_IP) return new Response("Too many searches today", { status: 429 });
 
-    // ... and for everyone together (needs the KV storage QUOTA; without it only the limit above applies).
-    if (env.QUOTA) {
-      const limit = parseInt(env.GLOBAL_DAILY || "", 10) || DEFAULT_FRESH_PER_DAY;
-      const key = `fresh:${day}`;
-      const total = parseInt((await env.QUOTA.get(key)) || "0", 10) || 0;
-      if (total >= limit) return new Response("Searches are used up for today", { status: 429 });
-      ctx.waitUntil(env.QUOTA.put(key, String(total + 1), { expirationTtl: 2 * DAY }));
-    }
     ctx.waitUntil(cache.put(counterKey, new Response(String(used + 1), { headers: { "Cache-Control": `max-age=${DAY}` } })));
 
     if (!env.SERPAPI_KEY) return new Response("Not configured", { status: 500 });
