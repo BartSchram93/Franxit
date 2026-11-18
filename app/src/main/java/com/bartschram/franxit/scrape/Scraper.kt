@@ -79,10 +79,11 @@ object Scraper {
         return a != b
     }
 
-    internal fun download(url: String, accept: String): String = downloadPage(url, accept).first
+    internal fun download(url: String, accept: String, headers: Map<String, String> = emptyMap()): String =
+        downloadPage(url, accept, headers).first
 
     /** The page and the url it ended on, after redirects. */
-    private fun downloadPage(url: String, accept: String): Pair<String, String> {
+    private fun downloadPage(url: String, accept: String, headers: Map<String, String> = emptyMap()): Pair<String, String> {
         val conn = URL(url).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 20_000
@@ -90,6 +91,7 @@ object Scraper {
             conn.setRequestProperty("User-Agent", USER_AGENT)
             conn.setRequestProperty("Accept", accept)
             conn.setRequestProperty("Accept-Language", "nl-BE,nl;q=0.9,en;q=0.8")
+            headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
             val code = conn.responseCode
             // 403/406/429: the usual answers of shops that keep apps out.
             if (code == 403 || code == 406 || code == 429) throw IOException("${shop(url)} only allows browsers")

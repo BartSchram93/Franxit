@@ -39,6 +39,8 @@ android {
         targetSdk = 36
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
+        // A mark the app sends to its search service (a Cloudflare Worker); from the CI secret APP_TOKEN, empty when unset.
+        buildConfigField("String", "APP_TOKEN", "\"${System.getenv("APP_TOKEN").orEmpty().trim()}\"")
     }
 
     signingConfigs {
@@ -64,6 +66,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     testOptions {
         unitTests.all {

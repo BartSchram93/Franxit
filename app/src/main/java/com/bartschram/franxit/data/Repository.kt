@@ -227,7 +227,11 @@ class Repository private constructor(context: Context) {
     }
 
 
-    suspend fun shopLink(product: Product, seller: String? = null): String? = withContext(Dispatchers.IO) {
+    /** Only web addresses are ever opened: a link from a shop or from Google is not trusted with any other kind. */
+    suspend fun shopLink(product: Product, seller: String? = null): String? =
+        shopLinkUnchecked(product, seller)?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+
+    private suspend fun shopLinkUnchecked(product: Product, seller: String? = null): String? = withContext(Dispatchers.IO) {
         // A shop found through Google Shopping: its page from the last search (a new search would cost one).
         val shop = seller ?: Offers.cheapest(product.offers)?.seller
         shop?.let { ShoppingSettings.link(appContext, product.id, it) }?.let { link ->

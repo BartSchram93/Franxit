@@ -106,7 +106,10 @@ object GoogleShopping {
     /** One request to the search service, with its errors in plain words. */
     private fun serp(path: String): String {
         try {
-            return Scraper.download(PROXY + path, "application/json")
+            return Scraper.download(
+                PROXY + path, "application/json",
+                com.bartschram.franxit.BuildConfig.APP_TOKEN.takeIf { it.isNotBlank() }?.let { mapOf("X-Franxit-Token" to it) }.orEmpty(),
+            )
         } catch (e: IOException) {
             throw when (e.message) {
                 "HTTP 401" -> IOException(BAD_KEY)
