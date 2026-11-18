@@ -1,23 +1,27 @@
-# Takes screenshots of the real app on an emulator with made-up demo products (see
-# DemoScreenshots) and puts them on the "screenshot-images" branch, for the download page.
+# Screenshots of the real app (the Google Play build) on an emulator, for the Play Console: phone and
+# tablet. The app starts empty, searches vergelijk.be like a user and tracks products (see
+# DemoScreenshots): every price, shop and price history comes from the live site, nothing is invented.
+# Download the images from the run page (Artifacts).
 name: Screenshots
 
 on:
   workflow_dispatch:
   push:
-    branches: [demo-shots]
+    branches: [play-shots]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   shots:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        lang: [ENGLISH, DUTCH, FRENCH]
+        include:
+          - { name: phone, profile: pixel_6, lang: DUTCH }
+          - { name: tablet, profile: pixel_tablet, lang: DUTCH }
     steps:
       - uses: actions/checkout@v5
 
@@ -35,9 +39,11 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Build the app and the test
+        env:
+          APP_TOKEN: ${{ secrets.APP_TOKEN }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug assembleDebugAndroidTest --console=plain
+          ./gradlew assemblePlayDebug assemblePlayDebugAndroidTest --console=plain
 
       - name: Take the screenshots on an emulator
         uses: reactivecircus/android-emulator-runner@v2
@@ -45,11 +51,11 @@ jobs:
           api-level: 34
           target: google_apis
           arch: x86_64
-          profile: pixel_6
+          profile: ${{ matrix.profile }}
           disable-animations: true
           script: |
-            adb install -r app/build/outputs/apk/debug/app-debug.apk
-            adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb install -r app/build/outputs/apk/play/debug/app-play-debug.apk
+            adb install -r app/build/outputs/apk/androidTest/play/debug/app-play-debug-androidTest.apk
             adb shell settings put global hide_error_dialogs 1
             adb shell pm grant com.bartschram.franxit android.permission.POST_NOTIFICATIONS
             adb shell am instrument -w -e lang ${{ matrix.lang }} -e class com.bartschram.franxit.DemoScreenshots com.bartschram.franxit.test/androidx.test.runner.AndroidJUnitRunner
@@ -57,33 +63,23 @@ jobs:
             adb pull /sdcard/Android/data/com.bartschram.franxit/files/shots/. shots/
             ls -l shots
 
+      # Google Play wants phone screenshots no taller than 2:1: without the status bar and the
+      # navigation bar the emulator's 1080 x 2400 becomes 1080 x 2160.
+      - name: Fit the phone images to Google Play
+        if: ${{ matrix.name == 'phone' }}
+        run: |
+          pip install -q pillow
+          python3 - <<'PY'
+          import glob
+          from PIL import Image
+          for f in glob.glob("shots/*.png"):
+              if "debug" in f: continue
+              im = Image.open(f).convert("RGB")
+              im.crop((0, 120, im.width, 120 + im.width * 2)).save(f)
+              print(f, Image.open(f).size)
+          PY
+
       - uses: actions/upload-artifact@v4
         with:
-          name: screenshots-${{ matrix.lang }}
+          name: screenshots-${{ matrix.name }}
           path: shots/*
-
-  publish:
-    needs: shots
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/download-artifact@v4
-        with:
-          path: out
-
-      - name: Put the screenshots on the screenshot-images branch, one folder per language
-        run: |
-          ls -R out
-          git config user.name "github-actions"
-          git config user.email "github-actions@users.noreply.github.com"
-          git checkout --orphan screenshots-out
-          git rm -rf -q . || true
-          for l in ENGLISH DUTCH FRENCH; do
-            code=$(echo "$l" | cut -c1-2 | tr 'A-Z' 'a-z'); [ "$l" = "ENGLISH" ] && code=en; [ "$l" = "DUTCH" ] && code=nl; [ "$l" = "FRENCH" ] && code=fr
-            mkdir -p "$code"; cp out/screenshots-$l/* "$code"/ 2>/dev/null || true
-          done
-          git add .
-          git commit -q -m "Screenshots from run ${{ github.run_number }}"
-          git push -f origin HEAD:screenshot-images
