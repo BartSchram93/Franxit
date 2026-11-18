@@ -145,7 +145,7 @@ class Repository private constructor(context: Context) {
      */
     private class Extras(val offers: List<ShopOffer>, val error: String? = null)
 
-    private fun extraShops(product: Product, query: String?): Extras {
+    private fun extraShops(product: Product, query: String?, reference: Double?): Extras {
         if (query != null || !ShoppingSettings.isExtra(appContext, product.id)) return Extras(emptyList())
         val today = LocalDate.now().toString()
         ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return Extras(it) }
@@ -153,7 +153,7 @@ class Repository private constructor(context: Context) {
         // The wording that worked last time first, then the product's name, its fuller name, and "kopen".
         val terms = listOfNotNull(ShoppingSettings.extraTerm(appContext, product.id), name, fullNameQuery(product), "$name kopen")
         val found = try {
-            searchGoogleShopping(product.id, name, terms) { ShoppingSettings.setExtraTerm(appContext, product.id, it) }
+            searchGoogleShopping(product.id, name, terms, reference) { ShoppingSettings.setExtraTerm(appContext, product.id, it) }
         } catch (e: Exception) {
             return when (e.message) {
                 // Nothing for this product: asked once a day, not at every refresh.
@@ -201,12 +201,13 @@ class Repository private constructor(context: Context) {
         productId: Long,
         query: String,
         terms: List<String> = listOf(query),
+        reference: Double? = null,
         onTerm: (String) -> Unit = {},
     ): Scraper.Result {
         val key = ShoppingSettings.key(appContext) ?: throw IOException("Turn on Google Shopping in ⋮ → Google Shopping")
         // With the app in French, French pages are welcome too.
         GoogleShopping.allowFrench = com.bartschram.franxit.ui.L10n.lang == com.bartschram.franxit.ui.L10n.Lang.FR
-        val found = GoogleShopping.fetch(query, key, { TrustedShops.name(appContext, it) }, terms)
+        val found = GoogleShopping.fetch(query, key, { TrustedShops.name(appContext, it) }, terms, reference)
         found.term?.let(onTerm)
         // Every search keeps its best result's photo, for "Use Google Shopping photo".
         found.result.image?.let { Photos.saveGooglePhoto(appContext, productId, it) }
@@ -320,7 +321,7 @@ class Repository private constructor(context: Context) {
         // Optionally Google Shopping's shops too; one shop, one offer (the cheaper), by shop site.
         // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
         val ownCheapest = own.minOfOrNull { it.price }
-        val extras = extraShops(product, query)
+        val extras = extraShops(product, query, ownCheapest)
         // (Which shops are trusted was decided when Google's results were read.)
         val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
         if (query == null && ShoppingSettings.isExtra(appContext, product.id)) {

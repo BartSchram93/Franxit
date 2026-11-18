@@ -28,7 +28,9 @@ object GoogleShopping {
      * The shops selling this product: a search, then Google's page for the best match, which
      * lists more shops, each with its own link (two searches; the second is skipped when it fails).
      */
-    fun fetch(query: String, key: String, trusted: (String) -> String?, terms: List<String> = listOf(query)): Found {
+    fun fetch(
+        query: String, key: String, trusted: (String) -> String?, terms: List<String> = listOf(query), reference: Double? = null,
+    ): Found {
         // Google's results depend a lot on the wording: "TCL Nxtpaper 14" gets only screen protectors,
         // "TCL Nxtpaper 14 kopen" gets the tablet. When a wording finds nothing, the next is tried
         // (at most three, as each is a search); other errors are no use retrying.
@@ -36,7 +38,7 @@ object GoogleShopping {
         var nothing: IOException? = null
         for (term in wordings.ifEmpty { listOf(query) }) {
             try {
-                return search(term, query, key, trusted).copy(term = term)
+                return search(term, query, key, trusted, reference).copy(term = term)
             } catch (e: IOException) {
                 if (e.message != NOT_FOUND) throw e
                 nothing = e
@@ -48,12 +50,12 @@ object GoogleShopping {
     private const val MAX_WORDINGS = 3
 
     /** Searches for [term]; the results must be [query] (they may be found under a fuller wording). */
-    private fun search(term: String, query: String, key: String, trusted: (String) -> String?): Found {
+    private fun search(term: String, query: String, key: String, trusted: (String) -> String?, reference: Double?): Found {
         val q = URLEncoder.encode(term, "UTF-8")
-        val searched = parse(serp("engine=google_shopping&q=$q&gl=be&hl=nl&google_domain=google.be", key), query, trusted)
+        val searched = parse(serp("engine=google_shopping&q=$q&gl=be&hl=nl&google_domain=google.be", key), query, trusted, reference)
         val found = searched.token?.let { token ->
             val t = URLEncoder.encode(token, "UTF-8")
-            runCatching { addStores(searched, serp("engine=google_immersive_product&page_token=$t&more_stores=true", key), query, trusted) }.getOrNull()
+            runCatching { addStores(searched, serp("engine=google_immersive_product&page_token=$t&more_stores=true", key), query, trusted, reference) }.getOrNull()
         } ?: searched
         if (found.result.offers.isEmpty()) throw IOException(NOT_FOUND)
         return found
@@ -102,7 +104,7 @@ object GoogleShopping {
      * [Found.links] goes from shop to its page, for the Buy button. Only [trusted] shops count, by
      * the name it gives them (see TrustedShops): Google also lists fake shops.
      */
-    fun parse(json: String, query: String, trusted: (String) -> String? = { it }): Found {
+    fun parse(json: String, query: String, trusted: (String) -> String? = { it }, reference: Double? = null): Found {
         val root = JSONObject(json)
         root.optString("error").takeIf { it.isNotBlank() }?.let {
             throw IOException(
@@ -140,7 +142,8 @@ object GoogleShopping {
             val site = direct?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.removePrefix("www.")
             Item(title, shop, price, link, o.optString("thumbnail").takeIf { it.startsWith("http") }, site, token)
         }.filter {
-            Matching.isSameProduct(it.title, query, lenient = isReliableShop(it.shop, it.site)) && !isForeignShop(it.shop) && !isMarketplace(it.shop) &&
+            // With a price to compare with, a bundle or an accessory in the title is fine (the cheaper one counts); the price decides.
+            Matching.isSameProduct(it.title, query, lenient = reference != null || isReliableShop(it.shop, it.site)) && !isForeignShop(it.shop) && !isMarketplace(it.shop) &&
                 (!isOtherLanguage(it.title, it.link) || isReliableShop(it.shop, it.site))
         }
         if (same.isEmpty()) throw IOException(NOT_FOUND)
@@ -157,6 +160,10 @@ object GoogleShopping {
                     else -> trusted(item.shop)?.let { item.copy(shop = it) }
                         ?: item.takeIf { isReliableShop(it.shop, it.site) }
                 }
+            }
+            // Against the price you know (vergelijk.be's), before anything is grouped: a cover must not hide the tablet.
+            .filter { item ->
+                reference == null || com.bartschram.franxit.data.ExtraShopPrices.plausible(item.price, reference, isReliableShop(item.shop, item.site))
             }
             // Odd prices out first (too good to be true, import prices), by the middle price of the results.
             .let { withoutOutliers(it, { item -> isReliableShop(item.shop, item.site) }) { item -> item.price } }
@@ -184,7 +191,7 @@ object GoogleShopping {
      * Google groups them under this one product, so titles aren't matched again (bol.com calls the
      * KB200B "HCKB-200B"); otherwise the same rules as the search: new, trusted shops, no odd prices.
      */
-    internal fun addStores(found: Found, json: String, query: String, trusted: (String) -> String?): Found {
+    internal fun addStores(found: Found, json: String, query: String, trusted: (String) -> String?, reference: Double? = null): Found {
         val stores = JSONObject(json).optJSONObject("product_results")?.optJSONArray("stores").objects()
         val extra = stores.mapNotNull { s ->
             val name = s.optString("name").trim()
@@ -208,6 +215,7 @@ object GoogleShopping {
         }
             // A reliable shop's page in another language only counts when no Dutch or English one is as cheap.
             .sortedBy { it.second }.map { it.first }
+            .filter { reference == null || com.bartschram.franxit.data.ExtraShopPrices.plausible(it.price, reference, isReliableShop(it.seller, null)) }
         // The page's own links first: on the same price, its direct link wins.
         val offers = withoutOutliers(extra + found.result.offers, { isReliableShop(it.seller, null) }) { it.price }
             .groupBy { it.seller.lowercase() }.values.map { group -> group.minBy { it.price } }.sortedBy { it.price }
@@ -224,6 +232,8 @@ object GoogleShopping {
         val path = link?.takeIf { it.startsWith("http") && "google." !in it }
             ?.let { runCatching { java.net.URI(it) }.getOrNull() }
         val folders = path?.path.orEmpty().lowercase().split('/').filter { it.isNotEmpty() }
+        // Amazon shows one page in any language: its title says nothing about the page you get.
+        if (path?.host?.removePrefix("www.") in setOf("amazon.com.be", "amazon.nl")) return false
         if (folders.any { it in OTHER_LANGUAGE_FOLDERS && !(frenchToo && it in FRENCH_FOLDERS) }) return true
         val languages = if (frenchToo) "de|es|it|pt|pl" else "fr|de|es|it|pt|pl"
         if (Regex("""[?&](lang|language|locale)=($languages)""").containsMatchIn(path?.rawQuery?.let { "?$it" }.orEmpty().lowercase())) return true

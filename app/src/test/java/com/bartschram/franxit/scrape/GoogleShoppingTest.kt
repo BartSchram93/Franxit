@@ -444,4 +444,166 @@ class GoogleShoppingTest {
         assertEquals(349.0, prices.entries.first { "amazon" in it.key }.value, 0.001)
         assertEquals(437.75, prices.entries.first { "bol" in it.key }.value, 0.001)
     }
+
+    /** A real answer for "TCL Nxtpaper 14", shortened: mostly covers, and the tablet only on Google's product page. */
+    @Test
+    fun coversDoNotHideTheTabletWhenThePriceIsKnown() {
+        val search = """{
+ "shopping_results": [
+  {
+   "title": "TCL Nxtpapier 14",
+   "source": "Techinn.com",
+   "extracted_price": 402.99,
+   "immersive_product_page_token": "tok-1"
+  },
+  {
+   "title": "TCL NXTPAPER 14",
+   "source": "CSMobiles",
+   "extracted_price": 348.0,
+   "immersive_product_page_token": "tok-2"
+  },
+  {
+   "title": "upscreen Screenprotector voor TCL NXTPAPER 14",
+   "source": "protectionfilms24.fr",
+   "extracted_price": 30.79,
+   "immersive_product_page_token": "tok-3"
+  },
+  {
+   "title": "BROTECT Anti-glansfolie Schermbeschermer Matte schermbeschermfolie",
+   "source": "bol",
+   "extracted_price": 23.08,
+   "immersive_product_page_token": "tok-4"
+  },
+  {
+   "title": "pour NXTPAPER 14 9194G Coque de tablette en cuir PU premium avec porte-stylo - Design mains libres en noir élégant (Noir)",
+   "source": "SDTEK",
+   "extracted_price": 62.99,
+   "immersive_product_page_token": "tok-5"
+  },
+  {
+   "title": "TCL NxtPaper 60 Ultra",
+   "source": "eBay - sobreruedas-spain",
+   "extracted_price": 815.8,
+   "immersive_product_page_token": "tok-6"
+  },
+  {
+   "title": "Brotect Beschermer Anti-verblinding",
+   "source": "protectionfilms24.fr",
+   "extracted_price": 20.79,
+   "immersive_product_page_token": "tok-7"
+  },
+  {
+   "title": "Screenprotector voor TCL NxtPaper 14 Pro Beschermglas",
+   "source": "bol.com",
+   "extracted_price": 31.08,
+   "immersive_product_page_token": "tok-8"
+  },
+  {
+   "title": "TCL 50 Pro NXTPAPER 5G 512GB Mobile Phone",
+   "source": "友和 Yoho",
+   "extracted_price": 237.99,
+   "immersive_product_page_token": "tok-9"
+  },
+  {
+   "title": "EtuiTab Serie Tablethoes TCL NXTPAPER 14",
+   "source": "bol",
+   "extracted_price": 30.99,
+   "immersive_product_page_token": "tok-10"
+  },
+  {
+   "title": "Brotect Schermbeschermer Clear",
+   "source": "protectionfilms24.fr",
+   "extracted_price": 20.79,
+   "immersive_product_page_token": "tok-11"
+  },
+  {
+   "title": "TCL NXTPAPER 60 Ultra 2/256G Lunar White",
+   "source": "eBay DE",
+   "extracted_price": 349.99,
+   "immersive_product_page_token": "tok-12"
+  },
+  {
+   "title": "BROTECT Screenprotector voor TCL NXTPAPER 14",
+   "source": "bol",
+   "extracted_price": 34.88,
+   "immersive_product_page_token": "tok-13"
+  },
+  {
+   "title": "EtuiTab Szkło hartowane tcl nxtpaper 14",
+   "source": "bol",
+   "extracted_price": 23.49,
+   "immersive_product_page_token": "tok-14"
+  },
+  {
+   "title": "BROTECT Schermbeschermer Clear",
+   "source": "protectionfilms24.fr",
+   "extracted_price": 20.99,
+   "immersive_product_page_token": "tok-15"
+  },
+  {
+   "title": "TCL T951K1 Octa Core Smartphone met 12GB RAM en 512GB Opslag",
+   "source": "eBay - sobreruedas-spain",
+   "extracted_price": 815.8,
+   "immersive_product_page_token": "tok-16"
+  }
+ ]
+}"""
+        val page = """{
+ "product_results": {
+  "stores": [
+   {
+    "name": "CSMobiles",
+    "link": "https://csmobiles.com/fr/Tablette-tactile/158270-tcl-nxtpaper-14-122-8go-256go-wifi-gris-etui-a-stylet-4894461994680.html?srsltid=AYCX9vI42oE89NedxsNlCPbnU-Cy6WPsn9dAjnOydzL99lxP-rR0kr-D9aQ",
+    "title": "TCL NxtPaper 14 12.2 8Go 256Go Wifi Gris Étui à stylet",
+    "extracted_price": 348.0,
+    "details_and_offers": [
+     "Online op voorraad",
+     "Bezorging voor € 9,90",
+     "Retourneren binnen 14 dagen"
+    ],
+    "rating": 4.4,
+    "reviews": 171
+   },
+   {
+    "name": "Amazon.com.be",
+    "link": "https://www.amazon.com.be/TCL-NXTPAPER-flip-case-T-pen/dp/B0DFWQN7SV?source=ps-sl-shoppingads-lpcontext&ref_=fplfs&ref_=fplfs&psc=1&smid=A3Q3FYJVX702M2",
+    "title": "TCL NXTPAPER 14 +flip case +T-pen - Tablette Wi-Fi Display NXTPAPER 14 pouces 16 Go RAM (8 Go+8 Go Ram Expansion) 256 Go ROM Batterie 10 000 mAh fast",
+    "extracted_price": 349.0,
+    "details_and_offers": [
+     "Online op voorraad",
+     "Gratis bezorging"
+    ]
+   },
+   {
+    "name": "bol",
+    "link": "https://www.bol.com/be/fr/p/tablette-liseuse-tcl-14-3-nxtpaper-14/9300000196440670/?Referrer=BEGOOFS&utm_source=google&utm_medium=free_shopping",
+    "title": "Tablet TCL NXTPAPER 14 WiFi 14 3\" 8GB 256GB Gris Stylus Pen",
+    "extracted_price": 437.75,
+    "details_and_offers": [
+     "Online op voorraad",
+     "Gratis bezorging",
+     "Retourneren binnen 30 dagen"
+    ]
+   }
+  ]
+ }
+}"""
+        val trusted = { shop: String -> com.bartschram.franxit.data.TrustedShops.name(shop, emptySet()) }
+        val searched = GoogleShopping.parse(search, "TCL Nxtpaper 14", trusted, reference = 364.6)
+        val found = GoogleShopping.addStores(searched, page, "TCL Nxtpaper 14", trusted, reference = 364.6)
+        val prices = found.result.offers.associate { it.seller.lowercase() to it.price }
+        assertEquals(349.0, prices.entries.first { "amazon" in it.key }.value, 0.001)
+        assertEquals(437.75, prices.entries.first { "bol" in it.key }.value, 0.001)
+        assertEquals(true, found.result.offers.none { it.price < 100 })
+    }
+
+    @Test
+    fun aBundleWithAccessoriesIsShownWhenItsPriceFits() {
+        val search = """
+            {"shopping_results": [{"title": "TCL NXTPAPER 14 + Flip Case + T-pen", "source": "Amazon.com.be", "extracted_price": 349.0,
+              "link": "https://www.amazon.com.be/dp/B0"}]}
+        """.trimIndent()
+        val offers = GoogleShopping.parse(search, "TCL Nxtpaper 14", { it }, reference = 364.6).result.offers
+        assertEquals(listOf(349.0), offers.map { it.price })
+    }
 }
