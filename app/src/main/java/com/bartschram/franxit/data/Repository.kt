@@ -314,13 +314,11 @@ class Repository private constructor(context: Context) {
         // vergelijk.be's shops (and a shop page you added yourself) are trusted for Google Shopping too.
         if (query == null) TrustedShops.learn(appContext, own.map { it.seller })
         // Optionally Google Shopping's shops too; one shop, one offer (the cheaper), by shop site.
-        // Google Shopping's shops are there to find cheaper sellers, compared with vergelijk.be's
-        // cheapest: far above it is no alternative (U-buy at € 620 for a € 361 tablet), under half of
-        // it is another item or too good to be true (€ 37,99 for € 219 earbuds).
+        // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
         val ownCheapest = own.minOfOrNull { it.price }
         val extras = extraShops(product, query)
         // (Which shops are trusted was decided when Google's results were read.)
-        val extra = extras.offers.filter { ownCheapest == null || it.price in ownCheapest * 0.5..ownCheapest * 1.25 }
+        val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest) }
         if (query == null && ShoppingSettings.isExtra(appContext, product.id)) {
             // Said on the product page, so "doesn't do much" is never a mystery.
             val added = extra.count { e -> own.none { Shops.name(it.seller).equals(Shops.name(e.seller), ignoreCase = true) } }
