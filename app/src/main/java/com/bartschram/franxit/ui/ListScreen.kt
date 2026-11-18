@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -562,7 +561,6 @@ private fun Tips(onDone: (() -> Unit)?) {
             Tip(Icons.Default.Notifications, "Long-press a product to set a price alert")
             Tip(Icons.Default.Delete, "Swipe a product left to remove it")
             Tip(FilterListIcon, "Sort or show only alerts")
-            Tip(Icons.Default.KeyboardArrowDown, "Buy now / Wait: what the price history says (details at the bottom of a product)")
             onDone?.let { TextButton(onClick = it, modifier = Modifier.align(Alignment.End)) { Text("Got it") } }
         }
     }
