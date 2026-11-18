@@ -10,6 +10,14 @@ internal object ExtraShopPrices {
     const val LOWEST = 0.5
     const val HIGHEST = 1.5
 
+    /** Reliable shops (bol.com, Coolblue…) may be dearer, but a price far below is an accessory, not the product (a € 23 cover). */
+    const val RELIABLE_LOWEST = 0.5
+    const val RELIABLE_HIGHEST = 2.0
+
     /** True when [price] is a plausible alternative; always true when there is no cheapest price to compare with. */
-    fun plausible(price: Double, cheapest: Double?): Boolean = cheapest == null || price in cheapest * LOWEST..cheapest * HIGHEST
+    fun plausible(price: Double, cheapest: Double?, reliable: Boolean = false): Boolean = when {
+        cheapest == null -> true
+        reliable -> price in cheapest * RELIABLE_LOWEST..cheapest * RELIABLE_HIGHEST
+        else -> price in cheapest * LOWEST..cheapest * HIGHEST
+    }
 }

@@ -322,7 +322,7 @@ class Repository private constructor(context: Context) {
         val ownCheapest = own.minOfOrNull { it.price }
         val extras = extraShops(product, query)
         // (Which shops are trusted was decided when Google's results were read.)
-        val extra = extras.offers.filter { GoogleShopping.isReliableShop(it.seller, null) || ExtraShopPrices.plausible(it.price, ownCheapest) }
+        val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
         if (query == null && ShoppingSettings.isExtra(appContext, product.id)) {
             // Said on the product page, so "doesn't do much" is never a mystery.
             val added = extra.count { e -> own.none { Shops.name(it.seller).equals(Shops.name(e.seller), ignoreCase = true) } }

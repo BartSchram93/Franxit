@@ -30,4 +30,11 @@ class ExtraShopPricesTest {
     fun withoutACheapestPriceEverythingCounts() {
         assertTrue(ExtraShopPrices.plausible(1000.0, null))
     }
+
+    @Test
+    fun aReliableShopMayBeDearerButNotFarBelow() {
+        assertTrue(ExtraShopPrices.plausible(600.0, 349.0, reliable = true))
+        assertFalse(ExtraShopPrices.plausible(23.49, 349.0, reliable = true))
+        assertFalse(ExtraShopPrices.plausible(23.49, 349.0))
+    }
 }

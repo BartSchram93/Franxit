@@ -239,7 +239,7 @@ class GoogleShoppingTest {
     }
 
     @Test
-    fun reliableShopsAreAlwaysShownWhateverTheLanguageOrPrice() {
+    fun reliableShopsAreShownWhateverTheLanguageButNotFarBelowThePrice() {
         val search = """
             {"shopping_results": [
               {"title": "TCL NXTPAPER 14 Tablet", "source": "Coolblue", "extracted_price": 349.0, "link": "https://www.coolblue.be/nl/p/1"},
@@ -248,7 +248,7 @@ class GoogleShoppingTest {
         """.trimIndent()
         val page = """
             {"product_results": {"stores": [
-              {"name": "Krëfel", "link": "https://www.krefel.be/fr/tcl-nxtpaper-14", "title": "Tablette TCL NXTPAPER 14", "extracted_price": 1200.0},
+              {"name": "Krëfel", "link": "https://www.krefel.be/fr/tcl-nxtpaper-14", "title": "Tablette TCL NXTPAPER 14", "extracted_price": 480.0},
               {"name": "MediaMarkt", "link": "https://www.mediamarkt.be/fr/product/tcl", "title": "Tablette TCL NXTPAPER 14", "extracted_price": 120.0},
               {"name": "Fnac", "link": "https://www.fnac.be/tcl-nxtpaper-14", "title": "Tablette TCL NXTPAPER 14", "extracted_price": 380.0}
             ]}}
@@ -256,7 +256,8 @@ class GoogleShoppingTest {
         val found = GoogleShopping.addStores(GoogleShopping.parse(search, "TCL NXTPAPER 14"), page, "TCL NXTPAPER 14") { it }
         val sellers = found.result.offers.map { it.seller.lowercase() }
         assertEquals(true, sellers.any { "krëfel" in it || "krefel" in it })
-        assertEquals(true, sellers.any { "mediamarkt" in it })
+        // A cover at € 120 is not the tablet.
+        assertEquals(false, sellers.any { "mediamarkt" in it })
         assertEquals(true, sellers.any { "fnac" in it })
         assertEquals(true, GoogleShopping.isReliableShop("bol", null))
         assertEquals(false, GoogleShopping.isReliableShop("Movertix", "movertix.com"))

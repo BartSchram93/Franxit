@@ -314,13 +314,13 @@ object GoogleShopping {
         if (items.size < 3) return items
         val sorted = items.map(price).sorted()
         val median = sorted[sorted.size / 2]
-        // Reliable shops stay, whatever their price.
-        return items.filter { reliable(it) || price(it) in median * 0.5..median * 1.5 }
+        // Reliable shops may be dearer, but not far cheaper (that is an accessory, like a cover).
+        return items.filter { if (reliable(it)) price(it) in median * 0.5..median * 2.0 else price(it) in median * 0.5..median * 1.5 }
     }
 
     /**
-     * Big, reliable shops: always shown, whatever the page's language or the price (a dearer bol.com is
-     * still worth showing). Matched by the shop's name or its site.
+     * Big, reliable shops: shown whatever the page's language, and up to twice the usual price (a dearer
+     * bol.com is still worth showing), but not far below it. Matched by the shop's name or its site.
      */
     private val RELIABLE_SHOPS = listOf("bol.com", "coolblue", "fnac", "mediamarkt", "media markt", "krefel", "krëfel")
 
