@@ -47,12 +47,9 @@ object Matching {
     fun isSameProduct(title: String, wanted: String, lenient: Boolean = false): Boolean {
         val want = words(wanted)
         if (want.isEmpty()) return false
-        if (lenient) {
-            // A big, reliable shop often sells the product with a case or stylus ("TCL NXTPAPER 14 - 8GB - Grijs + Flip Case
-            // & Stylus"): fine, as long as the title starts with the product itself, not with the accessory.
-            val brand = wanted.trim().split(Regex("\\s+")).first().lowercase()
-            if (!title.trim().lowercase().startsWith(brand)) return false
-        } else {
+        // A big, reliable shop often sells the product with a case or stylus ("TCL NXTPAPER 14 - 8GB - Grijs + Flip Case
+        // & Stylus"): fine. A loose accessory is kept out by the price check (50-200% of the usual price), not by its title.
+        if (!lenient) {
             if (isAccessory(title) && !isAccessory(wanted)) return false
             if (BUNDLE.containsMatchIn(title) && !BUNDLE.containsMatchIn(wanted)) return false
         }

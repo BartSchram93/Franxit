@@ -60,9 +60,9 @@ class MatchingTest {
         val title = "TCL NXTPAPER 14 - 14 inch - 8GB RAM 256GB - Grijs + Flip Case & Stylus"
         assertFalse(Matching.isSameProduct(title, "TCL Nxtpaper 14"))
         assertTrue(Matching.isSameProduct(title, "TCL Nxtpaper 14", lenient = true))
-        // But a case for it is still no tablet.
-        assertFalse(Matching.isSameProduct("Flip Case voor TCL NXTPAPER 14", "TCL Nxtpaper 14", lenient = true))
-        assertFalse(Matching.isSameProduct("Hoes geschikt voor TCL NXTPAPER 14", "TCL Nxtpaper 14", lenient = true))
+        // The title may name a case; a loose case is kept out by its price (see ExtraShopPrices), not by its title.
+        assertTrue(Matching.isSameProduct("Flip Case voor TCL NXTPAPER 14", "TCL Nxtpaper 14", lenient = true))
+        assertFalse(com.bartschram.franxit.data.ExtraShopPrices.plausible(23.49, 349.0, reliable = true))
     }
 
     @Test
