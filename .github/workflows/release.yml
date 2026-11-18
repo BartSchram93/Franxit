@@ -9,6 +9,11 @@ on:
     paths-ignore:
       - ".github/workflows/serpapi-quota.yml"
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish the APK as a release (no = only build, keep the Play bundle)"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -80,7 +85,7 @@ jobs:
           retention-days: 30
 
       - name: Publish release
-        if: steps.key.outputs.signed == 'true'
+        if: steps.key.outputs.signed == 'true' && inputs.publish != false
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: 1.0.${{ env.BUILD }}
@@ -94,7 +99,7 @@ jobs:
       # PUBLIC_REPO_TOKEN, a token that can write to that repo). The page and the app's update
       # notice both read the latest release there.
       - name: Publish to the download page
-        if: steps.key.outputs.signed == 'true'
+        if: steps.key.outputs.signed == 'true' && inputs.publish != false
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
           VERSION: 1.0.${{ env.BUILD }}
