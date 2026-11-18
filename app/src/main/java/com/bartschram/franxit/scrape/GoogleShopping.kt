@@ -318,7 +318,8 @@ object GoogleShopping {
     private val RELIABLE_SHOPS = listOf("bol.com", "coolblue", "fnac", "mediamarkt", "media markt", "krefel", "krëfel")
 
     internal fun isReliableShop(name: String, site: String?): Boolean =
-        "$name ${site.orEmpty()}".lowercase().let { text -> RELIABLE_SHOPS.any { it in text } }
+        name.trim().equals("bol", ignoreCase = true) ||
+            "$name ${site.orEmpty()}".lowercase().let { text -> RELIABLE_SHOPS.any { it in text } }
 
     private fun JSONArray?.objects(): List<JSONObject> =
         if (this == null) emptyList() else (0 until length()).mapNotNull { optJSONObject(it) }
