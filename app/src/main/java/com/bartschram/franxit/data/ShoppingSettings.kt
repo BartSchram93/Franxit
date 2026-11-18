@@ -52,6 +52,9 @@ object ShoppingSettings {
     fun setExtraStatus(context: Context, productId: Long, status: String) =
         prefs(context).edit { putString("extra_status_$productId", status) }
 
+    fun clearExtraStatus(context: Context, productId: Long) =
+        prefs(context).edit { remove("extra_status_$productId") }
+
     fun saveLinks(context: Context, productId: Long, links: Map<String, String>) {
         val old = prefs(context).getString("links_$productId", null)?.let(::JSONObject)
         val merged = links.mapValues { (shop, link) ->
