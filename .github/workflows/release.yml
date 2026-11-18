@@ -44,9 +44,9 @@ jobs:
             echo "signed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # The version counts from 1 again (the workflow had run 39 times before the fresh start).
+      # The version counts from 1 again (the workflow had run 41 times before the fresh start).
       - name: Version
-        run: echo "BUILD=$((GITHUB_RUN_NUMBER - 39))" >> "$GITHUB_ENV"
+        run: echo "BUILD=$((GITHUB_RUN_NUMBER - 41))" >> "$GITHUB_ENV"
 
       - name: Test and build
         env:
