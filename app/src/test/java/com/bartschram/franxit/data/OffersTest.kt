@@ -6,9 +6,9 @@ import org.junit.Test
 
 class OffersTest {
     @Test
-    fun aShopKnownToHaveItBeatsACheaperUnknownOne() {
+    fun aCheaperShopWithUnknownStockBeatsADearerOneInStock() {
         val offers = listOf(ShopOffer("Dreamland", 499.99), ShopOffer("Coolblue", 699.99, true), ShopOffer("Bol.com", 489.0, false))
-        assertEquals("Coolblue", Offers.cheapest(offers)!!.seller)
+        assertEquals("Dreamland", Offers.cheapest(offers)!!.seller)
     }
 
     @Test
@@ -30,6 +30,17 @@ class OffersTest {
             ShopOffer("Bol.", 445.82, true),
         )
         assertEquals("Amazon", Offers.cheapest(offers)?.seller)
+    }
+
+    @Test
+    fun theCheapestShopWinsWhateverItsStockInformation() {
+        val offers = listOf(
+            ShopOffer("Amazon.com.be", 165.71, true),
+            ShopOffer("Excluso", 159.0),
+            ShopOffer("Bol.com", 127.2),
+            ShopOffer("Decathlon.be", 190.11),
+        )
+        assertEquals("Bol.com", Offers.cheapest(offers)!!.seller)
     }
 
     @Test
