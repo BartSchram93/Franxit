@@ -69,7 +69,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Try another photo" to "Essayer une autre photo",
     "Remove photo" to "Supprimer la photo",
     "Save" to "Enregistrer",
-    "Use site name" to "Utiliser le nom du site",
+    "Site name" to "Nom du site",
     "Stop tracking?" to "Ne plus suivre ?",
     "This removes the product and its price history." to "Cela supprime le produit et son historique de prix.",
     "Remove" to "Supprimer",

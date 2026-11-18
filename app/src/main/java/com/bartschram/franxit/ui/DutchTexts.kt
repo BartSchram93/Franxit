@@ -69,7 +69,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Try another photo" to "Andere foto proberen",
     "Remove photo" to "Foto verwijderen",
     "Save" to "Opslaan",
-    "Use site name" to "Naam van de site gebruiken",
+    "Site name" to "Sitenaam",
     "Stop tracking?" to "Niet meer volgen?",
     "This removes the product and its price history." to "Hiermee verdwijnen het product en zijn prijsgeschiedenis.",
     "Remove" to "Verwijderen",

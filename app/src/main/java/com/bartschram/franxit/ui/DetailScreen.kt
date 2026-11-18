@@ -368,6 +368,7 @@ fun DetailScreen(
             text = {
                 Column {
                     OutlinedTextField(value = text, onValueChange = { text = it }, singleLine = true)
+                    Spacer(Modifier.height(8.dp))
                     // The photo, for when the page's one is wrong: one option, only what makes sense now.
                     val (label, choice) = when {
                         photoChoice != Photos.Choice.SITE ->
@@ -382,7 +383,7 @@ fun DetailScreen(
                 TextButton(onClick = { renaming = false; onRename(text.takeIf { it.isNotBlank() }) }) { Text("Save") }
             },
             dismissButton = {
-                TextButton(onClick = { renaming = false; onRename(null) }) { Text("Use site name") }
+                TextButton(onClick = { renaming = false; onRename(null) }) { Text("Site name") }
             },
         )
     }
