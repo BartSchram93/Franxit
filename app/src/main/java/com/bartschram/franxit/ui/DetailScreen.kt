@@ -113,6 +113,9 @@ fun DetailScreen(
     shopLink: suspend (seller: String?) -> String?,
     /** "Also search Google Shopping": null when it doesn't apply (no key, or a Google Shopping product). */
     googleExtra: Boolean? = null,
+    /** Google Shopping is off and this product has few shops: a quiet line to turn it on. */
+    suggestGoogle: Boolean = false,
+    onSuggestGoogle: () -> Unit = {},
     onGoogleExtra: (Boolean) -> Unit = {},
     /** What the last Google Shopping search found ("Found 2 extra shops"), null before the first. */
     googleStatus: String? = null,
@@ -294,6 +297,18 @@ fun DetailScreen(
             }
 
             ShopsToday(product, discounts) { seller -> shopLink(seller) }
+            if (suggestGoogle) {
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Few shops found. Google Shopping often finds more.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onSuggestGoogle) { Text("Turn on") }
+                }
+            }
             googleExtra?.let { on ->
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {

@@ -22,6 +22,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Download" to "Télécharger",
     "Checking %1\$d of %2\$d…" to "Vérification : %1\$d sur %2\$d…",
     "Notifications are off" to "Les notifications sont désactivées",
+    "Few shops found. Google Shopping often finds more." to "Peu de magasins trouvés. Google Shopping en trouve souvent plus.",
     "Turn on" to "Activer",
     "Show all" to "Tout afficher",
     "Nothing tracked yet." to "Tu ne suis encore rien.",

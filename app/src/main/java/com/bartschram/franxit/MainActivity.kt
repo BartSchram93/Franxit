@@ -48,6 +48,7 @@ import kotlinx.coroutines.Dispatchers
 import com.bartschram.franxit.data.Analytics
 import com.bartschram.franxit.data.UpdateCheck
 import com.bartschram.franxit.ui.ShoppingDialog
+import com.bartschram.franxit.ui.mergeSameShop
 import com.bartschram.franxit.scrape.GoogleShopping
 import com.bartschram.franxit.data.ShoppingSettings
 import com.bartschram.franxit.data.Shops
@@ -266,6 +267,9 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             googleExtra = if (shoppingKey && GoogleShopping.queryOf(selected.url) == null) {
                 extraOn.contains(selected.id)
             } else null,
+            suggestGoogle = !shoppingKey && GoogleShopping.queryOf(selected.url) == null &&
+                mergeSameShop(selected.offers).size in 1..3,
+            onSuggestGoogle = { showShopping = true },
             googleStatus = remember(selected.id, selected.lastChecked, extraOn) { ShoppingSettings.extraStatus(context, selected.id) },
             onGoogleExtra = { on ->
                 ShoppingSettings.setExtra(context, selected.id, on)
