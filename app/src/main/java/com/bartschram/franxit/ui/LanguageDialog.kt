@@ -16,7 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** ⋮ → Language: the phone's language, English or Dutch. The choice applies at once. */
+/** ⋮ → Language: Dutch, French or English. The choice applies at once. */
 @Composable
 fun LanguageDialog(choice: L10n.Choice, onChoose: (L10n.Choice) -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
@@ -24,27 +24,25 @@ fun LanguageDialog(choice: L10n.Choice, onChoose: (L10n.Choice) -> Unit, onDismi
         title = { Text("Language") },
         text = {
             Column {
-                L10n.Choice.entries.forEach { option ->
+                // Three languages. Until one is picked, the app follows the phone (Dutch, French, else English): that one is marked.
+                listOf(L10n.Choice.DUTCH, L10n.Choice.FRENCH, L10n.Choice.ENGLISH).forEach { option ->
+                    val lang = when (option) {
+                        L10n.Choice.DUTCH -> L10n.Lang.NL
+                        L10n.Choice.FRENCH -> L10n.Lang.FR
+                        else -> L10n.Lang.EN
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth().clickable { onChoose(option) }.padding(vertical = 2.dp),
                     ) {
-                        RadioButton(selected = option == choice, onClick = { onChoose(option) })
+                        RadioButton(selected = lang == L10n.lang, onClick = { onChoose(option) })
                         Spacer(Modifier.width(4.dp))
                         // Each language in its own name, so it can be found whatever the app says now.
                         Text(
                             when (option) {
-                                // Says what it gives: on a phone in Italian the app is English, not "the phone's language".
-                                L10n.Choice.SYSTEM -> when (val phone = L10n.resolve(L10n.Choice.SYSTEM, java.util.Locale.getDefault().language)) {
-                                    L10n.Lang.NL, L10n.Lang.FR ->
-                                        t("Phone's language (%s)", if (phone == L10n.Lang.NL) "Nederlands" else "Français")
-                                    L10n.Lang.EN ->
-                                        if (java.util.Locale.getDefault().language == "en") t("Phone's language (%s)", "English")
-                                        else t("Phone's language isn't available, so English")
-                                }
                                 L10n.Choice.ENGLISH -> "English"
                                 L10n.Choice.DUTCH -> "Nederlands"
-                                L10n.Choice.FRENCH -> "Français"
+                                else -> "Français"
                             },
                             style = MaterialTheme.typography.bodyLarge,
                         )
