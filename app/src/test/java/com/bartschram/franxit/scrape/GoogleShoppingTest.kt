@@ -300,7 +300,9 @@ class GoogleShoppingTest {
         """.trimIndent()
         val offers = GoogleShopping.parse(search, "TCL Nxtpaper 14").result.offers
         assertEquals(listOf(349.0, 441.13), offers.map { it.price })
+    }
 
+    @Test
     fun deliveryOrPickupRemarksDoNotMarkAShopOutOfStock() {
         val search = """
             {"shopping_results": [{"title": "TCL NXTPAPER 14 Tablet", "source": "Coolblue", "extracted_price": 349.0, "link": "https://www.coolblue.be/nl/p/1"}]}
