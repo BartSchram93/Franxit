@@ -10,7 +10,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Name" to "Naam",
     "Sort and filter" to "Sorteren en filteren",
     "Sort by" to "Sorteer op",
-    "Only with price alert" to "Alleen met prijsalert",
+    "With price alert" to "Met prijsalert",
     "More" to "Meer",
     "Turn on notifications" to "Meldingen aanzetten",
     "My discounts" to "Mijn kortingen",

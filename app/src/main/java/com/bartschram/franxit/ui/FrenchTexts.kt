@@ -10,7 +10,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Name" to "Nom",
     "Sort and filter" to "Trier et filtrer",
     "Sort by" to "Trier par",
-    "Only with price alert" to "Uniquement avec alerte de prix",
+    "With price alert" to "Avec alerte de prix",
     "More" to "Plus",
     "Turn on notifications" to "Activer les notifications",
     "My discounts" to "Mes réductions",

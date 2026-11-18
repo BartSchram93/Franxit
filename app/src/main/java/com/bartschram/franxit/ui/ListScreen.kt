@@ -234,7 +234,7 @@ fun ListScreen(
                                 }
                                 HorizontalDivider()
                                 DropdownMenuItem(
-                                    text = { Text("Only with price alert") },
+                                    text = { Text("With price alert") },
                                     leadingIcon = { if (alertsOnly) Icon(Icons.Default.Check, null) },
                                     onClick = { filterOpen = false; onAlertsOnly(!alertsOnly) },
                                 )
@@ -325,7 +325,7 @@ fun ListScreen(
                             Icon(Icons.Default.Notifications, null, tint = ChartLine, modifier = Modifier.size(14.dp))
                             Spacer(Modifier.width(4.dp))
                             Text(
-                                "Only with price alert",
+                                "With price alert",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f),
