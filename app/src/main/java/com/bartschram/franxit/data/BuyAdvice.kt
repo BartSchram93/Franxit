@@ -12,35 +12,37 @@ import kotlin.math.roundToInt
  *
  * The score starts at [BuyAdviceConfig.START] and moves with four factors (typical price, distance
  * from the low, recent trend, recent cheaper moments); a fifth, data quality, decides whether there
- * is enough history to say anything at all.
+ * is enough history to say anything at all, and how sure the advice is. The factors are smooth: a
+ * price a cent either side of a border moves the score a hair, not a step.
  */
 object BuyAdviceConfig {
     const val START = 50
 
-    // Factor 1: current price vs the typical (median) price, as a fraction. Below is good.
-    const val BELOW_MEDIAN_STRONG = 0.15; const val POINTS_BELOW_MEDIAN_STRONG = 30
-    const val BELOW_MEDIAN_CLEAR = 0.08; const val POINTS_BELOW_MEDIAN_CLEAR = 20
-    const val BELOW_MEDIAN_SLIGHT = 0.03; const val POINTS_BELOW_MEDIAN_SLIGHT = 10
-    const val ABOVE_MEDIAN_SLIGHT = 0.03; const val POINTS_ABOVE_MEDIAN_SLIGHT = -10
-    const val ABOVE_MEDIAN_CLEAR = 0.10; const val POINTS_ABOVE_MEDIAN_CLEAR = -18
-    const val ABOVE_MEDIAN_STRONG = 0.20; const val POINTS_ABOVE_MEDIAN_STRONG = -25
+    // Points are read off these tables, linear in between, so a price a cent either side of a
+    // border never flips the advice. Each node sits in the middle of the band it replaced.
 
-    // Factor 2: how far above the (reliable) historical low.
-    const val NEAR_LOW_3 = 0.03; const val POINTS_NEAR_LOW_3 = 25
-    const val NEAR_LOW_5 = 0.05; const val POINTS_NEAR_LOW_5 = 20
-    const val NEAR_LOW_10 = 0.10; const val POINTS_NEAR_LOW_10 = 10
-    const val FAR_FROM_LOW = 0.25; const val POINTS_FAR_FROM_LOW = -10
+    // Factor 1: current price vs the typical (median) price, as a fraction (negative: below).
+    val TYPICAL_POINTS = listOf(-0.20 to 30.0, -0.115 to 20.0, -0.055 to 10.0, 0.0 to 0.0, 0.065 to -10.0, 0.15 to -18.0, 0.25 to -25.0)
+    /** A price this far (as a fraction) off the typical one is worth saying in the reasons. */
+    const val BELOW_MEDIAN_SLIGHT = 0.03
+    const val ABOVE_MEDIAN_SLIGHT = 0.03
+
+    // Factor 2: how far above the (solid) historical low, as a fraction.
+    val LOW_POINTS = listOf(0.0 to 25.0, 0.015 to 25.0, 0.04 to 20.0, 0.075 to 10.0, 0.175 to 0.0, 0.30 to -10.0)
+    const val NEAR_LOW_5 = 0.05
     /** A price range this narrow means the price barely moves: being "near the low" says little. */
     const val FLAT_RANGE = 0.03
     /** A price that never really moves: buying now is as good as any other day. */
     const val POINTS_STABLE = 15
 
     // Factor 3: recent trend, current price vs the median of the last 30 days.
-    const val TREND_CHANGE = 0.05; const val POINTS_TREND = 5
+    val TREND_POINTS = listOf(-0.10 to 5.0, 0.0 to 0.0, 0.10 to -5.0)
+    /** The change that counts as "dropped" or "rose" in the reasons. */
+    const val TREND_CHANGE = 0.05
 
-    // Factor 4: the product was clearly cheaper within the last 90 days.
-    const val RECENT_CHEAPER_STRONG = 0.10; const val POINTS_RECENT_CHEAPER_STRONG = -15
-    const val RECENT_CHEAPER = 0.05; const val POINTS_RECENT_CHEAPER = -8
+    // Factor 4: the product was clearly cheaper within the last 90 days, as a fraction of today's price.
+    val RECENT_CHEAPER_POINTS = listOf(0.025 to 0.0, 0.075 to -8.0, 0.15 to -15.0)
+    const val RECENT_CHEAPER = 0.05
 
     // Factor 5: data quality.
     const val MIN_HISTORY_DAYS = 30
@@ -52,15 +54,28 @@ object BuyAdviceConfig {
     const val WINDOW_DAYS = 365L
     /** Daily prices outside these multiples of the median are treated as errors, not history. */
     const val OUTLIER_LOW = 0.5; const val OUTLIER_HIGH = 2.0
-    /** A low must have lasted this many days to count; a one-day blip isn't a price you could get. */
+    /**
+     * A low must have lasted this many days to count: a price that held only a day or two isn't one
+     * you could count on getting (a flash sale, a shop's mistake). Where a product goes on sale again
+     * and again ([RECURRING_DIPS] dips), even [MIN_LOW_DAYS] days is a real moment to wait for.
+     */
+    const val SOLID_LOW_DAYS = 5
     const val MIN_LOW_DAYS = 2
+    /** A dip: at least this many days [DIP_BELOW_MEDIAN] under the typical price; [RECURRING_DIPS] of them in a year: it happens again. */
+    const val DIP_BELOW_MEDIAN = 0.08
+    const val DIP_MIN_DAYS = 2
+    const val RECURRING_DIPS = 2
 
     // Recommendation thresholds on the final score.
-    const val BUY_NOW = 80
-    const val CONSIDER = 65
+    const val BUY_NOW = 78
+    const val CONSIDER = 60
     const val WAIT = 40
+    /** "Skip it" says the price is high, so it needs a price at least this far above the typical one. */
+    const val SKIP_ONLY_ABOVE_MEDIAN = 0.03
 
-    // Suggested target when waiting: the middle half of the past year's prices that were below today's.
+    // Suggested target when waiting: the middle half of the recent prices that were below today's.
+    /** Only the last half year: a price from long ago says little about what comes back. */
+    const val TARGET_WINDOW_DAYS = 180
     const val TARGET_LOW_PERCENTILE = 0.25
     const val TARGET_HIGH_PERCENTILE = 0.75
     /** At least this much below today's price, and on at least [TARGET_MIN_DAYS] days, to count. */
@@ -138,34 +153,29 @@ object BuyAdvisor {
         if (clean.size < C.MIN_HISTORY_DAYS) return insufficient(current)
         val prices = clean.map { it.second }
         val median = median(prices)
-        val low = reliableLow(prices)
+
+        // A short dip (a flash sale) is no price to wait for, unless this product keeps going on sale:
+        // then even a short low counts. Otherwise a low must have held for several days.
+        val recurring = dipEpisodes(clean, median) >= C.RECURRING_DIPS
+        val lowDays = if (recurring) C.MIN_LOW_DAYS else C.SOLID_LOW_DAYS
+        // Never above today's price: a new low is the low.
+        val low = minOf(reliableLow(prices, lowDays), current)
         val vsMedian = (current - median) / median
         val aboveLow = (current - low) / low
-        val flat = (prices.max() - prices.min()) / median < C.FLAT_RANGE
+        val held = levels(prices, lowDays).ifEmpty { prices }
+        val flat = (held.max() - held.min()) / median < C.FLAT_RANGE
 
-        var score = C.START
+        var score = C.START.toDouble()
         val reasons = mutableListOf<Pair<Int, Reason>>()  // priority to reason
 
         // Factor 1: typical price.
-        when {
-            vsMedian <= -C.BELOW_MEDIAN_STRONG -> score += C.POINTS_BELOW_MEDIAN_STRONG
-            vsMedian <= -C.BELOW_MEDIAN_CLEAR -> score += C.POINTS_BELOW_MEDIAN_CLEAR
-            vsMedian <= -C.BELOW_MEDIAN_SLIGHT -> score += C.POINTS_BELOW_MEDIAN_SLIGHT
-            vsMedian >= C.ABOVE_MEDIAN_STRONG -> score += C.POINTS_ABOVE_MEDIAN_STRONG
-            vsMedian >= C.ABOVE_MEDIAN_CLEAR -> score += C.POINTS_ABOVE_MEDIAN_CLEAR
-            vsMedian >= C.ABOVE_MEDIAN_SLIGHT -> score += C.POINTS_ABOVE_MEDIAN_SLIGHT
-        }
+        score += points(vsMedian, C.TYPICAL_POINTS)
         if (vsMedian <= -C.BELOW_MEDIAN_SLIGHT) reasons += 1 to Reason.BelowTypical(-vsMedian, median)
         if (vsMedian >= C.ABOVE_MEDIAN_SLIGHT) reasons += 1 to Reason.AboveTypical(vsMedian, median)
 
         // Factor 2: distance from the low (meaningless when the price hardly moves).
         if (!flat) {
-            when {
-                aboveLow <= C.NEAR_LOW_3 -> score += C.POINTS_NEAR_LOW_3
-                aboveLow <= C.NEAR_LOW_5 -> score += C.POINTS_NEAR_LOW_5
-                aboveLow <= C.NEAR_LOW_10 -> score += C.POINTS_NEAR_LOW_10
-                aboveLow > C.FAR_FROM_LOW -> score += C.POINTS_FAR_FROM_LOW
-            }
+            score += points(aboveLow, C.LOW_POINTS)
             if (aboveLow <= C.NEAR_LOW_5) reasons += 2 to Reason.NearLow(maxOf(aboveLow, 0.0), low)
             // Above the low by more than "near": always worth saying, also when it doesn't cost points.
             if (aboveLow > C.NEAR_LOW_5) reasons += 2 to Reason.FarAboveLow(aboveLow, low)
@@ -179,9 +189,10 @@ object BuyAdvisor {
         val month = clean.filter { ChronoUnit.DAYS.between(it.first, today) < 30 }.map { it.second }
         val trend = if (month.size >= 7) {
             val change = (current - median(month)) / median(month)
+            score += points(change, C.TREND_POINTS)
             when {
-                change <= -C.TREND_CHANGE -> { score += C.POINTS_TREND; reasons += 3 to Reason.DroppedRecently(-change, 30); Trend.DOWN }
-                change >= C.TREND_CHANGE -> { score -= C.POINTS_TREND; reasons += 3 to Reason.RoseRecently(change, 30); Trend.UP }
+                change <= -C.TREND_CHANGE -> { reasons += 3 to Reason.DroppedRecently(-change, 30); Trend.DOWN }
+                change >= C.TREND_CHANGE -> { reasons += 3 to Reason.RoseRecently(change, 30); Trend.UP }
                 else -> Trend.STABLE
             }
         } else null
@@ -189,20 +200,17 @@ object BuyAdvisor {
         // Factor 4: clearly cheaper within the last 90 days (a price that held, not a blip).
         val quarter = clean.filter { ChronoUnit.DAYS.between(it.first, today) < 90 }.map { it.second }
         if (quarter.isNotEmpty()) {
-            val recentLow = reliableLow(quarter)
+            val recentLow = reliableLow(quarter, lowDays)
             val cheaper = (current - recentLow) / current
-            when {
-                cheaper >= C.RECENT_CHEAPER_STRONG -> score += C.POINTS_RECENT_CHEAPER_STRONG
-                cheaper >= C.RECENT_CHEAPER -> score += C.POINTS_RECENT_CHEAPER
-            }
+            score += points(cheaper, C.RECENT_CHEAPER_POINTS)
             if (cheaper >= C.RECENT_CHEAPER) reasons += 0 to Reason.CheaperRecently(recentLow, cheaper, 90)
         }
 
-        score = score.coerceIn(0, 100)
-        val verdict = when {
-            score >= C.BUY_NOW -> Verdict.BUY_NOW
-            score >= C.CONSIDER -> Verdict.CONSIDER_BUYING
-            score >= C.WAIT -> Verdict.WAIT
+        val finalScore = score.coerceIn(0.0, 100.0).roundToInt()
+        var verdict = when {
+            finalScore >= C.BUY_NOW -> Verdict.BUY_NOW
+            finalScore >= C.CONSIDER -> Verdict.CONSIDER_BUYING
+            finalScore >= C.WAIT -> Verdict.WAIT
             else -> Verdict.WAIT_EXPENSIVE
         }
         val confidence = when {
@@ -210,16 +218,44 @@ object BuyAdvisor {
             spanDays >= C.MEDIUM_CONFIDENCE_DAYS -> Confidence.MEDIUM
             else -> Confidence.LOW
         }
-        val target = if (verdict == Verdict.WAIT || verdict == Verdict.WAIT_EXPENSIVE) target(prices, current) else null
+        // "Skip it" says the price is high: a price that is not above the typical one only waits.
+        if (verdict == Verdict.WAIT_EXPENSIVE && vsMedian < C.SKIP_ONLY_ABOVE_MEDIAN) verdict = Verdict.WAIT
+        // A month of history is too little to say "buy now".
+        if (verdict == Verdict.BUY_NOW && confidence == Confidence.LOW) verdict = Verdict.CONSIDER_BUYING
+        val recent = clean.filter { ChronoUnit.DAYS.between(it.first, today) < C.TARGET_WINDOW_DAYS }.map { it.second }
+        val target = if (verdict == Verdict.WAIT || verdict == Verdict.WAIT_EXPENSIVE) target(recent, current) else null
 
         // 2 to 4 reasons, the most telling first; the history length fills up when there's little else.
         val chosen = reasons.sortedBy { it.first }.map { it.second }.distinctBy { it::class }.take(4).toMutableList()
         if (chosen.size < 2) chosen += Reason.HistoryLength((spanDays / 30.0).roundToInt().coerceAtLeast(1))
 
         return BuyAdvice(
-            verdict, score, confidence, current, median, low, vsMedian, aboveLow, trend, target, chosen,
+            verdict, finalScore, confidence, current, median, low, vsMedian, aboveLow, trend, target, chosen,
             historicalLowDate = clean.lastOrNull { (it.second * 100).roundToInt() == (low * 100).roundToInt() }?.first,
         )
+    }
+
+    /** Points for [x], read off [table] (x to points, ascending in x), linear between its nodes and flat beyond them. */
+    internal fun points(x: Double, table: List<Pair<Double, Double>>): Double {
+        if (x <= table.first().first) return table.first().second
+        if (x >= table.last().first) return table.last().second
+        for (i in 0 until table.size - 1) {
+            val (x0, y0) = table[i]
+            val (x1, y1) = table[i + 1]
+            if (x <= x1) return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+        }
+        return table.last().second
+    }
+
+    /** How many separate dips (a few days clearly under the typical price) the product had. */
+    internal fun dipEpisodes(clean: List<Pair<LocalDate, Double>>, median: Double): Int {
+        var episodes = 0
+        var run = 0
+        for ((_, price) in clean) {
+            if (price <= median * (1 - C.DIP_BELOW_MEDIAN)) run++ else { if (run >= C.DIP_MIN_DAYS) episodes++; run = 0 }
+        }
+        if (run >= C.DIP_MIN_DAYS) episodes++
+        return episodes
     }
 
     private fun insufficient(current: Double?) =
@@ -241,11 +277,15 @@ object BuyAdvisor {
         return out
     }
 
-    /** The lowest price that held for at least [BuyAdviceConfig.MIN_LOW_DAYS] days. */
-    internal fun reliableLow(prices: List<Double>): Double {
+    /** The prices (in cents, as euros) that held for at least [minDays] days. */
+    private fun levels(prices: List<Double>, minDays: Int): List<Double> {
         val days = prices.groupingBy { (it * 100).roundToInt() }.eachCount()
-        return days.filter { it.value >= C.MIN_LOW_DAYS }.keys.minOrNull()?.let { it / 100.0 } ?: prices.min()
+        return days.filter { it.value >= minDays }.keys.map { it / 100.0 }
     }
+
+    /** The lowest price that held for at least [minDays] days (else for [BuyAdviceConfig.MIN_LOW_DAYS], else the lowest of all). */
+    internal fun reliableLow(prices: List<Double>, minDays: Int = C.MIN_LOW_DAYS): Double =
+        levels(prices, minDays).minOrNull() ?: levels(prices, C.MIN_LOW_DAYS).minOrNull() ?: prices.min()
 
     /** The current price is the lowest of the last 6 (or 3) months, when the history goes back that far. */
     private fun lowestInMonths(clean: List<Pair<LocalDate, Double>>, current: Double, today: LocalDate, span: Int): Int? {
@@ -258,8 +298,8 @@ object BuyAdvisor {
     }
 
     /**
-     * A more attractive price that the product really had in the past year: the middle half of the
-     * daily prices that were clearly below today's. Null when it was hardly ever cheaper.
+     * A more attractive price that the product really had lately ([prices]: the last half year): the middle
+     * half of the daily prices that were clearly below today's. Null when it was hardly ever cheaper.
      */
     private fun target(prices: List<Double>, current: Double): ClosedFloatingPointRange<Double>? {
         val cheaper = prices.filter { it <= current * (1 - C.TARGET_BELOW) }.sorted()
