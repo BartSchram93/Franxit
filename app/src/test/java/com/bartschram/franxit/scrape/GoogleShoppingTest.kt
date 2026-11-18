@@ -18,7 +18,7 @@ class GoogleShoppingTest {
           {"title": "Hercules KB210B Keyboardbank", "source": "Krefel.be", "extracted_price": 35.0},
           {"title": "Hercules KB 200B keyboard bench", "source": "Muziekcentrum.be", "extracted_price": 43.0},
           {"title": "Hercules KB200B Keyboardbank", "source": "Thomann.de", "extracted_price": 30.0},
-          {"title": "Hercules KB200B Keyboardbank + koptelefoon", "source": "Coolblue.be", "extracted_price": 60.0},
+          {"title": "Hercules KB200B Keyboardbank + koptelefoon", "source": "Bundelshop.be", "extracted_price": 60.0},
           {"title": "Hercules KB200B Height Adjustable Foldable Keyboard Bench", "source": "Gigstore", "price": "€ 88,99",
            "extracted_price": 88.99, "alternative_price": {"price": "AED 366", "extracted_price": 366, "currency": "AED"}}
         ]}
