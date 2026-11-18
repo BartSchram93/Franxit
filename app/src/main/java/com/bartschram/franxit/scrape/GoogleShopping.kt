@@ -307,7 +307,8 @@ object GoogleShopping {
     internal fun isMarketplace(shop: String): Boolean = shop.lowercase().let { s -> MARKETPLACES.any { it in s } }
 
     private val OUT_OF_STOCK = Regex(
-        """out of stock|sold out|uitverkocht|niet op voorraad|niet beschikbaar|tijdelijk niet|[ée]puis[ée]|rupture de stock|indisponible""",
+        // Only clear "sold out" wording: "not available for pickup" or "unavailable in store" is no reason to hide a shop.
+        """\b(out of stock|sold out|uitverkocht|niet op voorraad|[ée]puis[ée]|rupture de stock)\b""",
         RegexOption.IGNORE_CASE,
     )
 

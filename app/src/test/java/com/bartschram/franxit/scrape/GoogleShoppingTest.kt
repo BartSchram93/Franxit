@@ -300,5 +300,18 @@ class GoogleShoppingTest {
         """.trimIndent()
         val offers = GoogleShopping.parse(search, "TCL Nxtpaper 14").result.offers
         assertEquals(listOf(349.0, 441.13), offers.map { it.price })
+
+    fun deliveryOrPickupRemarksDoNotMarkAShopOutOfStock() {
+        val search = """
+            {"shopping_results": [{"title": "TCL NXTPAPER 14 Tablet", "source": "Coolblue", "extracted_price": 349.0, "link": "https://www.coolblue.be/nl/p/1"}]}
+        """.trimIndent()
+        val page = """
+            {"product_results": {"stores": [
+              {"name": "Amazon.com.be", "link": "https://www.amazon.com.be/dp/B0", "title": "TCL NXTPAPER 14", "extracted_price": 349.0,
+               "details_and_offers": ["Niet beschikbaar voor afhalen", "Tijdelijk niet beschikbaar in winkel", "Gratis levering"]}
+            ]}}
+        """.trimIndent()
+        val found = GoogleShopping.addStores(GoogleShopping.parse(search, "TCL NXTPAPER 14") { it }, page, "TCL NXTPAPER 14") { it }
+        assertNull(found.result.offers.first { "amazon" in it.seller.lowercase() }.inStock)
     }
 }
