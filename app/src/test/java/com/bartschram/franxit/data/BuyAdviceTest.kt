@@ -150,4 +150,22 @@ class BuyAdviceTest {
         assertEquals(0.0, BuyAdvisor.points(-1.0, table), 1e-9)
         assertEquals(-10.0, BuyAdvisor.points(9.0, table), 1e-9)
     }
+
+    // A year of ~ € 700, a drop three months ago to ~ € 560, then slowly to € 499.
+    private val dropped = line(360L to 700.0, 100L to 700.0, 88L to 560.0, 60L to 540.0, 30L to 520.0, 2L to 499.0)
+
+    @Test
+    fun theLastThreeMonthsCountHeavily() {
+        val advice = BuyAdvisor.advise(dropped, 499.0, today)
+        assertEquals(Verdict.BUY_NOW, advice.verdict)
+        assertNotNull(advice.recentMedian)
+        assertTrue(advice.reasons.any { it is Reason.BelowRecent })
+    }
+
+    @Test
+    fun aPriceBackAtTheOldLevelIsNotAGoodMomentAfterADrop() {
+        val advice = BuyAdvisor.advise(dropped + (today to 700.0), 700.0, today)
+        assertTrue(advice.verdict == Verdict.WAIT_EXPENSIVE || advice.verdict == Verdict.WAIT)
+        assertTrue(advice.reasons.any { it is Reason.AboveRecent })
+    }
 }

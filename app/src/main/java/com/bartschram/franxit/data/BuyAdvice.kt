@@ -52,6 +52,14 @@ object BuyAdviceConfig {
     const val MEDIUM_CONFIDENCE_DAYS = 60
     /** Only the last year counts: an old low says little about today's market. */
     const val WINDOW_DAYS = 365L
+    /**
+     * The last three months weigh more than the whole year (people don't wait a year to buy): the
+     * typical price and the low are read off both, [RECENT_WEIGHT] of the points from the quarter.
+     * The quarter needs [RECENT_MIN_DAYS] days of its own, or only the year counts.
+     */
+    const val RECENT_DAYS = 90
+    const val RECENT_WEIGHT = 0.6
+    const val RECENT_MIN_DAYS = 45
     /** Daily prices outside these multiples of the median are treated as errors, not history. */
     const val OUTLIER_LOW = 0.5; const val OUTLIER_HIGH = 2.0
     /**
@@ -95,6 +103,8 @@ sealed interface Reason {
 
     data class BelowTypical(val percent: Double, val typical: Double) : Reason { override val positive = true }
     data class AboveTypical(val percent: Double, val typical: Double) : Reason { override val positive = false }
+    data class BelowRecent(val percent: Double, val typical: Double) : Reason { override val positive = true }
+    data class AboveRecent(val percent: Double, val typical: Double) : Reason { override val positive = false }
     data class NearLow(val percent: Double, val low: Double) : Reason { override val positive = true }
     data class FarAboveLow(val percent: Double, val low: Double) : Reason { override val positive = false }
     data class LowestInMonths(val months: Int) : Reason { override val positive = true }
@@ -122,6 +132,9 @@ data class BuyAdvice(
     val reasons: List<Reason>,
     /** The last day the product had [historicalLow]. */
     val historicalLowDate: LocalDate? = null,
+    /** Today's price against the typical price of the last three months (negative: below); null without enough days. */
+    val vsRecent: Double? = null,
+    val recentMedian: Double? = null,
 )
 
 object BuyAdvisor {
@@ -165,23 +178,39 @@ object BuyAdvisor {
         val held = levels(prices, lowDays).ifEmpty { prices }
         val flat = (held.max() - held.min()) / median < C.FLAT_RANGE
 
+        // The last three months: they weigh more than the year.
+        val quarter = clean.filter { ChronoUnit.DAYS.between(it.first, today) < C.RECENT_DAYS }.map { it.second }
+        val recentMedian = if (quarter.size >= C.RECENT_MIN_DAYS) median(quarter) else null
+        val vsRecent = recentMedian?.let { (current - it) / it }
+        val weight = if (recentMedian != null) C.RECENT_WEIGHT else 0.0
+
         var score = C.START.toDouble()
         val reasons = mutableListOf<Pair<Int, Reason>>()  // priority to reason
 
-        // Factor 1: typical price.
-        score += points(vsMedian, C.TYPICAL_POINTS)
+        // Factor 1: typical price, of the year and of the last three months.
+        val yearTypical = points(vsMedian, C.TYPICAL_POINTS)
+        score += if (vsRecent != null) (1 - weight) * yearTypical + weight * points(vsRecent, C.TYPICAL_POINTS) else yearTypical
+        if (vsRecent != null && recentMedian != null) {
+            if (vsRecent <= -C.BELOW_MEDIAN_SLIGHT) reasons += 1 to Reason.BelowRecent(-vsRecent, recentMedian)
+            if (vsRecent >= C.ABOVE_MEDIAN_SLIGHT) reasons += 1 to Reason.AboveRecent(vsRecent, recentMedian)
+        }
         if (vsMedian <= -C.BELOW_MEDIAN_SLIGHT) reasons += 1 to Reason.BelowTypical(-vsMedian, median)
         if (vsMedian >= C.ABOVE_MEDIAN_SLIGHT) reasons += 1 to Reason.AboveTypical(vsMedian, median)
 
-        // Factor 2: distance from the low (meaningless when the price hardly moves).
+        // Factor 2: distance from the low (meaningless when the price hardly moves), of the year and of the last three months.
+        val yearLow = if (flat) C.POINTS_STABLE.toDouble() else points(aboveLow, C.LOW_POINTS)
+        val recentLow = recentMedian?.let { rm ->
+            val low3 = minOf(reliableLow(quarter, lowDays), current)
+            val flat3 = (quarter.max() - quarter.min()) / rm < C.FLAT_RANGE
+            if (flat3) C.POINTS_STABLE.toDouble() else points((current - low3) / low3, C.LOW_POINTS)
+        }
+        score += if (recentLow != null) (1 - weight) * yearLow + weight * recentLow else yearLow
         if (!flat) {
-            score += points(aboveLow, C.LOW_POINTS)
             if (aboveLow <= C.NEAR_LOW_5) reasons += 2 to Reason.NearLow(maxOf(aboveLow, 0.0), low)
             // Above the low by more than "near": always worth saying, also when it doesn't cost points.
             if (aboveLow > C.NEAR_LOW_5) reasons += 2 to Reason.FarAboveLow(aboveLow, low)
             lowestInMonths(clean, current, today, spanDays)?.let { reasons += 0 to Reason.LowestInMonths(it) }
         } else {
-            score += C.POINTS_STABLE
             reasons += 3 to Reason.Stable(median)
         }
 
@@ -198,12 +227,11 @@ object BuyAdvisor {
         } else null
 
         // Factor 4: clearly cheaper within the last 90 days (a price that held, not a blip).
-        val quarter = clean.filter { ChronoUnit.DAYS.between(it.first, today) < 90 }.map { it.second }
         if (quarter.isNotEmpty()) {
-            val recentLow = reliableLow(quarter, lowDays)
-            val cheaper = (current - recentLow) / current
+            val cheapestLately = reliableLow(quarter, lowDays)
+            val cheaper = (current - cheapestLately) / current
             score += points(cheaper, C.RECENT_CHEAPER_POINTS)
-            if (cheaper >= C.RECENT_CHEAPER) reasons += 0 to Reason.CheaperRecently(recentLow, cheaper, 90)
+            if (cheaper >= C.RECENT_CHEAPER) reasons += 0 to Reason.CheaperRecently(cheapestLately, cheaper, C.RECENT_DAYS)
         }
 
         val finalScore = score.coerceIn(0.0, 100.0).roundToInt()
@@ -232,6 +260,7 @@ object BuyAdvisor {
         return BuyAdvice(
             verdict, finalScore, confidence, current, median, low, vsMedian, aboveLow, trend, target, chosen,
             historicalLowDate = clean.lastOrNull { (it.second * 100).roundToInt() == (low * 100).roundToInt() }?.first,
+            vsRecent = vsRecent, recentMedian = recentMedian,
         )
     }
 

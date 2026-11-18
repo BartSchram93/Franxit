@@ -246,7 +246,12 @@ internal fun summary(advice: BuyAdvice): String {
     if (advice.verdict == Verdict.INSUFFICIENT_DATA || current == null || median == null || low == null || vs == null || above == null) {
         return t("There isn't enough price history yet to compare today's price with. It builds up with every daily check.")
     }
+    val recent = advice.vsRecent
     val typical = when {
+        // The last three months weigh most, so they lead the sentence.
+        recent != null && recent <= -0.03 -> t("%1\$s is %2\$s below the typical price of the last 3 months", current.euro(), pct(-recent))
+        recent != null && recent >= 0.03 -> t("%1\$s is %2\$s above the typical price of the last 3 months", current.euro(), pct(recent))
+        recent != null -> t("%s is about the typical price of the last 3 months", current.euro())
         vs <= -0.03 -> t("%1\$s is %2\$s below the typical price", current.euro(), pct(-vs))
         vs >= 0.03 -> t("%1\$s is %2\$s above the typical price", current.euro(), pct(vs))
         else -> t("%s is about the typical price", current.euro())
@@ -262,6 +267,8 @@ internal fun summary(advice: BuyAdvice): String {
 internal fun text(reason: Reason): String = when (reason) {
     is Reason.BelowTypical -> t("%1\$s below the typical price (%2\$s)", pct(reason.percent), reason.typical.euroRounded())
     is Reason.AboveTypical -> t("%1\$s above the typical price (%2\$s)", pct(reason.percent), reason.typical.euroRounded())
+    is Reason.BelowRecent -> t("%1\$s below the typical price of the last 3 months (%2\$s)", pct(reason.percent), reason.typical.euroRounded())
+    is Reason.AboveRecent -> t("%1\$s above the typical price of the last 3 months (%2\$s)", pct(reason.percent), reason.typical.euroRounded())
     is Reason.NearLow -> if (reason.percent < 0.005) t("At the lowest recorded price")
     else t("Within %1\$s of the lowest price (%2\$s)", pct(reason.percent).let { if (it == "0%") "1%" else it }, reason.low.euro())
     is Reason.FarAboveLow -> t("%1\$s above the lowest price (%2\$s)", pct(reason.percent), reason.low.euro())
