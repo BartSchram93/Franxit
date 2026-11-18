@@ -34,7 +34,14 @@ fun LanguageDialog(choice: L10n.Choice, onChoose: (L10n.Choice) -> Unit, onDismi
                         // Each language in its own name, so it can be found whatever the app says now.
                         Text(
                             when (option) {
-                                L10n.Choice.SYSTEM -> "Phone's language"
+                                // Says what it gives: on a phone in Italian the app is English, not "the phone's language".
+                                L10n.Choice.SYSTEM -> when (val phone = L10n.resolve(L10n.Choice.SYSTEM, java.util.Locale.getDefault().language)) {
+                                    L10n.Lang.NL, L10n.Lang.FR ->
+                                        t("Phone's language (%s)", if (phone == L10n.Lang.NL) "Nederlands" else "Français")
+                                    L10n.Lang.EN ->
+                                        if (java.util.Locale.getDefault().language == "en") t("Phone's language (%s)", "English")
+                                        else t("Phone's language isn't available, so English")
+                                }
                                 L10n.Choice.ENGLISH -> "English"
                                 L10n.Choice.DUTCH -> "Nederlands"
                                 L10n.Choice.FRENCH -> "Français"
