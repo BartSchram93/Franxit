@@ -52,10 +52,10 @@ object GoogleShopping {
     /** Searches for [term]; the results must be [query] (they may be found under a fuller wording). */
     private fun search(term: String, query: String, key: String, trusted: (String) -> String?, reference: Double?): Found {
         val q = URLEncoder.encode(term, "UTF-8")
-        val searched = parse(serp("engine=google_shopping&q=$q&gl=be&hl=nl&google_domain=google.be", key), query, trusted, reference)
+        val searched = parse(serp("engine=google_shopping&q=$q&gl=be&hl=nl&google_domain=google.be", key), query, reference, trusted)
         val found = searched.token?.let { token ->
             val t = URLEncoder.encode(token, "UTF-8")
-            runCatching { addStores(searched, serp("engine=google_immersive_product&page_token=$t&more_stores=true", key), query, trusted, reference) }.getOrNull()
+            runCatching { addStores(searched, serp("engine=google_immersive_product&page_token=$t&more_stores=true", key), query, reference, trusted) }.getOrNull()
         } ?: searched
         if (found.result.offers.isEmpty()) throw IOException(NOT_FOUND)
         return found
@@ -104,7 +104,10 @@ object GoogleShopping {
      * [Found.links] goes from shop to its page, for the Buy button. Only [trusted] shops count, by
      * the name it gives them (see TrustedShops): Google also lists fake shops.
      */
-    fun parse(json: String, query: String, trusted: (String) -> String? = { it }, reference: Double? = null): Found {
+    fun parse(json: String, query: String, trusted: (String) -> String? = { it }): Found = parse(json, query, null, trusted)
+
+    /** As above, with [reference]: the price you know (vergelijk.be's), which the results are compared with before they are grouped. */
+    fun parse(json: String, query: String, reference: Double?, trusted: (String) -> String? = { it }): Found {
         val root = JSONObject(json)
         root.optString("error").takeIf { it.isNotBlank() }?.let {
             throw IOException(
@@ -191,7 +194,10 @@ object GoogleShopping {
      * Google groups them under this one product, so titles aren't matched again (bol.com calls the
      * KB200B "HCKB-200B"); otherwise the same rules as the search: new, trusted shops, no odd prices.
      */
-    internal fun addStores(found: Found, json: String, query: String, trusted: (String) -> String?, reference: Double? = null): Found {
+    internal fun addStores(found: Found, json: String, query: String, trusted: (String) -> String?): Found =
+        addStores(found, json, query, null, trusted)
+
+    internal fun addStores(found: Found, json: String, query: String, reference: Double?, trusted: (String) -> String?): Found {
         val stores = JSONObject(json).optJSONObject("product_results")?.optJSONArray("stores").objects()
         val extra = stores.mapNotNull { s ->
             val name = s.optString("name").trim()

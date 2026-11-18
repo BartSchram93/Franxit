@@ -589,8 +589,8 @@ class GoogleShoppingTest {
  }
 }"""
         val trusted = { shop: String -> com.bartschram.franxit.data.TrustedShops.name(shop, emptySet()) }
-        val searched = GoogleShopping.parse(search, "TCL Nxtpaper 14", trusted, reference = 364.6)
-        val found = GoogleShopping.addStores(searched, page, "TCL Nxtpaper 14", trusted, reference = 364.6)
+        val searched = GoogleShopping.parse(search, "TCL Nxtpaper 14", 364.6, trusted)
+        val found = GoogleShopping.addStores(searched, page, "TCL Nxtpaper 14", 364.6, trusted)
         val prices = found.result.offers.associate { it.seller.lowercase() to it.price }
         assertEquals(349.0, prices.entries.first { "amazon" in it.key }.value, 0.001)
         assertEquals(437.75, prices.entries.first { "bol" in it.key }.value, 0.001)
@@ -603,7 +603,7 @@ class GoogleShoppingTest {
             {"shopping_results": [{"title": "TCL NXTPAPER 14 + Flip Case + T-pen", "source": "Amazon.com.be", "extracted_price": 349.0,
               "link": "https://www.amazon.com.be/dp/B0"}]}
         """.trimIndent()
-        val offers = GoogleShopping.parse(search, "TCL Nxtpaper 14", { it }, reference = 364.6).result.offers
+        val offers = GoogleShopping.parse(search, "TCL Nxtpaper 14", 364.6) { it }.result.offers
         assertEquals(listOf(349.0), offers.map { it.price })
     }
 }
