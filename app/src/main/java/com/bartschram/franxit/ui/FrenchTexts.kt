@@ -16,7 +16,6 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "My discounts" to "Mes réductions",
     "Google Shopping" to "Google Shopping",
     "Tips" to "Astuces",
-    "Usage statistics" to "Statistiques d'utilisation",
     "Language" to "Langue",
     "Phone's language" to "Langue du téléphone",
     "Daily check at %s" to "Vérification quotidienne à %s",
@@ -114,12 +113,6 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "The lowest price of the past year." to "Le prix le plus bas de l'année écoulée.",
     "10% below today's price." to "10% sous le prix du jour.",
     "Notify me when the cheapest price drops to or below:" to "Préviens-moi quand le prix le plus bas descend à ou sous :",
-    ("Franxit counts anonymously how many phones use it each day, so the maker knows if people use it. " +
-        "Once a day it sends \"one more phone\" and the app version, nothing else: no number that " +
-        "identifies your phone, no name, no account, and never your products or prices.") to
-        "Franxit compte anonymement combien de téléphones utilisent l'appli chaque jour, pour que son créateur sache si elle est utilisée. Une fois par jour, l'appli envoie « un téléphone de plus » et la version de l'appli, rien d'autre : pas de numéro qui identifie ton téléphone, pas de nom, pas de compte, et jamais tes produits ou tes prix.",
-    "Share the anonymous daily count" to "Partager le comptage quotidien anonyme",
-    "Privacy policy" to "Politique de confidentialité",
     "Earlier history" to "Historique antérieur",
     "Your checks" to "Tes vérifications",
     "Loading" to "Chargement",

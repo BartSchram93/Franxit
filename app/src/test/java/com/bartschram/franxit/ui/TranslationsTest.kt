@@ -73,14 +73,6 @@ class TranslationsTest {
     }
 
     @Test
-    fun theLongUsageTextIsTranslatedAsAWhole() {
-        // Written as joined pieces in the code, so the scan above skips it: check it by hand.
-        for ((language, texts) in languages) {
-            assertTrue(language, texts.keys.any { it.startsWith("Franxit counts anonymously") && it.endsWith("never your products or prices.") })
-        }
-    }
-
-    @Test
     fun anUntranslatedTextStaysAsItIs() {
         assertEquals("Welcome", t("Welcome"))
     }

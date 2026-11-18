@@ -16,7 +16,6 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "My discounts" to "Mijn kortingen",
     "Google Shopping" to "Google Shopping",
     "Tips" to "Tips",
-    "Usage statistics" to "Gebruiksstatistieken",
     "Language" to "Taal",
     "Phone's language" to "Taal van je gsm",
     "Daily check at %s" to "Dagelijkse controle om %s",
@@ -114,12 +113,6 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "The lowest price of the past year." to "De laagste prijs van het voorbije jaar.",
     "10% below today's price." to "10% onder de prijs van vandaag.",
     "Notify me when the cheapest price drops to or below:" to "Verwittig me wanneer de goedkoopste prijs zakt tot of onder:",
-    ("Franxit counts anonymously how many phones use it each day, so the maker knows if people use it. " +
-        "Once a day it sends \"one more phone\" and the app version, nothing else: no number that " +
-        "identifies your phone, no name, no account, and never your products or prices.") to
-        "Franxit telt anoniem hoeveel gsm's de app elke dag gebruiken, zodat de maker weet of mensen ze gebruiken. Eén keer per dag stuurt de app “nog één gsm” en de appversie, niets meer: geen nummer dat je gsm herkent, geen naam, geen account en nooit je producten of prijzen.",
-    "Share the anonymous daily count" to "De anonieme dagtelling delen",
-    "Privacy policy" to "Privacyverklaring",
     "Earlier history" to "Eerdere geschiedenis",
     "Your checks" to "Jouw controles",
     "Loading" to "Laden",

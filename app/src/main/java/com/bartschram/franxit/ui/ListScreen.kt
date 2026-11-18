@@ -144,8 +144,6 @@ fun ListScreen(
     photoVersion: Int,
     onTipsSeen: () -> Unit,
     onShowTips: () -> Unit,
-    /** Opens the anonymous usage counts: null when this build doesn't count. */
-    onUsage: (() -> Unit)? = null,
     onLanguage: () -> Unit = {},
     onDelete: (Product) -> Unit,
     onUndoDelete: (Product) -> Unit,
@@ -262,12 +260,6 @@ fun ListScreen(
                                     text = { Text("Tips") },
                                     onClick = { menuOpen = false; onShowTips() },
                                 )
-                                onUsage?.let { open ->
-                                    DropdownMenuItem(
-                                        text = { Text("Usage statistics") },
-                                        onClick = { menuOpen = false; open() },
-                                    )
-                                }
                                 DropdownMenuItem(
                                     text = { Text("Language") },
                                     onClick = { menuOpen = false; onLanguage() },

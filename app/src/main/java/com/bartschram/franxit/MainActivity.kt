@@ -38,12 +38,10 @@ import com.bartschram.franxit.data.Discounts
 import com.bartschram.franxit.data.Photos
 import com.bartschram.franxit.data.Repository
 import com.bartschram.franxit.data.ShareLink
-import com.bartschram.franxit.ui.UsageDialog
 import com.bartschram.franxit.ui.L10n
 import com.bartschram.franxit.ui.LanguageDialog
 import com.bartschram.franxit.ui.t
 import com.bartschram.franxit.ui.tMessage
-import com.bartschram.franxit.data.Usage
 import androidx.compose.ui.platform.LocalUriHandler
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -83,9 +81,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // This phone counted anonymously once a day (see Usage); off the main thread.
-        val app = applicationContext
-        Thread { Usage.reportToday(app) }.start()
+        // Earlier versions kept a small "usage" file for an anonymous daily count; it is gone for good.
+        applicationContext.deleteSharedPreferences("usage")
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -135,7 +132,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     var discounts by remember { mutableStateOf(Discounts.load(context)) }
     var showDiscounts by rememberSaveable { mutableStateOf(false) }
     var showShopping by rememberSaveable { mutableStateOf(false) }
-    var showUsage by rememberSaveable { mutableStateOf(false) }
     var showLanguage by rememberSaveable { mutableStateOf(false) }
     var shoppingKey by remember { mutableStateOf(ShoppingSettings.key(context) != null) }
     var extraOn by remember { mutableStateOf(ShoppingSettings.extraIds(context)) }
@@ -324,7 +320,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             discounts = discounts,
             onDiscounts = { showDiscounts = true },
             onGoogleShopping = { showShopping = true },
-            onUsage = if (Usage.configured) ({ showUsage = true }) else null,
             onLanguage = { showLanguage = true },
             notificationsOn = notificationsOn,
             onTurnOnNotifications = { turnOnNotifications() },
@@ -369,14 +364,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                 scope.launch { runCatching { PriceListWidget().updateAll(context) } }
             },
             onDismiss = { showLanguage = false },
-        )
-    }
-
-    if (showUsage) {
-        UsageDialog(
-            enabled = Usage.enabled(context),
-            onChange = { on -> Usage.setEnabled(context, on) },
-            onDismiss = { showUsage = false },
         )
     }
 
