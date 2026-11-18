@@ -158,9 +158,11 @@ object GoogleShopping {
                         ?: item.takeIf { isReliableShop(it.shop, it.site) }
                 }
             }
+            // Odd prices out first (too good to be true, import prices), by the middle price of the results.
+            .let { withoutOutliers(it, { item -> isReliableShop(item.shop, item.site) }) { item -> item.price } }
             .let { all ->
                 // The big shops may be dearer, but a price far below the other shops' is an accessory (a € 23 case
-                // for a € 349 tablet): measured against the cheapest of the other shops.
+                // for a € 349 tablet), also when there are too few results for the middle price to say so.
                 val others = all.filterNot { isReliableShop(it.shop, it.site) }.map { it.price }
                 // Alone, the big shops' own middle price is all there is to measure against.
                 val lowest = others.minOrNull() ?: all.map { it.price }.sorted().let { it.getOrNull(it.size / 2) }
@@ -168,7 +170,6 @@ object GoogleShopping {
                     lowest == null || !isReliableShop(item.shop, item.site) || item.price in lowest * 0.5..lowest * 2.0
                 }
             }
-            .let { withoutOutliers(it, { item -> isReliableShop(item.shop, item.site) }) { item -> item.price } }
 
         val cheapest = matching.groupBy { it.shop.lowercase() }.values.map { group -> group.minBy { it.price } }.sortedBy { it.price }
         return Found(
