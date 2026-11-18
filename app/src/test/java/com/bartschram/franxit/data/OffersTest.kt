@@ -47,4 +47,19 @@ class OffersTest {
     fun nullWithoutOffers() {
         assertNull(Offers.cheapest(emptyList()))
     }
+
+    @Test
+    fun googleNeverHidesAShopVergelijkGives() {
+        val own = listOf(ShopOffer("Amazon.com.be", 165.71, true), ShopOffer("Decathlon.be", 190.11, true))
+        val extra = listOf(ShopOffer("Bol.com", 127.2), ShopOffer("Amazon.com.be", 170.0), ShopOffer("Decathlon.be", 180.0))
+        val merged = Offers.merge(own, extra)
+        assertEquals(listOf("Bol.com", "Amazon.com.be", "Decathlon.be"), merged.map { it.seller })
+        assertEquals(listOf(127.2, 165.71, 180.0), merged.map { it.price })
+    }
+
+    @Test
+    fun withoutGoogleVergelijksShopsAreAllShown() {
+        val own = listOf(ShopOffer("A", 10.0, true), ShopOffer("B", 12.0, true), ShopOffer("C", 11.0, true))
+        assertEquals(listOf("A", "C", "B"), Offers.merge(own, emptyList()).map { it.seller })
+    }
 }

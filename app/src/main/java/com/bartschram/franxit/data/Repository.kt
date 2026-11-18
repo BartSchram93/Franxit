@@ -340,10 +340,7 @@ class Repository private constructor(context: Context) {
         // (Which shops are trusted was decided when Google's results were read.)
         val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
         // Sold-out shops aren't shown; only when every shop is sold out, they are (so the product still has a price).
-        val offers = (own + extra).let { all -> all.filter { it.inStock != false }.ifEmpty { all } }
-            .groupBy { Shops.name(it.seller).lowercase() }.values
-            .map { same -> same.minBy { it.price } }
-            .sortedBy { it.price }
+        val offers = Offers.merge(own, extra)
         db.replaceOffers(product.id, offers)
         // The page's photo, unless you chose Google Shopping's or none for this product.
         if (query != null || Photos.choice(appContext, product.id) == Photos.Choice.SITE) {
