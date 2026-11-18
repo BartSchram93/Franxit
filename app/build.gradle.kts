@@ -57,7 +57,7 @@ android {
         }
     }
 
-    sourceSets.getByName("main").java.srcDir(if (playBuild) "src/play/java" else "src/web/java")
+    sourceSets.getByName("main").java.directories.add(if (playBuild) "src/play/java" else "src/web/java")
 
     buildTypes {
         release {
