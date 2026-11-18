@@ -204,6 +204,8 @@ class Repository private constructor(context: Context) {
         onTerm: (String) -> Unit = {},
     ): Scraper.Result {
         val key = ShoppingSettings.key(appContext) ?: throw IOException("Turn on Google Shopping in ⋮ → Google Shopping")
+        // With the app in French, French pages are welcome too.
+        GoogleShopping.allowFrench = com.bartschram.franxit.ui.L10n.lang == com.bartschram.franxit.ui.L10n.Lang.FR
         val found = GoogleShopping.fetch(query, key, { TrustedShops.name(appContext, it) }, terms)
         found.term?.let(onTerm)
         // Every search keeps its best result's photo, for "Use Google Shopping photo".

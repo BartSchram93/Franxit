@@ -261,4 +261,12 @@ class GoogleShoppingTest {
         assertEquals(true, GoogleShopping.isReliableShop("bol", null))
         assertEquals(false, GoogleShopping.isReliableShop("Movertix", "movertix.com"))
     }
+
+    @Test
+    fun frenchPagesAreFineWhenTheAppIsFrench() {
+        val fr = "https://www.example.be/fr/tablette-tcl"
+        assertEquals(true, GoogleShopping.isOtherLanguage("Tablette TCL NXTPAPER 14", fr, frenchToo = false))
+        assertEquals(false, GoogleShopping.isOtherLanguage("Tablette TCL NXTPAPER 14", fr, frenchToo = true))
+        assertEquals(true, GoogleShopping.isOtherLanguage("TCL Tablet für Kinder", "https://www.example.de/de/x", frenchToo = true))
+    }
 }

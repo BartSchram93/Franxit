@@ -207,18 +207,28 @@ object GoogleShopping {
      * ("/fr/", "/de/", "/be/fr/", "/-/fr/"), or its title has words or letters of another language
      * ("Tablette", "pour", "Kopfhörer", "ç", "ß"). A brand like "Le Creuset" alone doesn't count.
      */
-    internal fun isOtherLanguage(title: String, link: String?): Boolean {
+    internal fun isOtherLanguage(title: String, link: String?, frenchToo: Boolean = allowFrench): Boolean {
         val path = link?.takeIf { it.startsWith("http") && "google." !in it }
             ?.let { runCatching { java.net.URI(it) }.getOrNull() }
         val folders = path?.path.orEmpty().lowercase().split('/').filter { it.isNotEmpty() }
-        if (folders.any { it in OTHER_LANGUAGE_FOLDERS }) return true
-        if (Regex("""[?&](lang|language|locale)=(fr|de|es|it|pt|pl)""").containsMatchIn(path?.rawQuery?.let { "?$it" }.orEmpty().lowercase())) return true
+        if (folders.any { it in OTHER_LANGUAGE_FOLDERS && !(frenchToo && it in FRENCH_FOLDERS) }) return true
+        val languages = if (frenchToo) "de|es|it|pt|pl" else "fr|de|es|it|pt|pl"
+        if (Regex("""[?&](lang|language|locale)=($languages)""").containsMatchIn(path?.rawQuery?.let { "?$it" }.orEmpty().lowercase())) return true
         val text = title.lowercase()
-        if (Regex("[çèêàâôûßñãõ]").containsMatchIn(text)) return true
+        if (Regex(if (frenchToo) "[ßñãõ]" else "[çèêàâôûßñãõ]").containsMatchIn(text)) return true
         val words = text.split(Regex("[^\\p{L}]+")).filter { it.isNotEmpty() }
-        if (words.any { it in OTHER_LANGUAGE_WORDS }) return true
-        return words.count { it in OTHER_LANGUAGE_SMALL_WORDS } >= 2
+        if (words.any { it in OTHER_LANGUAGE_WORDS && !(frenchToo && it in FRENCH_WORDS) }) return true
+        return !frenchToo && words.count { it in OTHER_LANGUAGE_SMALL_WORDS } >= 2
     }
+
+    /** With the app in French, French pages are fine too; set from the app's language before searching. */
+    @Volatile var allowFrench: Boolean = false
+
+    private val FRENCH_FOLDERS = setOf("fr", "fr-be", "fr_be", "be-fr", "be_fr", "fr-fr", "fr_fr")
+    private val FRENCH_WORDS = setOf(
+        "pour", "avec", "tablette", "étui", "coque", "écouteurs", "écran", "génération", "noir", "blanc", "gris",
+        "livraison", "neuf", "reconditionné", "clavier", "banc", "chargeur", "casque", "housse", "sans-fil", "enceinte",
+    )
 
     private val OTHER_LANGUAGE_FOLDERS = setOf(
         "fr", "fr-be", "fr_be", "be-fr", "be_fr", "fr-fr", "fr_fr", "de", "de-de", "de_de", "de-be", "es", "es-es", "it", "it-it", "pt", "pl",
