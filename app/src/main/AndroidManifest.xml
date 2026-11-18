@@ -19,12 +19,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- A link from a shared advice (franxit.be/p/?u=…) opens here, to track that product -->
+            <!-- A link from a shared advice (franxit.be/p/?u=…) opens here, to track that product. "/p/" and not "/p": the privacy page (/privacy.html) must stay in the browser. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="franxit.be" android:pathPrefix="/p" />
+                <data android:scheme="https" android:host="franxit.be" android:pathPrefix="/p/" />
             </intent-filter>
             <!-- Share a product link from the browser to start tracking it -->
             <intent-filter>
