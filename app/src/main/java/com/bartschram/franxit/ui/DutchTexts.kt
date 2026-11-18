@@ -66,7 +66,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "of the past year" to "van het voorbije jaar",
     "Use the original photo again" to "Originele foto opnieuw gebruiken",
     "Use the shop's photo again" to "Foto van de winkel opnieuw gebruiken",
-    "Use Google Shopping photo" to "Foto van Google Shopping gebruiken",
+    "Try another photo" to "Andere foto proberen",
     "Remove photo" to "Foto verwijderen",
     "Save" to "Opslaan",
     "Use site name" to "Naam van de site gebruiken",
