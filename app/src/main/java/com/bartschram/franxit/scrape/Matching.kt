@@ -44,10 +44,18 @@ object Matching {
      * Whether a search result is the product you're after: most of your words are in its title,
      * and it isn't an accessory (unless you're looking for one).
      */
-    fun isSameProduct(title: String, wanted: String): Boolean {
+    fun isSameProduct(title: String, wanted: String, lenient: Boolean = false): Boolean {
         val want = words(wanted)
-        if (want.isEmpty() || (isAccessory(title) && !isAccessory(wanted))) return false
-        if (BUNDLE.containsMatchIn(title) && !BUNDLE.containsMatchIn(wanted)) return false
+        if (want.isEmpty()) return false
+        if (lenient) {
+            // A big, reliable shop often sells the product with a case or stylus ("TCL NXTPAPER 14 - 8GB - Grijs + Flip Case
+            // & Stylus"): fine, as long as the title starts with the product itself, not with the accessory.
+            val brand = wanted.trim().split(Regex("\\s+")).first().lowercase()
+            if (!title.trim().lowercase().startsWith(brand)) return false
+        } else {
+            if (isAccessory(title) && !isAccessory(wanted)) return false
+            if (BUNDLE.containsMatchIn(title) && !BUNDLE.containsMatchIn(wanted)) return false
+        }
         val have = words(title)
         // The brand (first word) must be there.
         val brand = wanted.trim().split(Regex("\\s+")).first().lowercase().filter { it.isLetterOrDigit() }

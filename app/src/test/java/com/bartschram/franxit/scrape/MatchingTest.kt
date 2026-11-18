@@ -56,6 +56,16 @@ class MatchingTest {
     }
 
     @Test
+    fun aReliableShopMaySellItWithACaseAndStylus() {
+        val title = "TCL NXTPAPER 14 - 14 inch - 8GB RAM 256GB - Grijs + Flip Case & Stylus"
+        assertFalse(Matching.isSameProduct(title, "TCL Nxtpaper 14"))
+        assertTrue(Matching.isSameProduct(title, "TCL Nxtpaper 14", lenient = true))
+        // But a case for it is still no tablet.
+        assertFalse(Matching.isSameProduct("Flip Case voor TCL NXTPAPER 14", "TCL Nxtpaper 14", lenient = true))
+        assertFalse(Matching.isSameProduct("Hoes geschikt voor TCL NXTPAPER 14", "TCL Nxtpaper 14", lenient = true))
+    }
+
+    @Test
     fun storageAndOtherSpecsInATitleDoNotMakeItAnotherProduct() {
         assertTrue(Matching.isSameProduct("TCL E-reader Tablet - 14.3 inch - NXTPAPER 14 - 8GB RAM 256GB - Grijs", "TCL Nxtpaper 14"))
         assertTrue(Matching.isSameProduct("TCL NXTPAPER 14 Tablet 8GB 256GB WiFi", "TCL Nxtpaper 14"))

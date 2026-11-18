@@ -140,7 +140,7 @@ object GoogleShopping {
             val site = direct?.let { runCatching { java.net.URI(it).host }.getOrNull() }?.removePrefix("www.")
             Item(title, shop, price, link, o.optString("thumbnail").takeIf { it.startsWith("http") }, site, token)
         }.filter {
-            Matching.isSameProduct(it.title, query) && !isForeignShop(it.shop) && !isMarketplace(it.shop) &&
+            Matching.isSameProduct(it.title, query, lenient = isReliableShop(it.shop, it.site)) && !isForeignShop(it.shop) && !isMarketplace(it.shop) &&
                 (!isOtherLanguage(it.title, it.link) || isReliableShop(it.shop, it.site))
         }
         if (same.isEmpty()) throw IOException(NOT_FOUND)
