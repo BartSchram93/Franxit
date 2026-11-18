@@ -31,7 +31,7 @@ jobs:
           chmod +x gradlew
           export FRANXIT_LIVE_URL="$(grep -v '^#' canary-urls.txt)"
           set -o pipefail
-          ./gradlew testDebugUnitTest --tests '*LiveScraperTest' --console=plain 2>&1 | tee live.log
+          ./gradlew testWebDebugUnitTest --tests '*LiveScraperTest' --console=plain 2>&1 | tee live.log
 
       - name: Open an issue
         # Only the scheduled morning run reports: test runs on other branches don't open issues.

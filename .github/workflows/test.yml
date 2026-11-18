@@ -26,10 +26,10 @@ jobs:
       - name: Unit tests
         run: |
           chmod +x gradlew
-          ./gradlew testDebugUnitTest --console=plain
+          ./gradlew testWebDebugUnitTest --console=plain
 
-      # The Google Play build has no Aptabase: it must compile on its own too.
-      - name: Compile the Play build
-        env:
-          FRANXIT_PLAY: "true"
-        run: ./gradlew compileReleaseKotlin --console=plain
+      # Both builds must compile and package on their own (unsigned here): the APK and the Play bundle.
+      - name: Build the APK and the Play bundle
+        run: |
+          ./gradlew assembleWebRelease bundlePlayRelease --console=plain
+          ls -l app/build/outputs/apk/web/release/ app/build/outputs/bundle/playRelease/

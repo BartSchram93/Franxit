@@ -82,8 +82,8 @@ Open in Android Studio, or:
 
 ```bash
 ./gradlew assembleDebug        # app/build/outputs/apk/debug/app-debug.apk
-./gradlew testDebugUnitTest    # parser tests
-FRANXIT_LIVE_URL="https://www.vergelijk.be/..." ./gradlew testDebugUnitTest   # also hit the live page
+./gradlew testWebDebugUnitTest    # parser tests
+FRANXIT_LIVE_URL="https://www.vergelijk.be/..." ./gradlew testWebDebugUnitTest   # also hit the live page
 ```
 
 ## Daily site check
