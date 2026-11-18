@@ -38,7 +38,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Couldn't read price: %s" to "Prijs lezen mislukt: %s",
     "Not checked yet · pull down to check" to "Nog niet gecontroleerd · trek naar beneden om te controleren",
     "Last check failed: %s" to "Laatste controle mislukt: %s",
-    "Tap + or share a link from your browser" to "Tik op + of deel een link vanuit je browser",
+    "Add a product with the + at the bottom right, or share a link from your browser" to "Voeg een product toe met de + rechtsonder, of deel een link vanuit je browser",
     "Long-press a product to set a price alert" to "Houd een product lang ingedrukt om een prijsalert in te stellen",
     "Swipe a product left to remove it" to "Veeg een product naar links om het te verwijderen",
     "Sort or show only alerts" to "Sorteer, of toon enkel producten met een alert",

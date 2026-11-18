@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.SwipeToDismissBox
@@ -557,7 +558,7 @@ private fun Tips(onDone: (() -> Unit)?) {
                     Text(text, style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            Tip(Icons.Default.Add, "Tap + or share a link from your browser")
+            Tip(Icons.Default.Share, "Add a product with the + at the bottom right, or share a link from your browser")
             Tip(Icons.Default.Notifications, "Long-press a product to set a price alert")
             Tip(Icons.Default.Delete, "Swipe a product left to remove it")
             Tip(FilterListIcon, "Sort or show only alerts")

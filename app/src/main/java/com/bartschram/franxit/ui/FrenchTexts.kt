@@ -38,7 +38,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Couldn't read price: %s" to "Prix illisible : %s",
     "Not checked yet · pull down to check" to "Pas encore vérifié · tire vers le bas pour vérifier",
     "Last check failed: %s" to "Dernière vérification échouée : %s",
-    "Tap + or share a link from your browser" to "Touche + ou partage un lien depuis ton navigateur",
+    "Add a product with the + at the bottom right, or share a link from your browser" to "Ajoute un produit avec le + en bas à droite, ou partage un lien depuis ton navigateur",
     "Long-press a product to set a price alert" to "Appuie longuement sur un produit pour créer une alerte de prix",
     "Swipe a product left to remove it" to "Glisse un produit vers la gauche pour le supprimer",
     "Sort or show only alerts" to "Trie, ou affiche uniquement les produits avec une alerte",
