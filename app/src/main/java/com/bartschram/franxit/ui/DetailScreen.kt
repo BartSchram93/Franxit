@@ -560,6 +560,7 @@ internal fun shareText(product: Product): String {
 }
 
 private fun shareProduct(context: Context, product: Product) {
+    com.bartschram.franxit.data.Analytics.track("product_shared")
     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, shareText(product))
     context.startActivity(Intent.createChooser(send, t("Share")))
 }

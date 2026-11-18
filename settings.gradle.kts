@@ -19,6 +19,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Only for Aptabase's own library (anonymous usage events).
+        maven("https://www.jitpack.io") { content { includeGroup("com.github.aptabase") } }
     }
 }
 

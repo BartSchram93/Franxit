@@ -1,6 +1,7 @@
 package com.bartschram.franxit
 
 import android.app.Application
+import com.bartschram.franxit.data.Analytics
 import com.bartschram.franxit.ui.L10n
 import com.bartschram.franxit.work.Notifier
 import com.bartschram.franxit.work.Scheduler
@@ -12,5 +13,7 @@ class FranxitApp : Application() {
         L10n.init(this)
         Notifier.createChannel(this)
         Scheduler.ensureScheduled(this)
+        Analytics.init(this)
+        Analytics.track("app_started")
     }
 }

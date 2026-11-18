@@ -45,6 +45,7 @@ import com.bartschram.franxit.ui.tMessage
 import androidx.compose.ui.platform.LocalUriHandler
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
+import com.bartschram.franxit.data.Analytics
 import com.bartschram.franxit.data.UpdateCheck
 import com.bartschram.franxit.ui.ShoppingDialog
 import com.bartschram.franxit.scrape.GoogleShopping
@@ -185,7 +186,8 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) requestNotifications()
     }
-    fun add(url: String) {
+    fun add(url: String, via: String) {
+        Analytics.track("product_added", mapOf("via" to via))
         scope.launch {
             refreshing = true
             selectedId = repo.add(url.trim())
@@ -219,10 +221,10 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
         SearchScreen(
             search = { repo.search(it) },
             titleFromLink = { repo.productTitleFor(it) },
-            onPick = { url -> searching = false; searchStart = ""; add(url) },
+            onPick = { url -> searching = false; searchStart = ""; add(url, "search") },
             onBack = { searching = false; searchStart = "" },
             initialQuery = searchStart,
-            onGoogleShopping = if (shoppingKey) { query -> searching = false; searchStart = ""; add(GoogleShopping.urlFor(query)) } else null,
+            onGoogleShopping = if (shoppingKey) { query -> searching = false; searchStart = ""; add(GoogleShopping.urlFor(query), "google_shopping") } else null,
         )
     } else if (selected != null) {
         BackHandler { selectedId = null }
@@ -254,7 +256,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                     photoVersion++
                 }
             },
-            onSetTarget = { price -> scope.launch { repo.setTarget(selected.id, price) } },
+            onSetTarget = { price -> if (price != null) Analytics.track("price_alert_set"); scope.launch { repo.setTarget(selected.id, price) } },
             onSetNotify = { on ->
                 scope.launch { repo.setNotify(selected.id, on) }
                 if (on) askForNotifications()
@@ -310,6 +312,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                 scope.launch { runCatching { PriceListWidget().updateAll(context) } }
             },
             onSetAlert = { product, price ->
+                if (price != null) Analytics.track("price_alert_set")
                 scope.launch {
                     repo.setTarget(product.id, price)
                     // Alerts muted with the old "Notify me" switch notify again once saved.
@@ -345,7 +348,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             title = { com.bartschram.franxit.ui.Text("Track this product?") },
             text = { com.bartschram.franxit.ui.Text(shared.name.ifBlank { "A shared product" }) },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { sharedProduct.value = null; add(shared.url) }) {
+                androidx.compose.material3.TextButton(onClick = { sharedProduct.value = null; add(shared.url, "shared_link") }) {
                     com.bartschram.franxit.ui.Text("Track")
                 }
             },

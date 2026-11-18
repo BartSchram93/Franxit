@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons)
     implementation(libs.androidx.work.runtime)
+    implementation(libs.aptabase)
     implementation(libs.androidx.glance.appwidget)
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
