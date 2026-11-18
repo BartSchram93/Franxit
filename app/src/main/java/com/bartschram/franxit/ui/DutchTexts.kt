@@ -17,7 +17,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Google Shopping" to "Google Shopping",
     "Tips" to "Tips",
     "Language" to "Taal",
-    "Daily check at %s" to "Dagelijkse controle om %s",
+    "Daily at %s" to "Dagelijks om %s",
     "New version available" to "Nieuwe versie beschikbaar",
     "Download" to "Downloaden",
     "Checking %1\$d of %2\$d…" to "Controleren: %1\$d van %2\$d…",

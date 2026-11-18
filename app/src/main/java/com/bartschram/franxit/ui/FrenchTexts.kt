@@ -17,7 +17,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Google Shopping" to "Google Shopping",
     "Tips" to "Astuces",
     "Language" to "Langue",
-    "Daily check at %s" to "Vérification quotidienne à %s",
+    "Daily at %s" to "Chaque jour à %s",
     "New version available" to "Nouvelle version disponible",
     "Download" to "Télécharger",
     "Checking %1\$d of %2\$d…" to "Vérification : %1\$d sur %2\$d…",
