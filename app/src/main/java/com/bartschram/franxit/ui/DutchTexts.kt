@@ -6,7 +6,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Date added" to "Datum toegevoegd",
     "Lowest price" to "Laagste prijs",
     "Highest price" to "Hoogste prijs",
-    "Best deals first" to "Beste deals eerst",
+    "Best deals" to "Beste deals",
     "Name" to "Naam",
     "Sort and filter" to "Sorteren en filteren",
     "Sort by" to "Sorteer op",

@@ -104,7 +104,7 @@ enum class SortOrder(val label: String) {
     ADDED("Date added"),
     PRICE_UP("Lowest price"),
     PRICE_DOWN("Highest price"),
-    BEST_DEALS("Best deals first"),
+    BEST_DEALS("Best deals"),
     NAME("Name");
 
     // Products without a price yet go last either way.

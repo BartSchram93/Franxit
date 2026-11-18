@@ -6,7 +6,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Date added" to "Date d'ajout",
     "Lowest price" to "Prix le plus bas",
     "Highest price" to "Prix le plus haut",
-    "Best deals first" to "Meilleures affaires d'abord",
+    "Best deals" to "Meilleures offres",
     "Name" to "Nom",
     "Sort and filter" to "Trier et filtrer",
     "Sort by" to "Trier par",
