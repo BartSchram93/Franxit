@@ -318,7 +318,7 @@ class GoogleShoppingTest {
         assertNull(found.result.offers.first { "amazon" in it.seller.lowercase() }.inStock)
     }
 
-    /** A real SerpApi answer for "Nxtpaper 14" (Belgium, Dutch), shortened: Amazon and bol.com sell the tablet. */
+    /** A real answer of the search service for "Nxtpaper 14" (Belgium, Dutch), shortened: Amazon and bol.com sell the tablet. */
     @Test
     fun realNxtpaperAnswerGivesAmazonAndBol() {
         val search = """{

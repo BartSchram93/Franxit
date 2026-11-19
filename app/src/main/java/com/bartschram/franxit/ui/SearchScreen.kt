@@ -57,7 +57,7 @@ fun SearchScreen(
     onPick: (url: String) -> Unit,
     onBack: () -> Unit,
     initialQuery: String = "",
-    /** Track via Google Shopping instead; null without a SerpApi key. */
+    /** Track via Google Shopping instead; null when the search service is off. */
     onGoogleShopping: ((query: String) -> Unit)? = null,
 ) {
     var query by rememberSaveable { mutableStateOf(initialQuery) }

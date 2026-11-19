@@ -8,8 +8,8 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 
 /**
- * Google Shopping through SerpApi's official API, for products vergelijk.be doesn't list. Each
- * check is one search of your SerpApi plan. A product's url is the Google Shopping search for it,
+ * Google Shopping through Franxit's own search service, for products vergelijk.be doesn't list. Each
+ * check is a request to that service. A product's url is the Google Shopping search for it,
  * so it also opens in the browser.
  */
 object GoogleShopping {
@@ -98,7 +98,7 @@ object GoogleShopping {
     }
 
     /**
-     * Franxit's own search service (a Cloudflare Worker), which holds the SerpApi key and shares
+     * Franxit's own search service (a Cloudflare Worker), which holds the search key and shares
      * answers between everyone: the app never has a key. A path like "/search?q=…".
      */
     const val PROXY = "https://franxit-zoeken.schram-bart.workers.dev"
@@ -127,8 +127,8 @@ object GoogleShopping {
     const val TOKEN = "serpapi-token:"
 
     /**
-     * The shop's own page for a product, from Google's product page (SerpApi's immersive product
-     * engine, one search): the store whose name or site is [shop]. Null when it isn't listed.
+     * The shop's own page for a product, from Google's product page (the search service's
+     * "stores" request, one search): the store whose name or site is [shop]. Null when it isn't listed.
      */
     fun storeLink(token: String, shop: String, sameShop: (String, String) -> Boolean): String? {
         val t = URLEncoder.encode(token, "UTF-8")

@@ -6,8 +6,7 @@ import com.bartschram.franxit.scrape.GoogleShopping
 import org.json.JSONObject
 
 /**
- * Your SerpApi key for Google Shopping, how many searches the app used this month, and each
- * product's shop pages from its last search. Kept on the phone only.
+ * Google Shopping's settings: each product's shop pages from its last search. Kept on the phone only.
  */
 object ShoppingSettings {
 

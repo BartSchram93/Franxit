@@ -33,11 +33,11 @@ A minimal Android app that checks product prices once a day and keeps the histor
   only products with a price alert; swipe a product left to stop tracking it
   (Undo brings it back).
 - "Out of stock" shows when even the cheapest offer can't be bought.
-- **Google Shopping** (⋮ → Google Shopping, with your own SerpApi key) for products vergelijk.be
+- **Google Shopping** (through Franxit's own search service, a Cloudflare Worker with a LiteScrape key; see `worker/`) for products vergelijk.be
   doesn't list: search, then **Track via Google Shopping**. Matching results (no accessories),
   cheapest per shop, join Shops today. Each such product is checked once a day: a search, then
-  Google's page for the best match, which lists more shops with their own links (two searches of
-  the plan; SerpApi stops at the plan's limit). The key stays on the phone.
+  Google's page for the best match, which lists more shops with their own links (two requests to the search
+  service). The key is only in the Worker, never on the phone.
   On a vergelijk.be product, **Also search Google Shopping** adds the shops vergelijk.be lacks.
   Only trusted shops count, since Google also lists fake shops (Garantie2ans.com): shops vergelijk.be
   lists (learned with each check) and a fixed list of well-known shops selling in Belgium
