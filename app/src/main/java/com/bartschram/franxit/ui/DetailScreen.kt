@@ -56,7 +56,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.width
@@ -581,5 +584,24 @@ internal fun SearchingWords(first: String = "Searching…") {
             index++
         }
     }
-    Text(words[index], style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    // The dots at the end walk from one to three and start again, so you can see it is still working.
+    // The ones not shown yet are drawn invisible, so the line keeps its width and doesn't jump.
+    var dots by remember { mutableStateOf(3) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(400)
+            dots = dots % 3 + 1
+        }
+    }
+    val shown = t(words[index])
+    val text = buildAnnotatedString {
+        if (shown.endsWith("…")) {
+            append(shown.removeSuffix("…"))
+            append(".".repeat(dots))
+            withStyle(SpanStyle(color = Color.Transparent)) { append(".".repeat(3 - dots)) }
+        } else {
+            append(shown)
+        }
+    }
+    androidx.compose.material3.Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
