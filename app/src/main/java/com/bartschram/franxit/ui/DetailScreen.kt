@@ -575,7 +575,10 @@ private fun shareProduct(context: Context, product: Product) {
 internal fun SearchingWords(first: String = "Searching…") {
     // A few calm words, one after the other; the last one stays when it takes longer.
     val words = remember(first) {
-        listOf(first, "Reading the details…", "Checking the shops…", "Comparing prices…", "Looking for the best price…", "Almost there…")
+        listOf(
+            first, "Reading the details…", "Checking the shops…", "Comparing prices…", "Checking stock…",
+            "Looking for the best price…", "Double-checking the prices…", "Still searching…",
+        )
     }
     var index by remember { mutableStateOf(0) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
