@@ -71,14 +71,25 @@ class Repository private constructor(context: Context) {
         runCatching { PriceListWidget().updateAll(appContext) }
     }
 
-    /** Starts tracking [url] and checks its price right away. Returns the product id. */
-    suspend fun add(url: String): Long = withContext(Dispatchers.IO) {
+    /**
+     * Starts tracking [url] and checks its price right away. Returns the product id.
+     * [onFirstResults] is called as soon as vergelijk.be's shops are stored, while Google Shopping
+     * is still being searched (not called when there is no such second search).
+     */
+    suspend fun add(url: String, onFirstResults: (Long) -> Unit = {}): Long = withContext(Dispatchers.IO) {
         val host = runCatching { URI(url).host }.getOrNull() ?: url
         // Until the first check names the product: the shop's address, or a plain label for a comparison page.
         val placeholder = if (host.endsWith("vergelijk.be")) "New product" else host
         val id = db.insertProduct(url, placeholder)
         reload()
-        db.products().firstOrNull { it.id == id }?.let { checkLock.withLock { check(it) } }
+        db.products().firstOrNull { it.id == id }?.let {
+            checkLock.withLock {
+                check(it) {
+                    _products.value = db.products()
+                    onFirstResults(id)
+                }
+            }
+        }
         changed()
         id
     }
@@ -299,14 +310,14 @@ class Repository private constructor(context: Context) {
 
     suspend fun checkOne(id: Long): Result<Unit> = withContext(Dispatchers.IO) {
         checkLock.withLock {
-            val result = runCatching { db.products().first { it.id == id }.let { check(it) } }
+            val result = runCatching { db.products().first { it.id == id }.let { check(it) { _products.value = db.products() } } }
             changed()
             result.map { }
         }
     }
 
     /** Scrapes one product and stores today's cheapest price. Returns an [Alert] when worth notifying. */
-    private fun check(product: Product): Alert? {
+    private fun check(product: Product, onFirstResults: (() -> Unit)? = null): Alert? {
         val now = System.currentTimeMillis()
         val query = GoogleShopping.queryOf(product.url)
         // Google Shopping costs a search of your plan: at most once a day per product.
@@ -340,20 +351,36 @@ class Repository private constructor(context: Context) {
         val ownShops = own.map { Shops.name(it.seller).lowercase() }.distinct().size
         // A product just added is still called "New product": Google is asked for the name the shop gave it.
         val named = product.copy(name = result.name.ifBlank { product.name })
-        val extras = extraShops(named, query, ownCheapest, ownShops)
-        // (Which shops are trusted was decided when Google's results were read.)
-        val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
-        // Sold-out shops aren't shown; only when every shop is sold out, they are (so the product still has a price).
-        val offers = Offers.merge(own, extra)
-        db.replaceOffers(product.id, offers)
         // The page's photo, unless you chose Google Shopping's or none for this product.
         if (query != null || Photos.choice(appContext, product.id) == Photos.Choice.SITE) {
             result.image?.let { runCatching { Images.save(appContext, product.id, it) } }
         }
-        val cheapest = Offers.cheapest(offers) ?: return null
+        // Stores today's shops and cheapest price; returns the cheapest offer (null when there is none).
+        fun store(shops: List<ShopOffer>): Pair<List<ShopOffer>, ShopOffer?> {
+            // Sold-out shops aren't shown; only when every shop is sold out, they are (so the product still has a price).
+            val offers = Offers.merge(own, shops)
+            db.replaceOffers(product.id, offers)
+            val cheapest = Offers.cheapest(offers)
+            if (cheapest != null) {
+                db.savePrice(product.id, PricePoint(today, cheapest.price, cheapest.seller, offers.size, now, cheapest.inStock))
+                db.markChecked(product.id, now, result.name, null)
+            }
+            return offers to cheapest
+        }
+        // Google Shopping is the slow part: store and show vergelijk.be's shops first, then add Google's.
+        val searchesGoogle = searchesExtra(query, ownShops) &&
+            ShoppingSettings.extraOffers(appContext, product.id, today.toString()) == null
+        if (searchesGoogle && onFirstResults != null) {
+            store(emptyList())
+            onFirstResults()
+        }
+        val extras = extraShops(named, query, ownCheapest, ownShops)
+        // (Which shops are trusted was decided when Google's results were read.)
+        // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
+        val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
+        val (offers, cheapest) = store(extra)
+        if (cheapest == null) return null
         val point = PricePoint(today, cheapest.price, cheapest.seller, offers.size, now, cheapest.inStock)
-        db.savePrice(product.id, point)
-        db.markChecked(product.id, now, result.name, null)
         // Optional extra: the site's own long-term history. Never fails the check. It only gains a
         // day at a time, so once it reaches today a refresh skips it.
         if (product.siteHistory.lastOrNull()?.day != today) {

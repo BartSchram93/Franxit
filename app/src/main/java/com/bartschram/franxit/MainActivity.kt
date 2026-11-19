@@ -187,7 +187,8 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
         Analytics.track("product_added", mapOf("via" to via))
         scope.launch {
             refreshing = true
-            selectedId = repo.add(url.trim())
+            // The product opens as soon as vergelijk.be's shops are in; Google Shopping adds its shops after.
+            selectedId = repo.add(url.trim()) { id -> scope.launch { selectedId = id } }
             refreshing = false
         }
     }
