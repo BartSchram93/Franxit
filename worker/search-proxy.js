@@ -53,13 +53,40 @@ const hasCodes = (title, codes) => {
   const t = String(title || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   return codes.every((c) => t.includes(c));
 };
+// Colours (Dutch, English, French) with the marketing names shops use ("frost", "midnight"), each to one colour. When the
+// search words name a colour, a title that names only other colours is another variant.
+const COLOURS = {
+  zwart: "black", black: "black", noir: "black", onyx: "black", obsidian: "black",
+  wit: "white", white: "white", blanc: "white",
+  zilver: "silver", zilverkleurig: "silver", silver: "silver", argent: "silver",
+  grijs: "grey", grey: "grey", gray: "grey", gris: "grey", graphite: "grey", grafiet: "grey", charcoal: "grey",
+  blauw: "blue", blue: "blue", bleu: "blue", navy: "blue", marine: "blue",
+  rood: "red", red: "red", rouge: "red", burgundy: "red", bordeaux: "red",
+  groen: "green", green: "green", vert: "green", olive: "green", olijf: "green",
+  goud: "gold", goudkleurig: "gold", gold: "gold", or: "gold", champagne: "gold",
+  roze: "pink", pink: "pink", rose: "pink",
+  paars: "purple", purple: "purple", violet: "purple", lavender: "purple", lavendel: "purple", lilac: "purple",
+  bruin: "brown", brown: "brown", brun: "brown", bronze: "brown", koper: "brown", copper: "brown",
+  oranje: "orange", orange: "orange",
+  geel: "yellow", yellow: "yellow", jaune: "yellow",
+  beige: "beige", creme: "beige", cream: "beige", ivoor: "beige", ivory: "beige", sand: "beige", zand: "beige",
+  frost: "frost", midnight: "midnight", starlight: "starlight", titanium: "titanium", titan: "titanium",
+  mint: "mint", teal: "teal", turquoise: "teal",
+};
+const colourSet = (text) => new Set(String(text || "").toLowerCase().split(/[^\p{L}]+/u).map((w) => COLOURS[w]).filter(Boolean));
+// True when the search words name a colour and the title names colours but none of them: the same model in another colour.
+const otherColour = (title, q) => {
+  const wanted = colourSet(q), has = colourSet(title);
+  return wanted.size > 0 && has.size > 0 && ![...has].some((c) => wanted.has(c));
+};
+
 // Shops that sell used or refurbished products: LiteScrape doesn't mark those, the app leaves out what is marked.
 const SECOND_HAND_SHOP = /back ?market|used products|sellpy|refurbed|swappie|rebuy|2dehands|marktplaats|vinted|cash converters/i;
 
 /** LiteScrape's search answer in the app's format. */
 function liteSearch(data, q) {
   const codes = modelCodes(q);
-  const results = (data.shopping_results || []).filter((r) => hasCodes(r.title, codes)).map((r) => {
+  const results = (data.shopping_results || []).filter((r) => hasCodes(r.title, codes) && !otherColour(r.title, q)).map((r) => {
     const o = {
       title: r.title, source: r.source, price: r.price, extracted_price: r.extracted_price,
       thumbnail: r.thumbnail, rating: r.rating, reviews: r.reviews,
@@ -81,7 +108,7 @@ function liteSearch(data, q) {
 /** LiteScrape's product answer ("offers") as the app's "product_results.stores". */
 function liteStores(data, q) {
   const codes = modelCodes(q);
-  const stores = (data.offers || []).filter((o) => !o.title || hasCodes(o.title, codes)).map((o) => ({
+  const stores = (data.offers || []).filter((o) => !o.title || (hasCodes(o.title, codes) && !otherColour(o.title, q))).map((o) => ({
     name: o.merchant, title: o.title, extracted_price: o.extracted_price, price: o.price, link: o.link,
     details_and_offers: [o.availability, ...(o.details || [])].filter(Boolean),
   })).filter((o) => !SECOND_HAND_SHOP.test(o.name || ""));
