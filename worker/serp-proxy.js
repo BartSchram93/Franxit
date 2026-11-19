@@ -1,6 +1,7 @@
 // Cloudflare Worker between the Franxit app and SerpApi (Google Shopping).
 //
-// - The SerpApi key lives here only, as the secret SERPAPI_KEY; the app never has it.
+// - The search key lives here only; the app never has it. Two providers: with the secret LITESCRAPE_KEY the
+//   search goes to LiteScrape (answers are turned into the format below), otherwise to SerpApi (secret SERPAPI_KEY).
 // - The app can only ask for two things (a search and a product's shops), with fixed settings.
 // - Answers are kept for a day and shared by everyone: the same product costs one search a day.
 // - A limit on fresh searches (the ones that cost a SerpApi search) per IP address per day.
@@ -10,6 +11,75 @@ const DAY = 86400;
 const MAX_FRESH_PER_IP = 30;      // fresh searches per IP address per day
 
 const bad = () => new Response("Bad request", { status: 400 });
+
+// ---- LiteScrape: its answers are turned into SerpApi's format, so the app doesn't know the difference ----
+const LITE = "https://api.litescrape.com/api/google/shopping";
+// Belgium's shops: without a place the search can come from anywhere (Singapore shops were listed).
+const PLACE = "Brussels, Brussels Region, Belgium";
+
+// A token is the ids of a product, as url-safe base64 of JSON (UTF-8, as the search words can have any letter).
+const b64 = (o) => {
+  const bytes = new TextEncoder().encode(JSON.stringify(o));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_");
+};
+const unb64 = (t) => {
+  const bin = atob(t.replace(/-/g, "+").replace(/_/g, "/"));
+  return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+};
+
+/** The request to LiteScrape for a search ("/search") or the shops of one product ("/stores"). */
+function liteRequest(path, params) {
+  if (path === "/search") {
+    const q = new URLSearchParams({ q: params.q, gl: "be", hl: "nl", google_domain: "google.be", location: PLACE, num: "40" });
+    return `${LITE}?${q}`;
+  }
+  // The token is what the search put in "immersive_product_page_token".
+  let t;
+  try { t = unb64(params.token); } catch { return null; }
+  const q = new URLSearchParams({ q: String(t.q || ""), gl: "be", hl: "nl", google_domain: "google.be", location: PLACE });
+  for (const [k, key] of [["g", "gpcid"], ["c", "catalog_id"], ["h", "headline_offer_docid"], ["i", "image_docid"]]) {
+    if (t[k] && /^[0-9]{1,20}$/.test(String(t[k]))) q.set(key, String(t[k]));
+  }
+  if (!q.has("gpcid") && !q.has("headline_offer_docid") && !q.has("catalog_id")) return null;
+  return `${LITE}/product?${q}`;
+}
+
+/** LiteScrape's search answer in SerpApi's shape. */
+function liteSearch(data, q) {
+  const results = (data.shopping_results || []).map((r) => {
+    const o = {
+      title: r.title, source: r.source, price: r.price, extracted_price: r.extracted_price,
+      thumbnail: r.thumbnail, rating: r.rating, reviews: r.reviews,
+    };
+    if (r.old_price) o.old_price = r.old_price;
+    if (r.extensions) o.extensions = r.extensions;
+    if (r.second_hand_condition) o.second_hand_condition = r.second_hand_condition;
+    if (r.alternative_price) o.alternative_price = r.alternative_price;
+    if (r.gpcid || r.catalog_id || r.headline_offer_docid) {
+      o.immersive_product_page_token = b64({
+        q, g: r.gpcid, c: r.catalog_id, h: r.headline_offer_docid, i: r.image_docid,
+      });
+    }
+    return o;
+  });
+  return { shopping_results: results };
+}
+
+/** LiteScrape's product answer ("offers") as SerpApi's "product_results.stores". */
+function liteStores(data) {
+  const stores = (data.offers || []).map((o) => ({
+    name: o.merchant, title: o.title, extracted_price: o.extracted_price, price: o.price, link: o.link,
+    details_and_offers: [o.availability, ...(o.details || [])].filter(Boolean),
+  }));
+  return { product_results: { stores } };
+}
+
+/** An error from the provider as the status the app understands (401 key, 429 no searches left). */
+function liteStatus(status) {
+  if (status === 401 || status === 403) return 401;
+  if (status === 402 || status === 429) return 429;
+  return 502;
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -49,15 +119,28 @@ export default {
 
     ctx.waitUntil(cache.put(counterKey, new Response(String(used + 1), { headers: { "Cache-Control": `max-age=${DAY}` } })));
 
-    if (!env.SERPAPI_KEY) return new Response("Not configured", { status: 500 });
-    const answer = await fetch(`https://serpapi.com/search.json?${upstream}&api_key=${encodeURIComponent(env.SERPAPI_KEY)}`);
-    const body = await answer.text();
+    let status, body;
+    if (env.LITESCRAPE_KEY) {
+      const target = liteRequest(url.pathname, { q: upstream.get("q"), token: url.searchParams.get("page_token") });
+      if (!target) return bad();
+      const answer = await fetch(target, { headers: { Authorization: `Bearer ${env.LITESCRAPE_KEY}` } });
+      if (!answer.ok) return new Response("Search service error", { status: liteStatus(answer.status) });
+      let data;
+      try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
+      body = JSON.stringify(url.pathname === "/search" ? liteSearch(data, upstream.get("q")) : liteStores(data));
+      status = 200;
+    } else {
+      if (!env.SERPAPI_KEY) return new Response("Not configured", { status: 500 });
+      const answer = await fetch(`https://serpapi.com/search.json?${upstream}&api_key=${encodeURIComponent(env.SERPAPI_KEY)}`);
+      body = await answer.text();
+      status = answer.status;
+    }
     const response = new Response(body, {
-      status: answer.status,
+      status,
       headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
     });
     // Only good answers are kept; an error (no searches left, a wrong key) is asked again next time.
-    if (answer.ok) ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    if (status === 200) ctx.waitUntil(cache.put(cacheKey, response.clone()));
     return response;
   },
 };
