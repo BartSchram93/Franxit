@@ -54,7 +54,8 @@ import kotlinx.coroutines.delay
 fun SearchScreen(
     search: suspend (String) -> List<VergelijkSearch.Hit>,
     titleFromLink: suspend (String) -> String?,
-    onPick: (url: String) -> Unit,
+    /** [title] is the product's name when the result has one (a typed or shared link has none). */
+    onPick: (url: String, title: String?) -> Unit,
     onBack: () -> Unit,
     initialQuery: String = "",
     /** Track via Google Shopping instead; null without a SerpApi key. */
@@ -88,7 +89,7 @@ fun SearchScreen(
             results = hits
             searching = false
             // Clearly the same product (and version) on vergelijk.be: track that one right away.
-            match?.let { onPick(it.url) }
+            match?.let { onPick(it.url, it.title) }
             return@LaunchedEffect
         }
         if (link != null || q.length < 2) {
@@ -125,7 +126,7 @@ fun SearchScreen(
                 placeholder = { Text("Search or paste a link") },
                 shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(imeAction = if (link != null) ImeAction.Done else ImeAction.Search),
-                keyboardActions = KeyboardActions(onDone = { link?.let(onPick) }),
+                keyboardActions = KeyboardActions(onDone = { link?.let { onPick(it, null) } }),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).focusRequester(focus),
             )
             LazyColumn(
@@ -150,7 +151,7 @@ fun SearchScreen(
                         )
                     }
                 } else if (link != null) {
-                    item { ResultRow("Track this link", link, null) { onPick(link) } }
+                    item { ResultRow("Track this link", link, null) { onPick(link, null) } }
                 } else if (query.trim().length >= 2 && !searching && results.isEmpty()) {
                     item {
                         Text(
@@ -167,7 +168,7 @@ fun SearchScreen(
                         )
                     }
                 }
-                items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null) { onPick(hit.url) } }
+                items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null) { onPick(hit.url, hit.title) } }
                 // For products vergelijk.be doesn't have: Google Shopping, one search of your plan a day.
                 val google = shoppingQuery?.takeIf { onGoogleShopping != null && !searching && it.length >= 2 }
                 if (google != null && (link == null || shopLink != null)) {
@@ -178,7 +179,7 @@ fun SearchScreen(
                     }
                 }
                 if (shopLink != null && !searching) {
-                    item { ResultRow("Track this link only", shopLink, null) { onPick(shopLink) } }
+                    item { ResultRow("Track this link only", shopLink, null) { onPick(shopLink, null) } }
                 }
             }
         }

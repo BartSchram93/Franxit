@@ -183,13 +183,18 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) requestNotifications()
     }
-    fun add(url: String, via: String) {
+    fun add(url: String, via: String, title: String? = null) {
         Analytics.track("product_added", mapOf("via" to via))
         scope.launch {
             refreshing = true
-            // The product opens as soon as vergelijk.be's shops are in; Google Shopping adds its shops after.
-            selectedId = repo.add(url.trim()) { id -> scope.launch { selectedId = id } }
-            refreshing = false
+            // The product opens at once, with its searching words; vergelijk.be's shops come in first,
+            // Google Shopping's after.
+            try {
+                // Only opened from the callback: if you went back to the list meanwhile, it stays there.
+                repo.add(url.trim(), title) { id -> scope.launch { selectedId = id } }
+            } finally {
+                refreshing = false
+            }
         }
     }
 
@@ -211,10 +216,10 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
         SearchScreen(
             search = { repo.search(it) },
             titleFromLink = { repo.productTitleFor(it) },
-            onPick = { url -> searching = false; searchStart = ""; add(url, "search") },
+            onPick = { url, title -> searching = false; searchStart = ""; add(url, "search", title) },
             onBack = { searching = false; searchStart = "" },
             initialQuery = searchStart,
-            onGoogleShopping = if (shoppingKey) { query -> searching = false; searchStart = ""; add(GoogleShopping.urlFor(query), "google_shopping") } else null,
+            onGoogleShopping = if (shoppingKey) { query -> searching = false; searchStart = ""; add(GoogleShopping.urlFor(query), "google_shopping", query) } else null,
         )
     } else if (selected != null) {
         BackHandler { selectedId = null }

@@ -295,9 +295,10 @@ fun DetailScreen(
 
             ShopsToday(product, discounts) { seller -> shopLink(seller) }
             // Few shops: more are searched for by themselves; the customer only sees the usual searching words.
-            if (googleAuto && refreshing) {
+            // Or a product still being looked up for the first time: nothing to show yet but the words.
+            if (refreshing && (googleAuto || product.latest == null)) {
                 Spacer(Modifier.height(12.dp))
-                SearchingWords()
+                SearchingWords(if (product.latest == null) "Looking up the product…" else "Searching…")
             }
 
             if (product.history.isNotEmpty() || product.siteHistory.isNotEmpty()) {
@@ -583,7 +584,7 @@ internal fun SearchingWords(first: String = "Searching…") {
     var index by remember { mutableStateOf(0) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
         while (index < words.lastIndex) {
-            kotlinx.coroutines.delay(2000)
+            kotlinx.coroutines.delay(2500)
             index++
         }
     }

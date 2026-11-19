@@ -73,21 +73,21 @@ class Repository private constructor(context: Context) {
 
     /**
      * Starts tracking [url] and checks its price right away. Returns the product id.
-     * [onFirstResults] is called as soon as vergelijk.be's shops are stored, while Google Shopping
-     * is still being searched (not called when there is no such second search).
+     * [name] is what the search called it, shown until the first check names it properly.
+     * [onCreated] is called at once, before anything is fetched, so the product can open with
+     * its searching words. A check that fails is shown on the product ("Last check failed"), not thrown.
      */
-    suspend fun add(url: String, onFirstResults: (Long) -> Unit = {}): Long = withContext(Dispatchers.IO) {
+    suspend fun add(url: String, name: String? = null, onCreated: (Long) -> Unit = {}): Long = withContext(Dispatchers.IO) {
         val host = runCatching { URI(url).host }.getOrNull() ?: url
         // Until the first check names the product: the shop's address, or a plain label for a comparison page.
         val placeholder = if (host.endsWith("vergelijk.be")) "New product" else host
-        val id = db.insertProduct(url, placeholder)
+        val id = db.insertProduct(url, name?.trim()?.takeIf { it.isNotEmpty() } ?: placeholder)
         reload()
+        onCreated(id)
         db.products().firstOrNull { it.id == id }?.let {
             checkLock.withLock {
-                check(it) {
-                    _products.value = db.products()
-                    onFirstResults(id)
-                }
+                // vergelijk.be's shops are stored and shown first, then Google Shopping's are added.
+                runCatching { check(it) { _products.value = db.products() } }
             }
         }
         changed()
@@ -379,6 +379,8 @@ class Repository private constructor(context: Context) {
         // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
         val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
         val (offers, cheapest) = store(extra)
+        // The shops are in: show them now, before the site's price history is fetched.
+        onFirstResults?.invoke()
         if (cheapest == null) return null
         val point = PricePoint(today, cheapest.price, cheapest.seller, offers.size, now, cheapest.inStock)
         // Optional extra: the site's own long-term history. Never fails the check. It only gains a
