@@ -1,11 +1,10 @@
-// Cloudflare Worker between the Franxit app and a Google Shopping search service.
+// Cloudflare Worker between the Franxit app and LiteScrape (Google Shopping).
 //
-// - The search key lives here only; the app never has it. Which service answers depends on the secrets: with
-//   SERPAPI_KEY set it is SerpApi, else with LITESCRAPE_KEY set it is LiteScrape (whose answers are turned into the
-//   format the app reads, see below). To switch, set one secret and remove the other.
+// - The LiteScrape key lives here only, as the secret LITESCRAPE_KEY; the app never has it. LiteScrape's answers are
+//   turned into the format the app reads (see below).
 // - The app can only ask for two things (a search and a product's shops), with fixed settings.
 // - Answers are kept for a day and shared by everyone: the same product costs one search a day.
-// - A limit on fresh searches (the ones that cost a request to the service) per IP address per day.
+// - A limit on fresh searches (the ones that cost a LiteScrape request) per IP address per day.
 // - Optional: the secret APP_TOKEN. When it is set, only requests that carry it (the app does) pass.
 
 const DAY = 86400;
@@ -108,18 +107,18 @@ export default {
     if (url.pathname === "/search") {
       const q = (url.searchParams.get("q") || "").trim();
       if (q.length < 2 || q.length > 150) return bad();
-      upstream = new URLSearchParams({ engine: "google_shopping", q, gl: "be", hl: "nl", google_domain: "google.be" });
+      upstream = new URLSearchParams({ q, gl: "be", hl: "nl", google_domain: "google.be" });
     } else if (url.pathname === "/stores") {
       const token = url.searchParams.get("page_token") || "";
       if (token.length < 10 || token.length > 4000 || !/^[A-Za-z0-9_\-=.%]+$/.test(token)) return bad();
-      upstream = new URLSearchParams({ engine: "google_immersive_product", page_token: token, more_stores: "true" });
+      upstream = new URLSearchParams({ page_token: token });
     } else {
       return new Response("Not found", { status: 404 });
     }
 
     // The same words in another case are the same search.
     const cache = caches.default;
-    const cacheKey = new Request("https://cache.invalid/" + (env.SERPAPI_KEY ? "serpapi" : "litescrape") + url.pathname + "?" + upstream.toString().toLowerCase());
+    const cacheKey = new Request("https://cache.invalid" + url.pathname + "?" + upstream.toString().toLowerCase());
     const hit = await cache.match(cacheKey);
     if (hit) return hit;
 
@@ -134,25 +133,18 @@ export default {
 
     ctx.waitUntil(cache.put(counterKey, new Response(String(used + 1), { headers: { "Cache-Control": `max-age=${DAY}` } })));
 
-    let body;
+    if (!env.LITESCRAPE_KEY) return new Response("Not configured", { status: 500 });
+    const target = liteRequest(url.pathname, { q: upstream.get("q"), token: url.searchParams.get("page_token") });
+    if (!target) return bad();
+    const answer = await fetch(target, { headers: { Authorization: `Bearer ${env.LITESCRAPE_KEY}` } });
+    if (!answer.ok) return new Response("Search service error", { status: liteStatus(answer.status) });
+    let data;
+    try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
+    // The search words of a shops request are in its token.
+    let storesQuery = "";
+    if (url.pathname === "/stores") { try { storesQuery = unb64(url.searchParams.get("page_token")).q; } catch { /* no words: no filter */ } }
+    const body = JSON.stringify(url.pathname === "/search" ? liteSearch(data, upstream.get("q")) : liteStores(data, storesQuery));
     const status = 200;
-    if (env.SERPAPI_KEY) {
-      const answer = await fetch(`https://serpapi.com/search.json?${upstream}&api_key=${encodeURIComponent(env.SERPAPI_KEY)}`);
-      if (!answer.ok) return new Response(await answer.text(), { status: answer.status });
-      body = await answer.text();
-    } else {
-      if (!env.LITESCRAPE_KEY) return new Response("Not configured", { status: 500 });
-      const target = liteRequest(url.pathname, { q: upstream.get("q"), token: url.searchParams.get("page_token") });
-      if (!target) return bad();
-      const answer = await fetch(target, { headers: { Authorization: `Bearer ${env.LITESCRAPE_KEY}` } });
-      if (!answer.ok) return new Response("Search service error", { status: liteStatus(answer.status) });
-      let data;
-      try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
-      // The search words of a shops request are in its token.
-      let storesQuery = "";
-      if (url.pathname === "/stores") { try { storesQuery = unb64(url.searchParams.get("page_token")).q; } catch { /* no words: no filter */ } }
-      body = JSON.stringify(url.pathname === "/search" ? liteSearch(data, upstream.get("q")) : liteStores(data, storesQuery));
-    }
     const response = new Response(body, {
       status,
       headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
