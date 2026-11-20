@@ -37,6 +37,14 @@ class GoogleShoppingTest {
     }
 
     @Test
+    fun leavesOutPriceComparisonSites() {
+        assertTrue(GoogleShopping.isMarketplace("Tweakers"))
+        assertTrue(GoogleShopping.isMarketplace("beslist.be"))
+        assertTrue(GoogleShopping.isMarketplace("RetourRadar"))
+        assertEquals(false, GoogleShopping.isMarketplace("bol"))
+    }
+
+    @Test
     fun productUrlsRoundTrip() {
         val url = GoogleShopping.urlFor("Hercules KB200B keyboardbank")
         assertEquals("Hercules KB200B keyboardbank", GoogleShopping.queryOf(url))

@@ -365,8 +365,12 @@ object GoogleShopping {
 
     internal fun isForeignShop(shop: String): Boolean = OTHER_COUNTRY.containsMatchIn(shop)
 
-    /** Marketplaces and import sites: other sellers, often abroad or used, at import prices (U-buy). */
-    private val MARKETPLACES = listOf("ebay", "ubuy", "u-buy", "aliexpress", "temu", "wish", "fruugo", "desertcart", "joom")
+    /**
+     * Marketplaces and import sites: other sellers, often abroad or used, at import prices (U-buy).
+     * Also price comparison sites (Tweakers, beslist.be): they sell nothing and their prices are often out of date.
+     * And RetourRadar, which sells returned products.
+     */
+    private val MARKETPLACES = listOf("ebay", "ubuy", "u-buy", "aliexpress", "temu", "wish", "fruugo", "desertcart", "joom", "tweakers", "beslist", "retourradar")
 
     internal fun isMarketplace(shop: String): Boolean = shop.lowercase().let { s -> MARKETPLACES.any { it in s } }
 

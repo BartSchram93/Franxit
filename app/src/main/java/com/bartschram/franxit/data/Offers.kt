@@ -16,12 +16,19 @@ object Offers {
 
     /**
      * The shops to show: every shop vergelijk.be (or the page you added) gives stays; Google Shopping
-     * only adds shops that aren't there yet, or lowers the price of one that is. One offer per shop,
-     * the cheaper. Sold-out shops are left out unless every shop is sold out.
+     * adds the shops that aren't there yet. For a shop both give, Google's price counts: it is read today
+     * from the shop's own feed, while vergelijk.be's can be old or be for another pack. One offer per shop.
+     * Sold-out shops are left out unless every shop is sold out.
      */
-    fun merge(own: List<ShopOffer>, extra: List<ShopOffer>): List<ShopOffer> =
-        (own + extra).let { all -> all.filter { it.inStock != false }.ifEmpty { all } }
-            .groupBy { Shops.name(it.seller).lowercase() }.values
-            .map { same -> same.minBy { it.price } }
+    fun merge(own: List<ShopOffer>, extra: List<ShopOffer>): List<ShopOffer> {
+        val ownTagged = own.map { false to it }
+        val extraTagged = extra.map { true to it }
+        return (ownTagged + extraTagged).let { all -> all.filter { it.second.inStock != false }.ifEmpty { all } }
+            .groupBy { Shops.name(it.second.seller).lowercase() }.values
+            .map { same ->
+                val google = same.filter { it.first }.map { it.second }
+                if (google.isNotEmpty()) google.minBy { it.price } else same.map { it.second }.minBy { it.price }
+            }
             .sortedBy { it.price }
+    }
 }

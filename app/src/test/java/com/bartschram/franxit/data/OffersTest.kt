@@ -54,7 +54,14 @@ class OffersTest {
         val extra = listOf(ShopOffer("Bol.com", 127.2), ShopOffer("Amazon.com.be", 170.0), ShopOffer("Decathlon.be", 180.0))
         val merged = Offers.merge(own, extra)
         assertEquals(listOf("Bol.com", "Amazon.com.be", "Decathlon.be"), merged.map { it.seller })
-        assertEquals(listOf(127.2, 165.71, 180.0), merged.map { it.price })
+        assertEquals(listOf(127.2, 170.0, 180.0), merged.map { it.price })
+    }
+
+    @Test
+    fun googlesPriceCountsForAShopBothGive() {
+        val own = listOf(ShopOffer("Bol.com", 26.95, true))
+        val extra = listOf(ShopOffer("Bol.com", 38.99))
+        assertEquals(listOf(38.99), Offers.merge(own, extra).map { it.price })
     }
 
     @Test
