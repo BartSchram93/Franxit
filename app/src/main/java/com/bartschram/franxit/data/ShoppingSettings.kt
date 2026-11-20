@@ -54,6 +54,17 @@ object ShoppingSettings {
         prefs(context).edit { putString(key, json.toString()) }
     }
 
+    /** The shops' own product pages Shoparize's links named, by shop: for the Buy button. Replaces the earlier ones. */
+    fun saveShoparizeLinks(context: Context, productId: Long, links: Map<String, String>) {
+        val json = JSONObject()
+        links.forEach { (shop, link) -> json.put(TrustedShops.key(shop), link) }
+        prefs(context).edit { putString("shoparize_links_$productId", json.toString()) }
+    }
+
+    fun shoparizeLink(context: Context, productId: Long, shop: String): String? =
+        prefs(context).getString("shoparize_links_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)) }
+            ?.takeIf { it.startsWith("https://") }
+
     /** The shops Shoparize listed at the last search, however long ago: for the Buy button, which shows what was last found. */
     fun lastShoparizeOffers(context: Context, productId: Long): List<ShopOffer>? =
         loadOffers(context, "shoparize_offers_$productId", SHOPARIZE_VERSION, null)

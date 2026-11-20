@@ -207,9 +207,12 @@ class Repository private constructor(context: Context) {
             // No connection, or the site changed: nothing is saved, so it is asked again at the next check.
             return emptyList()
         }
-        val offers = found
+        val trusted = found
             .filterNot { GoogleShopping.isMarketplace(it.seller) }
-            .mapNotNull { offer -> TrustedShops.name(appContext, offer.seller)?.let { ShopOffer(Shops.name(it), offer.price, null) } }
+            .mapNotNull { offer -> TrustedShops.name(appContext, offer.seller)?.let { Shops.name(it) to offer } }
+        val offers = trusted.map { (shop, offer) -> ShopOffer(shop, offer.price, null) }
+        // The shop's own product page where Shoparize's link names it (cleaned of tracking); else the Buy button searches.
+        ShoppingSettings.saveShoparizeLinks(appContext, product.id, trusted.mapNotNull { (shop, offer) -> offer.link?.let { shop to it } }.toMap())
         // Nothing found is remembered for a few days, so the site isn't asked every day for a product it doesn't have.
         ShoppingSettings.saveShoparizeOffers(appContext, product.id, today, offers, days = if (offers.isEmpty()) 3 else 1)
         return offers
@@ -290,13 +293,14 @@ class Repository private constructor(context: Context) {
     }
 
     /**
-     * A shop that Shoparize listed for this product: where it can be bought is the shop's own search for the
-     * product. Shoparize's links are tracking links, so they are never used. Null for any other shop.
+     * A shop that Shoparize listed for this product: where it can be bought is the shop's own product page when
+     * Shoparize's link names it (cleaned of tracking), else the shop's own search for the product. Shoparize's
+     * links themselves are never opened. Null for any other shop.
      */
     private fun shoparizeShopLink(product: Product, shop: String): String? {
         val listed = ShoppingSettings.lastShoparizeOffers(appContext, product.id) ?: return null
         if (listed.none { TrustedShops.same(it.seller, shop) }) return null
-        return Shoparize.shopSearchUrl(product.displayName, shop)
+        return ShoppingSettings.shoparizeLink(appContext, product.id, shop) ?: Shoparize.shopSearchUrl(product.displayName, shop)
     }
 
     /**

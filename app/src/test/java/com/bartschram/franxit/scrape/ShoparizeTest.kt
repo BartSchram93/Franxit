@@ -154,6 +154,67 @@ class ShoparizeTest {
         assertTrue(urls.none { "shoparize" in it })
     }
 
+    // Shoparize's own tracking links, as its product page has them (unescaped).
+    private val track = "https://track.shoparize.com/site.php?pos=0&page=0&sclid=WEB_1&ps=60&cs=product-popup_highlight&search=&cc=be&url="
+
+    private val pazzox = track +
+        "https%3A%2F%2Fwww.pazzox.be%2Fonlineapotheek%2F%3Ftt%3D33955_1911357_313167_%26r%3Dhttps%253A%252F%252Fwww.pazzox.be%252Fnl%252Fapotheek%252Fbestellen%252Fprox-caps-180%252F%253Futm_campaign%253Dshopping%2526utm_content%253Dsurfaces_across_google%2526utm_source%253Dgs%2526utm_medium%253Dorganic%2526utm_term%253D5420050400660"
+
+    @Test
+    fun theProductPageIsTakenFromATrackingLinkWithoutTheTracking() {
+        assertEquals("https://www.pazzox.be/nl/apotheek/bestellen/prox-caps-180/", Shoparize.cleanLink(pazzox, "pazzox.be"))
+    }
+
+    @Test
+    fun anAffiliateLinkThatNamesTheProductPageIsCleanedToo() {
+        val link = track + "https%3A%2F%2Fwww.pazzox.be%2Fnl%2Fapotheek%2Fbestellen%2Fprox-caps-180%2F%3Futm_content%3Dsurfaces_across_google%26utm_term%3D5420050400660%26utm_source%3DTradetracker%26utm_medium%3Daffiliate%26utm_campaign%3DShoparize%2520Shopping"
+        assertEquals("https://www.pazzox.be/nl/apotheek/bestellen/prox-caps-180/", Shoparize.cleanLink(link, "pazzox.be"))
+    }
+
+    @Test
+    fun otherParametersOfTheProductPageStay() {
+        val link = track + "https%3A%2F%2Fwww.shop.be%2Fnl%2Fp%2Fprox%2F%3Fvariant%3D12%26utm_source%3Dx%26tduid%3Dabc"
+        assertEquals("https://www.shop.be/nl/p/prox/?variant=12", Shoparize.cleanLink(link, "shop.be"))
+    }
+
+    @Test
+    fun anOpaqueAffiliateLinkGivesNothing() {
+        val awin = track + "https%3A%2F%2Fwww.awin1.com%2Fpclick.php%3Fp%3D45350893466%26a%3D323889%26m%3D110550"
+        assertNull(Shoparize.cleanLink(awin, "farmaline.be"))
+    }
+
+    @Test
+    fun aRelativeDeepLinkIsNotGuessedInto() {
+        val deep = track + "https%3A%2F%2Fjf79.net%2Fc%2F%3Fsi%3D16143%26li%3D1698127%26dl%3Dbe_nl%252Fprox-180-capsules.html%26ws%3D"
+        assertNull(Shoparize.cleanLink(deep, "pharmamarket.be"))
+    }
+
+    @Test
+    fun aPartnerAddressOfAShopIsNoProductPage() {
+        val partner = track + "https%3A%2F%2Fpartnerprogramma.bol.com%2Fclick%2Fclick%3Fp%3D1%26s%3D2"
+        assertNull(Shoparize.cleanLink(partner, "bol.com"))
+        // Nor is a tracking page on the shop's own site, or its start page.
+        assertNull(Shoparize.cleanLink(track + "https%3A%2F%2Fwww.shop.be%2Fclick%2Fgo%3Fid%3D1", "shop.be"))
+        assertNull(Shoparize.cleanLink(track + "https%3A%2F%2Fwww.shop.be%2Fonlineapotheek%2F%3Ftt%3D1", "shop.be"))
+    }
+
+    @Test
+    fun aLinkToAnotherSiteIsNotTakenForTheShops() {
+        assertNull(Shoparize.cleanLink(track + "https%3A%2F%2Fwww.other.be%2Fnl%2Fp%2Fprox%2F", "shop.be"))
+        assertNull(Shoparize.cleanLink("https://track.shoparize.com/site.php?pos=0", "shop.be"))
+    }
+
+    @Test
+    fun anOfferCarriesTheCleanLinkOfItsShop() {
+        val html = productPage(
+            """<a href="${pazzox.replace("&", "&amp;")}" data-tracking="{&quot;shopid&quot;:&quot;pazzox.be&quot;,&quot;element&quot;:&quot;pricesTable&quot;,&quot;price&quot;:111.2}"><span>pazzox.be</span><span> € 111,20 </span></a>""",
+            row("farmaline.be", "123.99"),
+        )
+        val offers = Shoparize.parseOffers(html)
+        assertEquals("https://www.pazzox.be/nl/apotheek/bestellen/prox-caps-180/", offers.first { it.seller == "pazzox.be" }.link)
+        assertNull(offers.first { it.seller == "farmaline.be" }.link)
+    }
+
     @Test
     fun theSearchUrlEscapesTheWords() {
         assertEquals("https://www.shoparize.com/be/q?q=Sony+WF-1000XM6+%26+case", Shoparize.searchUrl(" Sony WF-1000XM6 & case "))

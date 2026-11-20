@@ -3,6 +3,8 @@ package com.bartschram.franxit.scrape
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
+import java.net.URI
+import java.net.URLDecoder
 import java.net.URLEncoder
 
 /**
@@ -23,7 +25,8 @@ object Shoparize {
         """<script[^>]+application/ld\+json[^>]*>(.*?)</script>""",
         setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
     )
-    private val OFFER_ROW = Regex("""<a\b[^>]*\bdata-tracking="([^"]+)"[^>]*>(.*?)</a>""", RegexOption.DOT_MATCHES_ALL)
+    private val OFFER_ROW = Regex("""<a\b([^>]*\bdata-tracking="([^"]+)"[^>]*)>(.*?)</a>""", RegexOption.DOT_MATCHES_ALL)
+    private val HREF = Regex("""\bhref="([^"]+)"""")
     private val REFURBISHED = Regex("""refurbished|gebruikt|tweedehands|second.?hand|occasion""", RegexOption.IGNORE_CASE)
 
     fun searchUrl(query: String) = "$BASE/be/q?q=" + URLEncoder.encode(query.trim(), "UTF-8")
@@ -54,12 +57,13 @@ object Shoparize {
      */
     fun parseOffers(html: String): List<Scraper.Offer> =
         OFFER_ROW.findAll(html).mapNotNull { row ->
-            val data = runCatching { JSONObject(unescape(row.groupValues[1])) }.getOrNull() ?: return@mapNotNull null
+            val data = runCatching { JSONObject(unescape(row.groupValues[2])) }.getOrNull() ?: return@mapNotNull null
             if (data.optString("element") != "pricesTable") return@mapNotNull null
             val shop = data.optString("shopid").trim().ifEmpty { return@mapNotNull null }
             val price = data.optDouble("price", 0.0).takeIf { it > 0 } ?: return@mapNotNull null
-            if (REFURBISHED.containsMatchIn(row.groupValues[2])) return@mapNotNull null
-            Scraper.Offer(shop, price)
+            if (REFURBISHED.containsMatchIn(row.groupValues[3])) return@mapNotNull null
+            val href = HREF.find(row.groupValues[1])?.groupValues?.get(1)?.let(::unescape)
+            Scraper.Offer(shop, price, link = href?.let { cleanLink(it, shop) })
         }.toList()
 
     /**
@@ -83,6 +87,37 @@ object Shoparize {
     internal fun best(hits: List<VergelijkSearch.Hit>, wanted: String): VergelijkSearch.Hit? =
         hits.filter { Matching.isSameProduct(it.title, wanted, lenient = false) }
             .maxByOrNull { Matching.score(it.title, wanted) }
+
+    /** Query parameters that only track where a visit came from. */
+    private val TRACKING = setOf("tt", "tduid", "awc", "gclid", "fbclid", "sclid", "cid", "aff", "affid", "affiliate", "ref")
+
+    /** Path words of a tracking or redirect page: such a page is no product page. */
+    private val REDIRECT = setOf("click", "clicks", "redirect", "track", "tracking", "go", "out", "aff", "affiliate", "partner")
+
+    /**
+     * The shop's own product page, when Shoparize's tracking link ([trackingHref]) names it in full on the
+     * shop's own site ([shopDomain]): "…&url=…%26r%3Dhttps%3A%2F%2Fwww.pazzox.be%2Fnl%2F…%2Fprox-caps-180%2F".
+     * Without tracking parameters (utm_…, tt, awc…). Null when the link doesn't say, as with an affiliate
+     * network's own address or a path that is only a relative deep link: then the Buy button uses a search.
+     * The link is only read, never followed.
+     */
+    internal fun cleanLink(trackingHref: String, shopDomain: String): String? {
+        val domain = shopDomain.trim().lowercase().removePrefix("www.")
+        if (domain.isEmpty()) return null
+        var text = trackingHref.substringAfter("url=", "").substringBefore("&")
+        if (text.isEmpty()) return null
+        // Encoded once or twice over: decoded until it stops changing.
+        repeat(3) { text = runCatching { URLDecoder.decode(text, "UTF-8") }.getOrDefault(text) }
+        // The last address on the shop's own site is the product page; the first may be its tracking page.
+        val address = Regex("""https?://(?:www\.)?${Regex.escape(domain)}/[^\s&"'<>]*""", RegexOption.IGNORE_CASE)
+            .findAll(text).map { it.value }.lastOrNull() ?: return null
+        val base = address.substringBefore("?")
+        val path = runCatching { URI(base).path }.getOrNull().orEmpty().trim('/').split('/').filter { it.isNotEmpty() }
+        if (path.size < 2 || path.any { it.lowercase() in REDIRECT }) return null
+        val kept = address.substringAfter("?", "").split('&')
+            .filter { it.isNotEmpty() && !it.lowercase().startsWith("utm_") && it.substringBefore("=").lowercase() !in TRACKING }
+        return if (kept.isEmpty()) base else base + "?" + kept.joinToString("&")
+    }
 
     /** Big shops with a search page of their own: the Buy button goes there. */
     private val OWN_SEARCH = listOf("bol", "coolblue", "fnac", "mediamarkt", "krefel")
