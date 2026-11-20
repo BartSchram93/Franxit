@@ -216,6 +216,82 @@ class ShoparizeTest {
     }
 
     @Test
+    fun aNameIsTidiedTheWayShoparizeWritesIt() {
+        assertEquals("Dash Waspoeder Alpenfris 2x 5kg", Shoparize.tidy("Dash Waspoeder Alpenfris 2 x 5 kg"))
+        assertEquals("Primrose ProX 180 Capsules", Shoparize.tidy("Primrose Pro X 180 Capsules"))
+        assertEquals("Sony PlayStation 5 Slim Digital Edition", Shoparize.tidy("Sony PlayStation 5 Slim Digital Edition"))
+    }
+
+    @Test
+    fun theWordingsGoFromTheGivenNameToShorterOnes() {
+        val queries = Shoparize.queries("Dash Waspoeder Alpenfris 2 x 5 kg Poeder Universeel")
+        assertEquals("Dash Waspoeder Alpenfris 2 x 5 kg Poeder Universeel", queries.first())
+        assertTrue("Dash Waspoeder Alpenfris 2x" in queries)
+        assertTrue("Dash Waspoeder Alpenfris" in queries)
+        assertTrue(queries.size <= 5)
+        assertEquals(queries.size, queries.toSet().size)
+    }
+
+    @Test
+    fun aShortNameIsSearchedOnce() {
+        assertEquals(listOf("Samsung Galaxy S25"), Shoparize.queries("Samsung Galaxy S25"))
+    }
+
+    @Test
+    fun theMultipackNamedInTheWantedNameIsChosen() {
+        val hits = Shoparize.parseSearch(
+            searchPage(
+                "Dash Waspoeder Alpenfris 5kg" to "${page}dash-5kg/aaa",
+                "2x Dash Waspoeder Alpenfris - 2 X 5kg - 200 Wasbeurten - Voordeelverpakking -2 Stuks" to "${page}dash-2x/bbb",
+            ),
+        )
+        assertEquals("${page}dash-2x/bbb", Shoparize.best(hits, "Dash Waspoeder Alpenfris 2x 5kg")?.url)
+        // As written in the app, tidied first like offersFor does.
+        assertEquals("${page}dash-2x/bbb", Shoparize.best(hits, Shoparize.tidy("Dash Waspoeder Alpenfris 2 x 5 kg"))?.url)
+        // A single pack is wanted: the multipack is another product.
+        assertEquals("${page}dash-5kg/aaa", Shoparize.best(hits, "Dash Waspoeder Alpenfris 5kg")?.url)
+    }
+
+    @Test
+    fun aShorterWordingIsTriedWhenTheFirstFindsNothing() {
+        val asked = mutableListOf<String>()
+        val offers = Shoparize.offersFor("Dash Waspoeder Alpenfris 2 x 5 kg Poeder") { url ->
+            asked += url
+            when {
+                "/be/q" !in url -> sonyPage
+                java.net.URLDecoder.decode(url.substringAfter("q="), "UTF-8") == "Dash Waspoeder Alpenfris" -> searchPage(
+                    "Dash Waspoeder Alpenfris 5kg" to "${page}dash-5kg/aaa",
+                    "2x Dash Waspoeder Alpenfris - 2 X 5kg - 200 Wasbeurten - Voordeelverpakking -2 Stuks" to "${page}dash-2x/bbb",
+                )
+                else -> searchPage()
+            }
+        }
+        assertEquals("${page}dash-2x/bbb", asked.last())
+        assertEquals(3, offers.size)
+        assertTrue(asked.size <= 6)
+    }
+
+    @Test
+    fun aLoneLetterNameIsFoundThroughItsTidiedWording() {
+        val offers = Shoparize.offersFor("Primrose Pro X 180 Capsules") { url ->
+            when {
+                "/be/q" !in url -> sonyPage
+                java.net.URLDecoder.decode(url.substringAfter("q="), "UTF-8") == "Primrose ProX 180 Capsules" ->
+                    searchPage("Primrose Prox 180 Capsules" to "${page}prox/ccc")
+                else -> searchPage()
+            }
+        }
+        assertEquals(3, offers.size)
+    }
+
+    @Test
+    fun multipliersAreReadWhereverTheyStand() {
+        assertEquals(setOf(2), Shoparize.multipliers("2x Dash Waspoeder - 2 X 5kg"))
+        assertEquals(setOf(2), Shoparize.multipliers("Dash 2 x 5 kg"))
+        assertEquals(emptySet<Int>(), Shoparize.multipliers("Dash Waspoeder 5kg - 1920x1080"))
+    }
+
+    @Test
     fun theSearchUrlEscapesTheWords() {
         assertEquals("https://www.shoparize.com/be/q?q=Sony+WF-1000XM6+%26+case", Shoparize.searchUrl(" Sony WF-1000XM6 & case "))
     }

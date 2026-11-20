@@ -66,17 +66,49 @@ object Shoparize {
             Scraper.Offer(shop, price, link = href?.let { cleanLink(it, shop) })
         }.toList()
 
+    /** At most this many searches for one product: its name as given, then shorter and tidied wordings. */
+    private const val MAX_SEARCHES = 5
+
     /**
-     * Shoparize's shops for the product called [wanted]: searched, the one product that is clearly it
-     * (the same matcher as for Google Shopping's results), then its shops. Empty when none is clear-cut.
-     * Throws when the site can't be reached; the caller treats that as "ask again later".
+     * [wanted] as Shoparize's titles write it: "5 kg" as "5kg", and a lone letter joined to the word before
+     * it ("Pro X" as "ProX", "2 x 5kg" as "2x 5kg").
+     */
+    internal fun tidy(wanted: String): String =
+        wanted.trim().replace(Regex("""(\d)\s+(kg|g|mg|l|cl|ml|gb|tb|mb|cm|mm|w|v|mah|hz)\b""", RegexOption.IGNORE_CASE), "$1$2")
+            .replace(Regex("""(?<=\S)\s+(\p{L})(?=\s|$)"""), "$1")
+            .replace(Regex("\\s+"), " ")
+
+    /**
+     * The wordings to search for, best first. Shoparize's search wants every word to be in a title, so a long
+     * name (with a colour, a size, "incl. …") finds nothing: the name as given, then tidied, then its first
+     * words only. A shorter search finds more products; [best] still decides which one is the product.
+     */
+    internal fun queries(wanted: String): List<String> {
+        val given = wanted.trim().replace(Regex("\\s+"), " ")
+        val tidy = tidy(wanted)
+        val words = tidy.split(' ').filter { it.isNotEmpty() }
+        val shorter = listOf(5, 4, 3).filter { it < words.size }.map { words.take(it).joinToString(" ") }
+        return (listOf(given, tidy) + shorter).filter { it.isNotBlank() }.distinct().take(MAX_SEARCHES)
+    }
+
+    /**
+     * Shoparize's shops for the product called [wanted]: searched (with shorter wordings when the first finds
+     * nothing that fits), the one product that is clearly it (the same matcher as for Google Shopping's
+     * results), then its shops. Empty when none is clear-cut. Throws when the site can't be reached; the
+     * caller treats that as "ask again later".
      */
     fun offersFor(
         wanted: String,
         download: (String) -> String = { Scraper.download(it, "text/html,application/xhtml+xml", HEADERS) },
     ): List<Scraper.Offer> {
-        val hit = best(parseSearch(download(searchUrl(wanted))), wanted) ?: return emptyList()
-        return parseOffers(download(hit.url))
+        val tidy = tidy(wanted)
+        for (query in queries(wanted)) {
+            val hits = parseSearch(download(searchUrl(query)))
+            // The tidied name first, then the name as it is (tidying must not make a good match worse).
+            val hit = best(hits, tidy) ?: best(hits, wanted.trim()) ?: continue
+            return parseOffers(download(hit.url))
+        }
+        return emptyList()
     }
 
     /**
@@ -85,8 +117,17 @@ object Shoparize {
      * must not pass for the product itself.
      */
     internal fun best(hits: List<VergelijkSearch.Hit>, wanted: String): VergelijkSearch.Hit? =
-        hits.filter { Matching.isSameProduct(it.title, wanted, lenient = false) }
+        hits.filter { multipliers(it.title) == multipliers(wanted) && Matching.isSameProduct(it.title, wanted, lenient = false) }
             .maxByOrNull { Matching.score(it.title, wanted) }
+
+    private val MULTIPLIER = Regex("""(?<![\w.,])(\d{1,3})\s?[x×](?!\w)""", RegexOption.IGNORE_CASE)
+
+    /**
+     * The multipacks a text names: "2x Dash …" and "… 2 X 5kg" are both a 2. A multipack is another product
+     * with another price than the single pack, so the wanted name and the title must name the same ones.
+     */
+    internal fun multipliers(text: String): Set<Int> =
+        MULTIPLIER.findAll(text).mapNotNull { it.groupValues[1].toIntOrNull() }.toSet()
 
     /** Query parameters that only track where a visit came from. */
     private val TRACKING = setOf("tt", "tduid", "awc", "gclid", "fbclid", "sclid", "cid", "aff", "affid", "affiliate", "ref")
