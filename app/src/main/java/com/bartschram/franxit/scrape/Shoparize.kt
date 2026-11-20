@@ -86,7 +86,8 @@ object Shoparize {
     internal fun queries(wanted: String): List<String> {
         val given = wanted.trim().replace(Regex("\\s+"), " ")
         val tidy = tidy(wanted)
-        val words = tidy.split(' ').filter { it.isNotEmpty() }
+        // Only real words: a lone "-" or "(" says nothing and would spend a search.
+        val words = tidy.split(' ').filter { word -> word.any { it.isLetterOrDigit() } }
         val shorter = listOf(5, 4, 3).filter { it < words.size }.map { words.take(it).joinToString(" ") }
         return (listOf(given, tidy) + shorter).filter { it.isNotBlank() }.distinct().take(MAX_SEARCHES)
     }

@@ -233,6 +233,13 @@ class ShoparizeTest {
     }
 
     @Test
+    fun aShorterWordingHasNoLoosePunctuation() {
+        val queries = Shoparize.queries("Dash 2x Waspoeder Alpenfris - 2 x 5kg - 200 wasbeurten")
+        assertTrue(queries.drop(2).none { it.endsWith("-") })
+        assertTrue("Dash 2x Waspoeder Alpenfris 2x" in queries)
+    }
+
+    @Test
     fun aShortNameIsSearchedOnce() {
         assertEquals(listOf("Samsung Galaxy S25"), Shoparize.queries("Samsung Galaxy S25"))
     }
