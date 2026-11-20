@@ -253,11 +253,9 @@ class Repository private constructor(context: Context) {
         // A shop's own page you added (fitshop.be), with Google Shopping's shops next to it.
         val host = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
         if ("vergelijk.be" !in host) return@withContext product.url.takeIf { shop == null || TrustedShops.key(shop) == TrustedShops.key(host) }
-        runCatching {
-            val result = Scraper.fetch(product.url)
-            if (seller == null) result.cheapest.link
-            else result.offers.filter { it.seller.equals(seller, ignoreCase = true) }.minByOrNull { it.price }?.link
-        }.getOrNull()
+        // A vergelijk.be product: its shop links are no longer used. The shop's own search for the product
+        // (or Google's search), so the site is never read when you tap Buy.
+        GoogleShopping.fallbackUrl(product.displayName, shop.orEmpty())
     }
 
     /**

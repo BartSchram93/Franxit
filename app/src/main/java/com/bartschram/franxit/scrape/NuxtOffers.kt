@@ -2,7 +2,6 @@ package com.bartschram.franxit.scrape
 
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.URLEncoder
 
 /**
  * Reads the shop offers from vergelijk.be's embedded app state (`__NUXT_DATA__`).
@@ -47,11 +46,10 @@ object NuxtOffers {
             val total = (deref(offer, "totalPrice") as? Number)?.toDouble()
             val discounted = (deref(deref(offer, "deal") as? JSONObject, "discountedPrice") as? Number)?.toDouble()
             val price = listOfNotNull(total, discounted).filter { it > 0 }.minOrNull() ?: continue
-            // The "Bekijk product" button opens this; vergelijk.be then redirects to the shop.
-            val link = (deref(offer, "clickoutHash") as? String)?.let {
-                "https://www.vergelijk.be/clickout/register?hash=" + URLEncoder.encode(it, "UTF-8")
-            }
-            offers += Scraper.Offer(seller.trim(), price, link = link)
+            // No link: vergelijk.be's "clickout" addresses are not used (their robots.txt asks bots to stay away,
+            // and each one counts as a paid click for the shop). The Buy button finds the shop's own page
+            // through Google Shopping, or opens the shop's search (see Repository.shopLink).
+            offers += Scraper.Offer(seller.trim(), price)
         }
         // The same offer appears more than once in the state (e.g. as the "winner").
         return offers.distinctBy { it.seller to it.price }
