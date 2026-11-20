@@ -32,21 +32,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.bartschram.franxit.data.Images
 import com.bartschram.franxit.data.Names
 import com.bartschram.franxit.scrape.Matching
 import com.bartschram.franxit.scrape.VergelijkSearch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 /** Search for a product, or paste any product link, and pick what to track. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -168,7 +174,7 @@ fun SearchScreen(
                         )
                     }
                 }
-                items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null) { onPick(hit.url, hit.title) } }
+                items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null, hit.image) { onPick(hit.url, hit.title) } }
                 // For products vergelijk.be doesn't have: Google Shopping, one search of your plan a day.
                 val google = shoppingQuery?.takeIf { onGoogleShopping != null && !searching && it.length >= 2 }
                 if (google != null && (link == null || shopLink != null)) {
@@ -187,7 +193,7 @@ fun SearchScreen(
 }
 
 @Composable
-private fun ResultRow(title: String, subtitle: String?, price: Double?, onClick: () -> Unit) {
+private fun ResultRow(title: String, subtitle: String?, price: Double?, image: String? = null, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
@@ -195,6 +201,14 @@ private fun ResultRow(title: String, subtitle: String?, price: Double?, onClick:
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            // A search result's photo, so you see which product (and which pack) it is before you pick it.
+            if (image != null) {
+                val photo by produceState<ImageBitmap?>(null, image) {
+                    value = withContext(Dispatchers.IO) { runCatching { Images.thumbnail(image)?.asImageBitmap() }.getOrNull() }
+                }
+                ProductPhoto(photo, ThumbnailSize, 12.dp)
+                Spacer(Modifier.width(ThumbnailGap))
+            }
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 subtitle?.let {

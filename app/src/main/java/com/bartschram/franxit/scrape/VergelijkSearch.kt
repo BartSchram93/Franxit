@@ -6,7 +6,18 @@ import java.net.URLEncoder
 /** Product search on vergelijk.be, using the same endpoints as the site's search box. */
 object VergelijkSearch {
 
-    data class Hit(val title: String, val url: String, val price: Double?)
+    /** [image]: a photo of the product, when the search gives one. */
+    data class Hit(val title: String, val url: String, val price: Double?, val image: String? = null)
+
+    /**
+     * A photo address from vergelijk.be's search, which leaves the size open: "//pc.vergelijk.be/{{size}}/1.webp".
+     * The size its product pages use. Null when there is none.
+     */
+    internal fun photo(template: String?): String? =
+        template?.trim()?.takeIf { it.isNotEmpty() && it != "null" }
+            ?.replace("{{size}}", "500x500")
+            ?.let { if (it.startsWith("//")) "https:$it" else it }
+            ?.takeIf { it.startsWith("https://") }
 
     private const val BASE = "https://www.vergelijk.be"
 
@@ -38,7 +49,7 @@ object VergelijkSearch {
             .filter { it.optString("suggestionType", "PRODUCT_SUGGESTION") == "PRODUCT_SUGGESTION" }
             .mapNotNull { item ->
                 val uri = item.optString("uri").takeIf { it.startsWith("/") } ?: return@mapNotNull null
-                Hit(item.optString("title").trim(), BASE + uri.trimEnd('/') + "/", price(item.opt("cheapestPrice")))
+                Hit(item.optString("title").trim(), BASE + uri.trimEnd('/') + "/", price(item.opt("cheapestPrice")), photo(item.optString("imageUrl")))
             }
     }
 
@@ -51,7 +62,10 @@ object VergelijkSearch {
             val path = summary.optJSONObject("path") ?: return@mapNotNull null
             val parts = listOf("categoryUrl", "brandUrl", "productUrl").map { path.optString(it) }
             if (parts.any { it.isBlank() }) return@mapNotNull null
-            Hit(summary.optString("name").trim(), "$BASE/${parts.joinToString("/")}/", price(summary.opt("cheapestPriceIncludingDeals")))
+            Hit(
+                summary.optString("name").trim(), "$BASE/${parts.joinToString("/")}/", price(summary.opt("cheapestPriceIncludingDeals")),
+                photo(summary.optJSONArray("imageBasenames")?.optString(0)),
+            )
         }
     }
 

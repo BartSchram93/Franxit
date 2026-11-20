@@ -39,4 +39,17 @@ class VergelijkSearchTest {
         // The duplicate goes; other models, colours and sizes stay.
         assertEquals(listOf("Nxtpaper 14", "Nxtpaper 14 Pro", "Nxtpaper 70 Pro - 256 Gb Blauw", "Nxtpaper 70 Pro - 256 Gb Grijs"), kept)
     }
+
+    @Test
+    fun aSearchResultCarriesItsPhoto() {
+        val suggestions = """{"items":[{"id":1,"title":"Ragers Mini Conical Rood PHD 1.2 mm - 6 stuks","imageUrl":"//pc.vergelijk.be/{{size}}/360953729.webp","uri":"/ragers/interprox/ragers_mini_conical_1_0mm_6st_71098986","cheapestPrice":5.2,"suggestionType":"PRODUCT_SUGGESTION"}]}"""
+        assertEquals("https://pc.vergelijk.be/500x500/360953729.webp", VergelijkSearch.parseSuggestions(suggestions).single().image)
+    }
+
+    @Test
+    fun aResultWithoutAPhotoHasNone() {
+        assertEquals(null, VergelijkSearch.photo(null))
+        assertEquals(null, VergelijkSearch.photo(""))
+        assertEquals(null, VergelijkSearch.photo("null"))
+    }
 }
