@@ -60,12 +60,11 @@ fun priceLine(points: List<PricePoint>, site: List<SitePoint>): Series {
     return site.filter { it.day.isBefore(firstOwn) }.series() + points.series()
 }
 
-/** The price on [day]: the latest point on or before it, as prices hold until the next check. */
-private fun Series.at(day: LocalDate): Double? = lastOrNull { !it.first.isAfter(day) }?.second
-
 /** Maps days and prices into a drawing rectangle. Missed days keep their real width. */
 private class Frame(
     series: List<Series>,
+    /** The prices the scale must fit: only the ones that count, so a left-out odd price doesn't squash the rest. */
+    prices: List<Double>,
     val left: Float, val top: Float, val right: Float, val bottom: Float,
 ) {
     private val firstDay = series.flatten().minOf { it.first.toEpochDay() }
@@ -74,8 +73,8 @@ private class Frame(
     val max: Double
 
     init {
-        val lo = series.flatten().minOf { it.second }
-        val hi = series.flatten().maxOf { it.second }
+        val lo = prices.min()
+        val hi = prices.max()
         val pad = if (hi - lo < 0.01) lo * 0.05 else (hi - lo) * 0.15
         min = lo - pad
         max = hi + pad
@@ -83,22 +82,30 @@ private class Frame(
 
     fun x(day: LocalDate) = left + (right - left) * (day.toEpochDay() - firstDay) / span
     fun y(price: Double) = bottom - (bottom - top) * ((price - min) / (max - min)).toFloat()
-
-    /** Price is held until the next check, so lines are drawn as steps (like the vergelijk.be chart). */
-    fun stepPath(series: Series): Path = Path().apply {
-        moveTo(x(series[0].first), y(series[0].second))
-        for (i in 1 until series.size) {
-            lineTo(x(series[i].first), y(series[i - 1].second))
-            lineTo(x(series[i].first), y(series[i].second))
-        }
-    }
 }
 
 @Composable
-fun PriceChart(points: List<PricePoint>, site: List<SitePoint> = emptyList(), modifier: Modifier = Modifier) {
+fun PriceChart(
+    points: List<PricePoint>,
+    site: List<SitePoint> = emptyList(),
+    modifier: Modifier = Modifier,
+    /** The prices that count (see BuyAdvisor.plausibleRange); others are data errors and leave a gap. Null: all count. */
+    plausible: ClosedFloatingPointRange<Double>? = null,
+) {
     val line = remember(points, site) { priceLine(points, site) }
     if (line.isEmpty()) return
     val all = listOf(line)
+    // Which points count: the plausible prices, and always the last one (today's price). Another pack in the
+    // site's history (€ 13,99 for 138 Pampers pants that cost € 49) is no price: the line stops there and a
+    // gap follows, rather than a made-up flat line.
+    val valid = remember(line, plausible) { BooleanArray(line.size) { i -> plausible == null || i == line.lastIndex || line[i].second in plausible } }
+    val validPrices = remember(line, valid) { line.filterIndexed { i, _ -> valid[i] }.map { it.second } }
+
+    /** The price on [day], as it held from the latest point on or before it; null in a gap. */
+    fun priceOn(day: LocalDate): Double? {
+        val i = line.indexOfLast { !it.first.isAfter(day) }
+        return if (i >= 0 && valid[i]) line[i].second else null
+    }
 
     val measurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -112,8 +119,10 @@ fun PriceChart(points: List<PricePoint>, site: List<SitePoint> = emptyList(), mo
     // Day x positions from the last draw, used to map touches to the nearest day.
     val xs = remember(days) { FloatArray(days.size) }
 
+    fun nearest(x: Float) = xs.indices.minBy { abs(xs[it] - x) }
+
     fun select(x: Float) {
-        selected = xs.indices.minBy { abs(xs[it] - x) }
+        selected = nearest(x)
     }
 
     Column(modifier) {
@@ -121,7 +130,7 @@ fun PriceChart(points: List<PricePoint>, site: List<SitePoint> = emptyList(), mo
         Text(
             text = buildString {
                 append(day.long())
-                line.at(day)?.let { append("  ·  ${it.euro()}") }
+                priceOn(day)?.let { append("  ·  ${it.euro()}") }
             },
             style = MaterialTheme.typography.bodySmall,
             color = if (selected != null) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -132,23 +141,54 @@ fun PriceChart(points: List<PricePoint>, site: List<SitePoint> = emptyList(), mo
                 .fillMaxWidth()
                 .height(220.dp)
                 .pointerInput(days) {
-                    detectTapGestures(onPress = { select(it.x); tryAwaitRelease(); selected = null })
+                    // The point stays selected after you let go; a short tap on it again goes back to today.
+                    detectTapGestures(onPress = {
+                        val before = selected
+                        val start = System.currentTimeMillis()
+                        select(it.x)
+                        val released = tryAwaitRelease()
+                        if (released && before == selected && System.currentTimeMillis() - start < SHORT_TAP_MS) selected = null
+                    })
                 }
                 .pointerInput(days) {
                     detectHorizontalDragGestures(
                         onDragStart = { select(it.x) },
-                        onDragEnd = { selected = null },
-                        onDragCancel = { selected = null },
                         onHorizontalDrag = { change, _ -> select(change.position.x); change.consume() },
                     )
                 }
         ) {
-            val probe = Frame(all, 0f, 0f, 1f, 1f)
+            val probe = Frame(all, validPrices, 0f, 0f, 1f, 1f)
             val ticks = (0..3).map { probe.min + (probe.max - probe.min) * it / 3 }
             val tickLabels = ticks.map { measurer.measure(it.euroRounded(), labelStyle) }
             val left = tickLabels.maxOf { it.size.width } + 10.dp.toPx()
             val bottomLabelHeight = tickLabels.first().size.height + 8.dp.toPx()
-            val frame = Frame(all, left, 8.dp.toPx(), size.width - 6.dp.toPx(), size.height - bottomLabelHeight)
+            val frame = Frame(all, validPrices, left, 8.dp.toPx(), size.width - 6.dp.toPx(), size.height - bottomLabelHeight)
+
+            /**
+             * The step paths of [indices], one per run of points that count, with the run's first and last x.
+             * A run's last price held until the next point, which doesn't count: the line goes to there and stops.
+             */
+            fun runs(indices: IntRange): List<Triple<Path, Float, Float>> {
+                val out = mutableListOf<Triple<Path, Float, Float>>()
+                var i = indices.first
+                while (i <= indices.last) {
+                    if (!valid[i]) { i++; continue }
+                    var j = i
+                    while (j + 1 <= indices.last && valid[j + 1]) j++
+                    val endX = if (j + 1 <= indices.last) frame.x(line[j + 1].first) else frame.x(line[j].first)
+                    val path = Path().apply {
+                        moveTo(frame.x(line[i].first), frame.y(line[i].second))
+                        for (k in i + 1..j) {
+                            lineTo(frame.x(line[k].first), frame.y(line[k - 1].second))
+                            lineTo(frame.x(line[k].first), frame.y(line[k].second))
+                        }
+                        if (j + 1 <= indices.last) lineTo(endX, frame.y(line[j].second))
+                    }
+                    out += Triple(path, frame.x(line[i].first), endX)
+                    i = j + 1
+                }
+                return out
+            }
 
             ticks.forEachIndexed { i, tick ->
                 val y = frame.y(tick)
@@ -165,22 +205,23 @@ fun PriceChart(points: List<PricePoint>, site: List<SitePoint> = emptyList(), mo
             }
 
             // Grey up to (and stepping into) our first check, so the two parts join up.
-            val sitePart = line.subList(0, minOf(firstOwn + 1, line.size))
-            val ownPart = line.subList(minOf(firstOwn, line.size), line.size)
-            if (firstOwn > 0 && sitePart.size >= 2) {
-                drawPath(frame.stepPath(sitePart), siteColor, style = Stroke(1.5.dp.toPx(), join = StrokeJoin.Round))
+            val siteEnd = minOf(firstOwn, line.lastIndex)
+            val ownStart = minOf(firstOwn, line.size)
+            if (firstOwn > 0 && siteEnd >= 1) {
+                runs(0..siteEnd).forEach { (path, _, _) -> drawPath(path, siteColor, style = Stroke(1.5.dp.toPx(), join = StrokeJoin.Round)) }
             }
             when {
-                ownPart.size >= 2 -> {
-                    val path = frame.stepPath(ownPart)
-                    val fill = Path().apply {
-                        addPath(path)
-                        lineTo(frame.x(ownPart.last().first), frame.bottom)
-                        lineTo(frame.x(ownPart.first().first), frame.bottom)
-                        close()
+                line.size - ownStart >= 2 -> {
+                    runs(ownStart..line.lastIndex).forEach { (path, startX, endX) ->
+                        val fill = Path().apply {
+                            addPath(path)
+                            lineTo(endX, frame.bottom)
+                            lineTo(startX, frame.bottom)
+                            close()
+                        }
+                        drawPath(fill, Brush.verticalGradient(listOf(ChartLine.copy(alpha = 0.20f), ChartLine.copy(alpha = 0f)), frame.top, frame.bottom))
+                        drawPath(path, ChartLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                     }
-                    drawPath(fill, Brush.verticalGradient(listOf(ChartLine.copy(alpha = 0.20f), ChartLine.copy(alpha = 0f)), frame.top, frame.bottom))
-                    drawPath(path, ChartLine, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                 }
                 line.size == 1 -> {
                     val y = frame.y(line[0].second)
@@ -189,15 +230,17 @@ fun PriceChart(points: List<PricePoint>, site: List<SitePoint> = emptyList(), mo
             }
 
             val dayShown = days[selected ?: days.lastIndex]
-            val dotPrice = line.at(dayShown)
+            // The selected day's dashed line stays until you let go of the point, also in a gap (there without a dot).
+            if (selected != null) {
+                val x = frame.x(dayShown)
+                drawLine(
+                    ChartLine.copy(alpha = 0.5f), Offset(x, frame.top), Offset(x, frame.bottom), 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)),
+                )
+            }
+            val dotPrice = priceOn(dayShown)
             if (dotPrice != null) {
                 val dot = Offset(frame.x(dayShown), frame.y(dotPrice))
-                if (selected != null) {
-                    drawLine(
-                        ChartLine.copy(alpha = 0.5f), Offset(dot.x, frame.top), Offset(dot.x, frame.bottom), 1.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)),
-                    )
-                }
                 val ours = line.indexOfLast { !it.first.isAfter(dayShown) } >= firstOwn
                 drawCircle(dotFill, 5.dp.toPx(), dot)
                 drawCircle(if (ours) ChartLine else siteColor, 5.dp.toPx(), dot, style = Stroke(2.dp.toPx()))
@@ -212,6 +255,9 @@ fun PriceChart(points: List<PricePoint>, site: List<SitePoint> = emptyList(), mo
         }
     }
 }
+
+/** A tap shorter than this on the selected point lets go of it; a longer press keeps it. */
+private const val SHORT_TAP_MS = 300L
 
 @Composable
 private fun Legend(color: Color, label: String) {
