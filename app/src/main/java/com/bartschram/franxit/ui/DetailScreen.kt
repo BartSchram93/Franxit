@@ -303,8 +303,11 @@ fun DetailScreen(
 
             if (product.history.isNotEmpty() || product.siteHistory.isNotEmpty()) {
                 Spacer(Modifier.height(28.dp))
-                val shown = filter(product.history, span)
-                val shownSite = filterSite(product.siteHistory, span)
+                // Prices the advice treats as data errors (another pack in the site's history) are left out, so the
+                // chart and "Lowest" agree. Never all of your own checks: the chart keeps today's price.
+                val plausible = remember(product) { BuyAdvisor.plausibleRange(product) }
+                val shown = filter(product.history, span).let { all -> all.filter { plausible == null || it.price in plausible }.ifEmpty { all } }
+                val shownSite = filterSite(product.siteHistory, span).filter { plausible == null || it.price in plausible }
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLowest,

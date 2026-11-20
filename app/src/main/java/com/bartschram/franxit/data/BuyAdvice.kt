@@ -141,12 +141,28 @@ object BuyAdvisor {
 
     private val C = BuyAdviceConfig
 
-    fun advise(product: Product, today: LocalDate = LocalDate.now()): BuyAdvice {
-        // vergelijk.be's history up to our first own check, then our own checks (as in the chart).
+    fun advise(product: Product, today: LocalDate = LocalDate.now()): BuyAdvice = advise(line(product), product.latest?.price, today)
+
+    /** vergelijk.be's history up to our first own check, then our own checks (as in the chart). */
+    private fun line(product: Product): List<Pair<LocalDate, Double>> {
         val firstOwn = product.history.firstOrNull()?.day
-        val line = product.siteHistory.filter { firstOwn == null || it.day.isBefore(firstOwn) }.map { it.day to it.price } +
+        return product.siteHistory.filter { firstOwn == null || it.day.isBefore(firstOwn) }.map { it.day to it.price } +
             product.history.map { it.day to it.price }
-        return advise(line, product.latest?.price, today)
+    }
+
+    /**
+     * The prices the advice counts: under half or over double the year's middle price is a data error, like
+     * another pack in the site's history (€ 13,99 for 138 Pampers pants that cost € 49). The chart leaves those
+     * out too, so it shows the same lowest price as the advice. Null without enough history to say.
+     */
+    fun plausibleRange(product: Product, today: LocalDate = LocalDate.now()): ClosedFloatingPointRange<Double>? =
+        plausibleRange(line(product), today)
+
+    internal fun plausibleRange(line: List<Pair<LocalDate, Double>>, today: LocalDate): ClosedFloatingPointRange<Double>? {
+        val daily = daily(line, today.minusDays(C.WINDOW_DAYS), today)
+        if (daily.size < C.MIN_HISTORY_DAYS) return null
+        val middle = median(daily.map { it.second })
+        return middle * C.OUTLIER_LOW..middle * C.OUTLIER_HIGH
     }
 
     /** [line]: (day, price) changes, oldest first, each price holding until the next. */

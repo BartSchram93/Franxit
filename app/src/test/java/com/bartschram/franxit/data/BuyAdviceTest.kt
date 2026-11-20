@@ -168,4 +168,19 @@ class BuyAdviceTest {
         assertTrue(advice.verdict == Verdict.WAIT_EXPENSIVE || advice.verdict == Verdict.WAIT)
         assertTrue(advice.reasons.any { it is Reason.AboveRecent })
     }
+
+    @Test
+    fun anotherPackInTheSitesHistoryIsNoPriceToCount() {
+        // Pampers pants, 138: around € 49 for a year, but weeks at € 16,90 from a small pack in the site's history.
+        val today = LocalDate.of(2026, 11, 20)
+        val line = listOf(
+            today.minusDays(360) to 49.0, today.minusDays(300) to 39.2, today.minusDays(290) to 52.0,
+            today.minusDays(70) to 16.9, today.minusDays(40) to 49.0, today.minusDays(20) to 17.99, today.minusDays(5) to 41.06,
+        )
+        val range = BuyAdvisor.plausibleRange(line, today)!!
+        assertTrue(16.9 !in range)
+        assertTrue(17.99 !in range)
+        assertTrue(39.2 in range)
+        assertEquals(39.2, BuyAdvisor.advise(line, 41.06, today).historicalLow!!, 0.001)
+    }
 }
