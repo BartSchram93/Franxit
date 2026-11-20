@@ -1,0 +1,89 @@
+package com.bartschram.franxit.scrape
+
+import org.json.JSONArray
+import org.json.JSONObject
+import org.json.JSONTokener
+import java.net.URLEncoder
+
+/**
+ * Shoparize (shoparize.com/be), a price comparison site: the shops it lists for a product, as extra
+ * prices next to vergelijk.be's. Only read: its buttons are tracking links, so they are never followed
+ * and the Buy button doesn't use them.
+ *
+ * A search page lists products as a schema.org ItemList; a product page lists its shops in a table whose
+ * rows each carry a `data-tracking` block (the shop's site and its price as a number).
+ */
+object Shoparize {
+
+    private const val BASE = "https://www.shoparize.com"
+    private const val PRODUCT_PAGES = "$BASE/be/p/"
+    private val HEADERS = mapOf("Accept-Language" to "nl-BE,nl;q=0.9,en;q=0.8")
+
+    private val LD_JSON = Regex(
+        """<script[^>]+application/ld\+json[^>]*>(.*?)</script>""",
+        setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
+    )
+    private val OFFER_ROW = Regex("""<a\b[^>]*\bdata-tracking="([^"]+)"[^>]*>(.*?)</a>""", RegexOption.DOT_MATCHES_ALL)
+    private val REFURBISHED = Regex("""refurbished|gebruikt|tweedehands|second.?hand|occasion""", RegexOption.IGNORE_CASE)
+
+    fun searchUrl(query: String) = "$BASE/be/q?q=" + URLEncoder.encode(query.trim(), "UTF-8")
+
+    /** The products a search page lists, in Shoparize's order. Only product pages count. */
+    fun parseSearch(html: String): List<VergelijkSearch.Hit> =
+        LD_JSON.findAll(html).flatMap { block ->
+            val json = runCatching { JSONTokener(block.groupValues[1].trim()).nextValue() }.getOrNull()
+            val lists = when (json) {
+                is JSONObject -> listOf(json)
+                is JSONArray -> (0 until json.length()).mapNotNull { json.optJSONObject(it) }
+                else -> emptyList()
+            }
+            lists.filter { it.optString("@type") == "ItemList" }.flatMap { list ->
+                val items = list.optJSONArray("itemListElement") ?: JSONArray()
+                (0 until items.length()).mapNotNull { i ->
+                    val item = items.optJSONObject(i) ?: return@mapNotNull null
+                    val url = item.optString("url")
+                    val title = item.optString("name").trim()
+                    if (url.startsWith(PRODUCT_PAGES) && title.isNotEmpty()) VergelijkSearch.Hit(title, url, null) else null
+                }
+            }
+        }.toList()
+
+    /**
+     * The shops of a product page with their prices. Refurbished offers are left out: the app follows
+     * the new product. Whether a shop has it in stock isn't said (null), like for Google Shopping's shops.
+     */
+    fun parseOffers(html: String): List<Scraper.Offer> =
+        OFFER_ROW.findAll(html).mapNotNull { row ->
+            val data = runCatching { JSONObject(unescape(row.groupValues[1])) }.getOrNull() ?: return@mapNotNull null
+            if (data.optString("element") != "pricesTable") return@mapNotNull null
+            val shop = data.optString("shopid").trim().ifEmpty { return@mapNotNull null }
+            val price = data.optDouble("price", 0.0).takeIf { it > 0 } ?: return@mapNotNull null
+            if (REFURBISHED.containsMatchIn(row.groupValues[2])) return@mapNotNull null
+            Scraper.Offer(shop, price)
+        }.toList()
+
+    /**
+     * Shoparize's shops for the product called [wanted]: searched, the one product that is clearly it
+     * (the same matcher as for Google Shopping's results), then its shops. Empty when none is clear-cut.
+     * Throws when the site can't be reached; the caller treats that as "ask again later".
+     */
+    fun offersFor(
+        wanted: String,
+        download: (String) -> String = { Scraper.download(it, "text/html,application/xhtml+xml", HEADERS) },
+    ): List<Scraper.Offer> {
+        val hit = best(parseSearch(download(searchUrl(wanted))), wanted) ?: return emptyList()
+        return parseOffers(download(hit.url))
+    }
+
+    /**
+     * The listed product that is [wanted], the best fit if several are; null when none fits. Not lenient:
+     * a bundle ("… + Fortnite") or an accessory is another product with another price, and one of those
+     * must not pass for the product itself.
+     */
+    internal fun best(hits: List<VergelijkSearch.Hit>, wanted: String): VergelijkSearch.Hit? =
+        hits.filter { Matching.isSameProduct(it.title, wanted, lenient = false) }
+            .maxByOrNull { Matching.score(it.title, wanted) }
+
+    private fun unescape(s: String) =
+        s.replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+}

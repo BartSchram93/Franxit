@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import com.bartschram.franxit.scrape.GoogleShopping
 import com.bartschram.franxit.scrape.Matching
 import com.bartschram.franxit.scrape.Scraper
+import com.bartschram.franxit.scrape.Shoparize
 import com.bartschram.franxit.scrape.VergelijkHistory
 import com.bartschram.franxit.scrape.VergelijkSearch
 import androidx.glance.appwidget.updateAll
@@ -191,6 +192,30 @@ class Repository private constructor(context: Context) {
     }
 
     /**
+     * Shoparize's shops for a product from vergelijk.be (or a shop page), as extra prices: searched once a day,
+     * then reused. Never fails the check; without results it's just the other sources. Like Google Shopping's,
+     * only trusted shops count and no marketplaces (refurbished offers are left out when the page is read).
+     * A Google Shopping product has its own search, so it gets none.
+     */
+    private fun shoparizeShops(product: Product, query: String?): List<ShopOffer> {
+        if (query != null) return emptyList()
+        val today = LocalDate.now().toString()
+        ShoppingSettings.shoparizeOffers(appContext, product.id, today)?.let { return it }
+        val found = try {
+            Shoparize.offersFor(matchName(product))
+        } catch (e: Exception) {
+            // No connection, or the site changed: nothing is saved, so it is asked again at the next check.
+            return emptyList()
+        }
+        val offers = found
+            .filterNot { GoogleShopping.isMarketplace(it.seller) }
+            .mapNotNull { offer -> TrustedShops.name(appContext, offer.seller)?.let { ShopOffer(Shops.name(it), offer.price, null) } }
+        // Nothing found is remembered for a few days, so the site isn't asked every day for a product it doesn't have.
+        ShoppingSettings.saveShoparizeOffers(appContext, product.id, today, offers, days = if (offers.isEmpty()) 3 else 1)
+        return offers
+    }
+
+    /**
      * The name with the first thing after its comma ("Bose QuietComfort Ultra Earbuds" + "(2e gen) Zwart"),
      * as a second wording to search for; null when that is no short variant, but specs ("36,3 cm", "256 GB").
      */
@@ -370,14 +395,16 @@ class Repository private constructor(context: Context) {
         // Google Shopping is the slow part: store and show vergelijk.be's shops first, then add Google's.
         val searchesGoogle = searchesExtra(query, ownShops) &&
             ShoppingSettings.extraOffers(appContext, product.id, today.toString()) == null
-        if (searchesGoogle && onFirstResults != null) {
+        val searchesShoparize = query == null && ShoppingSettings.shoparizeOffers(appContext, product.id, today.toString()) == null
+        if ((searchesGoogle || searchesShoparize) && onFirstResults != null) {
             store(emptyList())
             onFirstResults()
         }
         val extras = extraShops(named, query, ownCheapest, ownShops)
-        // (Which shops are trusted was decided when Google's results were read.)
+        val shoparize = shoparizeShops(named, query)
+        // (Which shops are trusted was decided when Google's and Shoparize's results were read.)
         // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
-        val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
+        val extra = (extras.offers + shoparize).filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
         val (offers, cheapest) = store(extra)
         // The shops are in: show them now, before the site's price history is fetched.
         onFirstResults?.invoke()

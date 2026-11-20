@@ -29,18 +29,34 @@ object ShoppingSettings {
     private const val EXTRA_VERSION = 4
 
     /** Google Shopping offers for a product, saved so a later refresh doesn't search again: used for [days] days (more for "nothing found": no searches wasted). */
-    fun saveExtraOffers(context: Context, productId: Long, day: String, offers: List<ShopOffer>, days: Int = 1) {
-        val json = JSONObject().put("v", EXTRA_VERSION).put("day", day)
+    fun saveExtraOffers(context: Context, productId: Long, day: String, offers: List<ShopOffer>, days: Int = 1) =
+        saveOffers(context, "extra_offers_$productId", EXTRA_VERSION, day, offers, days)
+
+    fun extraOffers(context: Context, productId: Long, day: String): List<ShopOffer>? =
+        loadOffers(context, "extra_offers_$productId", EXTRA_VERSION, day)
+
+    /** Bumped when the way Shoparize's results are found or filtered changes. */
+    private const val SHOPARIZE_VERSION = 1
+
+    /** Shoparize's offers for a product, kept like Google Shopping's: asked once a day, "nothing found" for [days] days. */
+    fun saveShoparizeOffers(context: Context, productId: Long, day: String, offers: List<ShopOffer>, days: Int = 1) =
+        saveOffers(context, "shoparize_offers_$productId", SHOPARIZE_VERSION, day, offers, days)
+
+    fun shoparizeOffers(context: Context, productId: Long, day: String): List<ShopOffer>? =
+        loadOffers(context, "shoparize_offers_$productId", SHOPARIZE_VERSION, day)
+
+    private fun saveOffers(context: Context, key: String, version: Int, day: String, offers: List<ShopOffer>, days: Int) {
+        val json = JSONObject().put("v", version).put("day", day)
             .put("until", java.time.LocalDate.parse(day).plusDays(days - 1L).toString()).put(
             "offers",
             org.json.JSONArray(offers.map { JSONObject().put("seller", it.seller).put("price", it.price).also { o -> it.inStock?.let { s -> o.put("inStock", s) } } }),
         )
-        prefs(context).edit { putString("extra_offers_$productId", json.toString()) }
+        prefs(context).edit { putString(key, json.toString()) }
     }
 
-    fun extraOffers(context: Context, productId: Long, day: String): List<ShopOffer>? {
-        val json = prefs(context).getString("extra_offers_$productId", null)?.let(::JSONObject) ?: return null
-        if (json.optInt("v", 0) != EXTRA_VERSION || day > json.optString("until", "") || day < json.optString("day")) return null
+    private fun loadOffers(context: Context, key: String, version: Int, day: String): List<ShopOffer>? {
+        val json = prefs(context).getString(key, null)?.let(::JSONObject) ?: return null
+        if (json.optInt("v", 0) != version || day > json.optString("until", "") || day < json.optString("day")) return null
         val list = json.getJSONArray("offers")
         return (0 until list.length()).map { list.getJSONObject(it).let { o -> ShopOffer(o.getString("seller"), o.getDouble("price"), if (o.has("inStock")) o.getBoolean("inStock") else null) } }
     }
