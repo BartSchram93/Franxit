@@ -319,6 +319,20 @@ class Repository private constructor(context: Context) {
         return link
     }
 
+    /** What a shared product is, shown before you decide to track it: its name, photo and lowest price. */
+    data class Preview(val name: String, val image: String?, val price: Double?)
+
+    /**
+     * The [Preview] of a shared product's page, read once (nothing is saved); null when the page can't be read.
+     * A Google Shopping product is its search words: no search is spent on a preview.
+     */
+    suspend fun preview(url: String): Preview? = withContext(Dispatchers.IO) {
+        GoogleShopping.queryOf(url)?.let { return@withContext Preview(it, null, null) }
+        val page = runCatching { Scraper.fetch(url) }.getOrNull() ?: return@withContext null
+        val name = Names.short(page.name).ifBlank { page.name }.takeIf { it.isNotBlank() } ?: return@withContext null
+        Preview(name, page.image, page.offers.takeIf { it.isNotEmpty() }?.let { page.cheapest.price })
+    }
+
     suspend fun search(query: String): List<VergelijkSearch.Hit> = withContext(Dispatchers.IO) {
         VergelijkSearch.search(query)
     }

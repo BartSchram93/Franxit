@@ -323,18 +323,12 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     }
 
     sharedProduct.value?.let { shared ->
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { sharedProduct.value = null },
-            title = { com.bartschram.franxit.ui.Text("Track this product?") },
-            text = { com.bartschram.franxit.ui.Text(shared.name.ifBlank { "A shared product" }) },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { sharedProduct.value = null; add(shared.url, "shared_link") }) {
-                    com.bartschram.franxit.ui.Text("Track")
-                }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { sharedProduct.value = null }) { com.bartschram.franxit.ui.Text("Cancel") }
-            },
+        // A preview of the shared product (photo, name, price) before you track it.
+        com.bartschram.franxit.ui.SharedProductDialog(
+            shared = shared,
+            preview = { repo.preview(it) },
+            onTrack = { name -> sharedProduct.value = null; add(shared.url, "shared_link", name) },
+            onDismiss = { sharedProduct.value = null },
         )
     }
 
