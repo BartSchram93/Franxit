@@ -105,4 +105,17 @@ class OffersTest {
         val own = listOf(ShopOffer("A", 10.0, true), ShopOffer("B", 12.0, true), ShopOffer("C", 11.0, true))
         assertEquals(listOf("A", "C", "B"), Offers.merge(own, emptyList()).map { it.seller })
     }
+
+    @Test
+    fun anOfferFarFromTheOtherSourcesIsLeftOut() {
+        val own = listOf(ShopOffer("Farmaline.be", 7.7, true), ShopOffer("Amazon Marketplace", 54.29, true))
+        val others = listOf(ShopOffer("Plein.be", 5.2), ShopOffer("Pazzox.be", 5.4), ShopOffer("Farmaline.be", 6.19))
+        assertEquals(listOf("Farmaline.be"), Offers.withoutOutliers(own, others).map { it.seller })
+    }
+
+    @Test
+    fun withFewerThanTwoOtherPricesNothingIsLeftOut() {
+        val own = listOf(ShopOffer("Amazon Marketplace", 54.29, true))
+        assertEquals(own, Offers.withoutOutliers(own, listOf(ShopOffer("Plein.be", 5.2))))
+    }
 }

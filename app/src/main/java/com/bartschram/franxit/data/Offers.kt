@@ -23,6 +23,21 @@ object Offers {
      */
     fun merge(own: List<ShopOffer>, extra: List<ShopOffer>): List<ShopOffer> = pick(listOf(extra, own))
 
+    /** An offer more than this many times off the other sources' middle price is another product. */
+    private const val OUTLIER = 3.0
+
+    /**
+     * [offers] without the ones far off what [others] (other sources' offers for the product) ask: a price
+     * more than 3 times their middle price, or under a third of it, is another pack or a mistake. Only with
+     * at least two other prices to go by; else all stay.
+     */
+    fun withoutOutliers(offers: List<ShopOffer>, others: List<ShopOffer>): List<ShopOffer> {
+        if (others.size < 2) return offers
+        val sorted = others.map { it.price }.sorted()
+        val middle = sorted[sorted.size / 2]
+        return offers.filter { it.price in middle / OUTLIER..middle * OUTLIER }
+    }
+
     /** Two prices this close are the same price. */
     private const val SAME_PRICE = 0.01
 

@@ -112,4 +112,30 @@ class MatchingTest {
         assertEquals(false, Matching.isSameProduct("2x Dash Waspoeder Alpenfris 5kg", "Dash Waspoeder Alpenfris 5kg", lenient = true))
         assertEquals(true, Matching.isSameProduct("Dash Waspoeder Alpenfris 5kg - 100 wasbeurten", "Dash Waspoeder Alpenfris 5kg", lenient = true))
     }
+
+    @Test
+    fun anotherNumberOfPiecesIsAnotherProduct() {
+        assertEquals(false, Matching.isSameProduct("Gladi Tiles 60 Stuks - Magnetisch Speelgoed", "Gladi Tiles 100 stuks", lenient = true))
+        assertEquals(true, Matching.isSameProduct("Gladi Tiles 100 Stuks - Magnetisch Speelgoed", "Gladi Tiles 100 stuks", lenient = true))
+        // Another number of pieces, even when the wanted number appears elsewhere in the title.
+        assertEquals(false, Matching.isSameProduct("Gladi Tiles 60 Stuks - 100% veilig", "Gladi Tiles 100 stuks", lenient = true))
+        assertEquals(false, Matching.isSameProduct("Dash Waspoeder Alpenfris - 110 Wasbeurten", "Dash Waspoeder Alpenfris - 200 wasbeurten", lenient = true))
+    }
+
+    @Test
+    fun aSetOfSeveralIsAMultipack() {
+        assertEquals(setOf(6), Matching.multipliers("Interprox Mini Conical - Rood - PHD 1, 2 Mm - 6 Ragers - Set Van 6"))
+        assertEquals(setOf(3), Matching.multipliers("Lenor 3-pack"))
+        assertEquals(false, Matching.isSameProduct("Interprox Mini Conical - Rood - PHD 1, 2 Mm - 6 Ragers - Set Van 6 - V", "Interprox Ragers Mini Conical Rood PHD 1.2 mm - 6 stuks", lenient = true))
+        assertEquals(true, Matching.isSameProduct("Interprox Ragers Mini Conical Rood PHD 1.2 6 Stuks", "Interprox Ragers Mini Conical Rood PHD 1.2 mm - 6 stuks"))
+    }
+
+    @Test
+    fun anotherPackGoesDownTheList() {
+        val hits = listOf(
+            VergelijkSearch.Hit("Magnetic Tiles - Magnetisch Speelgoed - 60 Stuks", "https://www.vergelijk.be/a_1000001/", null),
+            VergelijkSearch.Hit("Magnetic Tiles - Magnetisch Speelgoed - 100 Stuks", "https://www.vergelijk.be/b_1000002/", null),
+        )
+        assertEquals("https://www.vergelijk.be/b_1000002/", Matching.rank(hits, "Gladi Magnetic Tiles 100 stuks Magnetisch Speelgoed").first().url)
+    }
 }

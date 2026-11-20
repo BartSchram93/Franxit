@@ -19,13 +19,35 @@ object Matching {
     private fun isAccessory(text: String): Boolean = text.lowercase().let { t -> ACCESSORY.any { it in t } }
 
     private val MULTIPLIER = Regex("""(?<![\w.,])(\d{1,2})\s?[x×](?!\w)""", RegexOption.IGNORE_CASE)
+    private val SET_OF = Regex("""\b(?:set|pack|verpakking|doos)\s+(?:van|of|de)\s+(\d{1,2})\b|\b(\d{1,2})[\s-]?(?:pack|pak)\b""", RegexOption.IGNORE_CASE)
+    private val COUNT = Regex(
+        """(?<![\w.,])(\d{1,4})\s?-?(stuks|stuk|st|pcs|pieces|pièces|delig|delen|ragers|capsules|caps|tabletten|tabs|kauwtabletten|zakjes|rollen|wasbeurten|doekjes|luiers)\b""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /**
+     * Whether [title] is another pack than [wanted]: another multipack ("2x", "set van 6") or another number of
+     * pieces ("60 stuks" isn't "100 stuks", "110 wasbeurten" isn't "200"). A count only counts when both name
+     * one: a title without a count could be either.
+     */
+    internal fun otherPack(title: String, wanted: String): Boolean {
+        if (multipliers(title) != multipliers(wanted)) return true
+        val want = counts(wanted)
+        val have = counts(title)
+        return want.isNotEmpty() && have.isNotEmpty() && want.none { it in have }
+    }
+
+    /** How many pieces a text names ("60 Stuks", "6 ragers", "200 wasbeurten", "12-delig"). */
+    fun counts(text: String): Set<Int> = COUNT.findAll(text).mapNotNull { it.groupValues[1].toIntOrNull() }.toSet()
 
     /**
      * The multipacks a text names: "2x Dash …" and "… 2 X 5kg" are both a 2. Only 2 to 12: a larger number
      * before an "x" is a size ("65 x 45 cm"), and "1x" is just the product.
      */
     fun multipliers(text: String): Set<Int> =
-        MULTIPLIER.findAll(text).mapNotNull { it.groupValues[1].toIntOrNull() }.filter { it in 2..12 }.toSet()
+        (MULTIPLIER.findAll(text).mapNotNull { it.groupValues[1].toIntOrNull() } +
+            SET_OF.findAll(text).mapNotNull { (it.groupValues[1].ifEmpty { it.groupValues[2] }).toIntOrNull() })
+            .filter { it in 2..12 }.toSet()
 
     /**
      * Whether a page still shows the product you track: titles change a little over time ("Zwart"
@@ -46,7 +68,9 @@ object Matching {
         val titleInWanted = have.count { it in want }.toDouble() / have.size
         val wantedInTitle = want.count { it in have }.toDouble() / want.size
         val accessory = if (isAccessory(title) && !isAccessory(wanted)) 1.0 else 0.0
-        return titleInWanted + wantedInTitle / 2 - accessory
+        // Another pack or another number of pieces ("60 stuks" for "100 stuks") goes down like an accessory.
+        val otherPack = if (otherPack(title, wanted)) 1.0 else 0.0
+        return titleInWanted + wantedInTitle / 2 - accessory - otherPack
     }
 
     /**
@@ -59,7 +83,7 @@ object Matching {
         if (want.isEmpty()) return false
         // A multipack is another product with another price than the single pack ("2x Dash … 2 x 5kg" against
         // "Dash … 5,5 kg"), also when the price check would let it pass: both must name the same packs.
-        if (multipliers(title) != multipliers(wanted)) return false
+        if (otherPack(title, wanted)) return false
         // A big, reliable shop often sells the product with a case or stylus ("TCL NXTPAPER 14 - 8GB - Grijs + Flip Case
         // & Stylus"): fine. A loose accessory is kept out by the price check (50-200% of the usual price), not by its title.
         if (!lenient) {

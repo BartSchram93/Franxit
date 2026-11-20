@@ -287,8 +287,9 @@ class Repository private constructor(context: Context) {
             if (shop != null && result.offers.none { TrustedShops.same(it.seller, shop) }) {
                 shoparizeShopLink(product, shop)?.let { return@runCatching it }
             }
-            if (seller == null) result.cheapest.link
-            else result.offers.filter { it.seller.equals(seller, ignoreCase = true) }.minByOrNull { it.price }?.link
+            // The shop the button names: the cheapest in the app, which need not be vergelijk.be's cheapest.
+            if (shop == null) result.cheapest.link
+            else result.offers.filter { TrustedShops.same(it.seller, shop) }.minByOrNull { it.price }?.link
         }.getOrNull() ?: shop?.let { shoparizeShopLink(product, it) }
     }
 
@@ -414,11 +415,14 @@ class Repository private constructor(context: Context) {
         // The shops to show, one offer each: Google Shopping first, then Shoparize, then vergelijk.be (for a Google
         // Shopping product its own shops are Google's), but a price two sources agree on wins (see Offers.pick).
         // Sold-out shops aren't shown; only when every shop is sold out, they are (so the product still has a price).
-        fun combine(google: List<ShopOffer>, shoparize: List<ShopOffer>): List<ShopOffer> =
-            Offers.pick(
-                if (query != null) listOf(own, shoparize.filter(plausible))
-                else listOf(google.filter(plausible), shoparize.filter(plausible), own),
-            )
+        fun combine(google: List<ShopOffer>, shoparize: List<ShopOffer>): List<ShopOffer> {
+            val first = google.filter(plausible)
+            val second = shoparize.filter(plausible)
+            // An offer of the product's own page far from what the other sources ask is another pack
+            // (Amazon at € 54,29 where the others ask € 5 to € 8 for 6 ragers).
+            val mine = Offers.withoutOutliers(own, first + second)
+            return Offers.pick(if (query != null) listOf(mine, second) else listOf(first, second, mine))
+        }
         // Google Shopping and Shoparize are the slow part: store and show vergelijk.be's shops first, with what they
         // found last time (so the prices don't jump back and forth), then the fresh results.
         val searchesGoogle = searchesExtra(query, ownShops) &&
