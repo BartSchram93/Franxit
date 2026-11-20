@@ -195,14 +195,14 @@ class Repository private constructor(context: Context) {
      * Shoparize's shops for a product from vergelijk.be (or a shop page), as extra prices: searched once a day,
      * then reused. Never fails the check; without results it's just the other sources. Every shop Shoparize
      * lists is trusted (and trusted for Google Shopping's results too), except marketplaces; refurbished offers
-     * are left out when the page is read. A Google Shopping product has its own search, so it gets none.
+     * are left out when the page is read. Always, after vergelijk.be or Google Shopping has searched, whatever
+     * the number of shops: for a Google Shopping product ([query]) it searches the words you typed.
      */
     private fun shoparizeShops(product: Product, query: String?): List<ShopOffer> {
-        if (query != null) return emptyList()
         val today = LocalDate.now().toString()
         ShoppingSettings.shoparizeOffers(appContext, product.id, today)?.let { return it }
         val found = try {
-            Shoparize.offersFor(matchName(product))
+            Shoparize.offersFor(query ?: matchName(product))
         } catch (e: Exception) {
             // No connection, or the site changed: nothing is saved, so it is asked again at the next check.
             return emptyList()
@@ -276,7 +276,7 @@ class Repository private constructor(context: Context) {
             if (!link.startsWith(GoogleShopping.TOKEN)) return@withContext link
             return@withContext lookUpStoreLink(product, shop, link.removePrefix(GoogleShopping.TOKEN))
         }
-        if (GoogleShopping.queryOf(product.url) != null) return@withContext null
+        if (GoogleShopping.queryOf(product.url) != null) return@withContext shop?.let { shoparizeShopLink(product, it) }
         // A shop's own page you added (fitshop.be), with Google Shopping's shops next to it.
         val host = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
         if ("vergelijk.be" !in host) return@withContext product.url.takeIf { shop == null || TrustedShops.key(shop) == TrustedShops.key(host) }
@@ -415,13 +415,15 @@ class Repository private constructor(context: Context) {
         // Google Shopping comes first: a shop it lists keeps Google's offer, Shoparize only adds the shops Google lacks.
         fun combine(google: List<ShopOffer>, shoparize: List<ShopOffer>): List<ShopOffer> {
             val first = google.filter(plausible)
-            return first + Offers.withoutShopsOf(shoparize.filter(plausible), first)
+            // A Google Shopping product's own shops are Google's: Shoparize only adds the shops they lack.
+            val taken = if (query != null) first + own else first
+            return first + Offers.withoutShopsOf(shoparize.filter(plausible), taken)
         }
         // Google Shopping and Shoparize are the slow part: store and show vergelijk.be's shops first, with what they
         // found last time (so the prices don't jump back and forth), then the fresh results.
         val searchesGoogle = searchesExtra(query, ownShops) &&
             ShoppingSettings.extraOffers(appContext, product.id, today.toString()) == null
-        val searchesShoparize = query == null && ShoppingSettings.shoparizeOffers(appContext, product.id, today.toString()) == null
+        val searchesShoparize = ShoppingSettings.shoparizeOffers(appContext, product.id, today.toString()) == null
         if ((searchesGoogle || searchesShoparize) && onFirstResults != null) {
             store(combine(ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty(), ShoppingSettings.lastShoparizeOffers(appContext, product.id).orEmpty()))
             onFirstResults()
