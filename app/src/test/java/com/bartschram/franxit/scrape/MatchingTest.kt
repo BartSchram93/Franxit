@@ -98,4 +98,18 @@ class MatchingTest {
         // Without a model code in the name, titles are not held to one.
         assertFalse(Matching.isOtherVariant("TCL e-reader tablet 14.3 inch NXTPAPER 14", "TCL Nxtpaper 14"))
     }
+
+    @Test
+    fun aSinglePackIsNotTheMultipack() {
+        val wanted = "Dash 2x Waspoeder Alpenfris - 2 x 5kg - 200 wasbeurten - Voordeelverpakking -2 stuks"
+        // The 5,5 kg pack bol.com lists for less: another product, also when bundles are allowed.
+        assertEquals(false, Matching.isSameProduct("Dash XXL PACK Alpenfris Universeel Waspoeder - 5,5 kg (110 Wasbeurten )", wanted, lenient = true))
+        assertEquals(true, Matching.isSameProduct("2x Dash Waspoeder Alpenfris - 2 X 5kg - 200 Wasbeurten", wanted, lenient = true))
+    }
+
+    @Test
+    fun aMultipackIsNotTheSinglePack() {
+        assertEquals(false, Matching.isSameProduct("2x Dash Waspoeder Alpenfris 5kg", "Dash Waspoeder Alpenfris 5kg", lenient = true))
+        assertEquals(true, Matching.isSameProduct("Dash Waspoeder Alpenfris 5kg - 100 wasbeurten", "Dash Waspoeder Alpenfris 5kg", lenient = true))
+    }
 }

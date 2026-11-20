@@ -6,17 +6,28 @@ import org.junit.Test
 
 class OffersTest {
     @Test
-    fun aShopTheFirstSourceHasIsLeftOutOfTheSecond() {
+    fun theFirstSourceWinsWhenTheSourcesDisagree() {
         val google = listOf(ShopOffer("Coolblue.be", 100.0), ShopOffer("MediaMarkt.be", 120.0))
         val shoparize = listOf(ShopOffer("coolblue.be", 90.0), ShopOffer("mediamarkt.be", 110.0), ShopOffer("bol.com", 130.0))
-        // Coolblue is cheaper at Shoparize, but Google comes first: only the shop Google lacks stays.
-        assertEquals(listOf("bol.com"), Offers.withoutShopsOf(shoparize, google).map { it.seller })
+        val picked = Offers.pick(listOf(google, shoparize))
+        // Coolblue is cheaper at Shoparize, but Google comes first; bol.com only Shoparize has.
+        assertEquals(listOf(100.0, 120.0, 130.0), picked.map { it.price })
     }
 
     @Test
-    fun withoutAFirstSourceTheSecondStaysAsItIs() {
-        val shoparize = listOf(ShopOffer("bol.com", 130.0))
-        assertEquals(shoparize, Offers.withoutShopsOf(shoparize, emptyList()))
+    fun aPriceTwoSourcesAgreeOnOutvotesOneThatRunsBehind() {
+        val google = listOf(ShopOffer("Bol.com", 26.95))
+        val shoparize = listOf(ShopOffer("bol.com", 38.99))
+        val vergelijk = listOf(ShopOffer("Bol Plaza", 38.99, true))
+        val picked = Offers.pick(listOf(google, shoparize, vergelijk))
+        assertEquals(1, picked.size)
+        assertEquals(38.99, picked.single().price, 0.001)
+    }
+
+    @Test
+    fun whenTheTwoFirstSourcesAgreeTheirPriceStays() {
+        val picked = Offers.pick(listOf(listOf(ShopOffer("Bol.com", 30.0)), listOf(ShopOffer("bol.com", 30.0)), listOf(ShopOffer("Bol Plaza", 35.0, true))))
+        assertEquals(30.0, picked.single().price, 0.001)
     }
 
     @Test

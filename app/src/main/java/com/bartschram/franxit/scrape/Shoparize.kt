@@ -88,8 +88,11 @@ object Shoparize {
         val tidy = tidy(wanted)
         // Only real words: a lone "-" or "(" says nothing and would spend a search.
         val words = tidy.split(' ').filter { word -> word.any { it.isLetterOrDigit() } }
-        val shorter = listOf(5, 4, 3).filter { it < words.size }.map { words.take(it).joinToString(" ") }
-        return (listOf(given, tidy) + shorter).filter { it.isNotBlank() }.distinct().take(MAX_SEARCHES)
+        val shorter = listOf(4, 3).filter { it < words.size }.map { words.take(it).joinToString(" ") }
+        // Only the words without digits: "Dash 2x Waspoeder Alpenfris" finds nothing where Shoparize writes
+        // "2x Dash Waspoeder Alpenfris", "Dash Waspoeder Alpenfris" finds it (the pack is checked when matching).
+        val plain = words.filter { word -> word.none { it.isDigit() } }.take(3).joinToString(" ")
+        return (listOf(given, tidy) + shorter + plain).filter { it.isNotBlank() }.distinct().take(MAX_SEARCHES)
     }
 
     /**
@@ -118,17 +121,8 @@ object Shoparize {
      * must not pass for the product itself.
      */
     internal fun best(hits: List<VergelijkSearch.Hit>, wanted: String): VergelijkSearch.Hit? =
-        hits.filter { multipliers(it.title) == multipliers(wanted) && Matching.isSameProduct(it.title, wanted, lenient = false) }
+        hits.filter { Matching.isSameProduct(it.title, wanted, lenient = false) }
             .maxByOrNull { Matching.score(it.title, wanted) }
-
-    private val MULTIPLIER = Regex("""(?<![\w.,])(\d{1,3})\s?[x×](?!\w)""", RegexOption.IGNORE_CASE)
-
-    /**
-     * The multipacks a text names: "2x Dash …" and "… 2 X 5kg" are both a 2. A multipack is another product
-     * with another price than the single pack, so the wanted name and the title must name the same ones.
-     */
-    internal fun multipliers(text: String): Set<Int> =
-        MULTIPLIER.findAll(text).mapNotNull { it.groupValues[1].toIntOrNull() }.toSet()
 
     /** Query parameters that only track where a visit came from. */
     private val TRACKING = setOf("tt", "tduid", "awc", "gclid", "fbclid", "sclid", "cid", "aff", "affid", "affiliate", "ref")

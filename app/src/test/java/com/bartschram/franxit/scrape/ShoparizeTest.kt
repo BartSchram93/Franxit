@@ -129,7 +129,7 @@ class ShoparizeTest {
             searchPage("Samsung Galaxy S24 128GB" to "${page}s24/ccc")
         }
         assertTrue(offers.isEmpty())
-        assertEquals(1, asked.size)
+        assertTrue(asked.none { "/be/p/" in it })
     }
 
     @Test
@@ -236,12 +236,14 @@ class ShoparizeTest {
     fun aShorterWordingHasNoLoosePunctuation() {
         val queries = Shoparize.queries("Dash 2x Waspoeder Alpenfris - 2 x 5kg - 200 wasbeurten")
         assertTrue(queries.drop(2).none { it.endsWith("-") })
-        assertTrue("Dash 2x Waspoeder Alpenfris 2x" in queries)
+        assertTrue("Dash 2x Waspoeder Alpenfris" in queries)
+        // Without the numbers, the way Shoparize's own title can be found.
+        assertTrue("Dash Waspoeder Alpenfris" in queries)
     }
 
     @Test
-    fun aShortNameIsSearchedOnce() {
-        assertEquals(listOf("Samsung Galaxy S25"), Shoparize.queries("Samsung Galaxy S25"))
+    fun aShortNameIsSearchedAsItIsThenWithoutItsDigits() {
+        assertEquals(listOf("Samsung Galaxy S25", "Samsung Galaxy"), Shoparize.queries("Samsung Galaxy S25"))
     }
 
     @Test
@@ -293,9 +295,11 @@ class ShoparizeTest {
 
     @Test
     fun multipliersAreReadWhereverTheyStand() {
-        assertEquals(setOf(2), Shoparize.multipliers("2x Dash Waspoeder - 2 X 5kg"))
-        assertEquals(setOf(2), Shoparize.multipliers("Dash 2 x 5 kg"))
-        assertEquals(emptySet<Int>(), Shoparize.multipliers("Dash Waspoeder 5kg - 1920x1080"))
+        assertEquals(setOf(2), Matching.multipliers("2x Dash Waspoeder - 2 X 5kg"))
+        assertEquals(setOf(2), Matching.multipliers("Dash 2 x 5 kg"))
+        assertEquals(emptySet<Int>(), Matching.multipliers("Dash Waspoeder 5kg - 1920x1080"))
+        // A size, not a pack.
+        assertEquals(emptySet<Int>(), Matching.multipliers("Fotolijst 65 x 45 cm"))
     }
 
     @Test

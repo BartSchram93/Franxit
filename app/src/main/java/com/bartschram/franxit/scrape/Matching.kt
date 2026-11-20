@@ -18,6 +18,15 @@ object Matching {
 
     private fun isAccessory(text: String): Boolean = text.lowercase().let { t -> ACCESSORY.any { it in t } }
 
+    private val MULTIPLIER = Regex("""(?<![\w.,])(\d{1,2})\s?[x×](?!\w)""", RegexOption.IGNORE_CASE)
+
+    /**
+     * The multipacks a text names: "2x Dash …" and "… 2 X 5kg" are both a 2. Only 2 to 12: a larger number
+     * before an "x" is a size ("65 x 45 cm"), and "1x" is just the product.
+     */
+    fun multipliers(text: String): Set<Int> =
+        MULTIPLIER.findAll(text).mapNotNull { it.groupValues[1].toIntOrNull() }.filter { it in 2..12 }.toSet()
+
     /**
      * Whether a page still shows the product you track: titles change a little over time ("Zwart"
      * added), but share most words. A different product (Pokémon cards for a piano bench) doesn't.
@@ -48,6 +57,9 @@ object Matching {
         // A screen size in the name ("14,3"", "10.95 inch") is no part of what shops call the product.
         val want = words(wanted.replace(SIZE, " "))
         if (want.isEmpty()) return false
+        // A multipack is another product with another price than the single pack ("2x Dash … 2 x 5kg" against
+        // "Dash … 5,5 kg"), also when the price check would let it pass: both must name the same packs.
+        if (multipliers(title) != multipliers(wanted)) return false
         // A big, reliable shop often sells the product with a case or stylus ("TCL NXTPAPER 14 - 8GB - Grijs + Flip Case
         // & Stylus"): fine. A loose accessory is kept out by the price check (50-200% of the usual price), not by its title.
         if (!lenient) {
