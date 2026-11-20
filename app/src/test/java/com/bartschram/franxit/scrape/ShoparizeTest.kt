@@ -133,6 +133,28 @@ class ShoparizeTest {
     }
 
     @Test
+    fun aSmallShopGetsASearchLimitedToItsOwnSite() {
+        assertEquals(
+            "https://www.google.be/search?q=Primrose+Prox+180+Capsules+site%3Apazzox.be",
+            Shoparize.shopSearchUrl("Primrose Prox 180 Capsules", "Pazzox.be"),
+        )
+    }
+
+    @Test
+    fun aBigShopGetsItsOwnSearchPage() {
+        assertEquals(
+            "https://www.coolblue.be/nl/zoeken?query=Sony+PlayStation+5",
+            Shoparize.shopSearchUrl("Sony PlayStation 5", "Coolblue.be"),
+        )
+    }
+
+    @Test
+    fun aShopSearchNeverGoesToShoparize() {
+        val urls = listOf("Pazzox.be", "Coolblue.be", "Farmaline.be", "Some shop").map { Shoparize.shopSearchUrl("Product", it) }
+        assertTrue(urls.none { "shoparize" in it })
+    }
+
+    @Test
     fun theSearchUrlEscapesTheWords() {
         assertEquals("https://www.shoparize.com/be/q?q=Sony+WF-1000XM6+%26+case", Shoparize.searchUrl(" Sony WF-1000XM6 & case "))
     }

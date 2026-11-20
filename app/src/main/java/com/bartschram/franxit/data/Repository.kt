@@ -280,9 +280,23 @@ class Repository private constructor(context: Context) {
         if ("vergelijk.be" !in host) return@withContext product.url.takeIf { shop == null || TrustedShops.key(shop) == TrustedShops.key(host) }
         runCatching {
             val result = Scraper.fetch(product.url)
+            // A shop vergelijk.be doesn't list but Shoparize does: the shop's own search, not vergelijk.be's cheapest link.
+            if (shop != null && result.offers.none { TrustedShops.same(it.seller, shop) }) {
+                shoparizeShopLink(product, shop)?.let { return@runCatching it }
+            }
             if (seller == null) result.cheapest.link
             else result.offers.filter { it.seller.equals(seller, ignoreCase = true) }.minByOrNull { it.price }?.link
-        }.getOrNull()
+        }.getOrNull() ?: shop?.let { shoparizeShopLink(product, it) }
+    }
+
+    /**
+     * A shop that Shoparize listed for this product: where it can be bought is the shop's own search for the
+     * product. Shoparize's links are tracking links, so they are never used. Null for any other shop.
+     */
+    private fun shoparizeShopLink(product: Product, shop: String): String? {
+        val listed = ShoppingSettings.lastShoparizeOffers(appContext, product.id) ?: return null
+        if (listed.none { TrustedShops.same(it.seller, shop) }) return null
+        return Shoparize.shopSearchUrl(product.displayName, shop)
     }
 
     /**

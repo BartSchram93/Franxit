@@ -54,9 +54,15 @@ object ShoppingSettings {
         prefs(context).edit { putString(key, json.toString()) }
     }
 
-    private fun loadOffers(context: Context, key: String, version: Int, day: String): List<ShopOffer>? {
+    /** The shops Shoparize listed at the last search, however long ago: for the Buy button, which shows what was last found. */
+    fun lastShoparizeOffers(context: Context, productId: Long): List<ShopOffer>? =
+        loadOffers(context, "shoparize_offers_$productId", SHOPARIZE_VERSION, null)
+
+    /** [day] null: whatever was saved, whenever. */
+    private fun loadOffers(context: Context, key: String, version: Int, day: String?): List<ShopOffer>? {
         val json = prefs(context).getString(key, null)?.let(::JSONObject) ?: return null
-        if (json.optInt("v", 0) != version || day > json.optString("until", "") || day < json.optString("day")) return null
+        if (json.optInt("v", 0) != version) return null
+        if (day != null && (day > json.optString("until", "") || day < json.optString("day"))) return null
         val list = json.getJSONArray("offers")
         return (0 until list.length()).map { list.getJSONObject(it).let { o -> ShopOffer(o.getString("seller"), o.getDouble("price"), if (o.has("inStock")) o.getBoolean("inStock") else null) } }
     }
