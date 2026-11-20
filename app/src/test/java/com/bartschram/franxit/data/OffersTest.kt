@@ -68,7 +68,25 @@ class OffersTest {
         val extra = listOf(ShopOffer("Bol.com", 127.2), ShopOffer("Amazon.com.be", 170.0), ShopOffer("Decathlon.be", 180.0))
         val merged = Offers.merge(own, extra)
         assertEquals(listOf("Bol.com", "Amazon.com.be", "Decathlon.be"), merged.map { it.seller })
-        assertEquals(listOf(127.2, 165.71, 180.0), merged.map { it.price })
+        // For a shop both list, the extra source's price counts, the dearer one too.
+        assertEquals(listOf(127.2, 170.0, 180.0), merged.map { it.price })
+    }
+
+    @Test
+    fun anOldLowPriceOnTheComparisonPageDoesNotBeatTheShopsCurrentPrice() {
+        val own = listOf(ShopOffer("Bol.com", 26.95, true), ShopOffer("Coolblue.be", 41.0, true))
+        val extra = listOf(ShopOffer("Bol.com", 38.99))
+        val merged = Offers.merge(own, extra)
+        assertEquals(38.99, merged.first { it.seller == "Bol.com" }.price, 0.001)
+        assertEquals(38.99, Offers.cheapest(merged)!!.price, 0.001)
+    }
+
+    @Test
+    fun aShopOnlyVergelijkListsKeepsItsOwnPrice() {
+        val own = listOf(ShopOffer("Coolblue.be", 41.0, true))
+        val merged = Offers.merge(own, listOf(ShopOffer("Bol.com", 38.99)))
+        assertEquals(listOf("Bol.com", "Coolblue.be"), merged.map { it.seller })
+        assertEquals(41.0, merged.last().price, 0.001)
     }
 
     @Test

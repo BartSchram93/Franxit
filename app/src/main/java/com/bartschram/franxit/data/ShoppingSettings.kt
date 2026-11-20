@@ -35,8 +35,12 @@ object ShoppingSettings {
     fun extraOffers(context: Context, productId: Long, day: String): List<ShopOffer>? =
         loadOffers(context, "extra_offers_$productId", EXTRA_VERSION, day)
 
+    /** Google Shopping's offers from the last search, however long ago: shown while a fresh search runs, so prices don't jump. */
+    fun lastExtraOffers(context: Context, productId: Long): List<ShopOffer>? =
+        loadOffers(context, "extra_offers_$productId", EXTRA_VERSION, null)
+
     /** Bumped when the way Shoparize's results are found or filtered changes. */
-    private const val SHOPARIZE_VERSION = 1
+    private const val SHOPARIZE_VERSION = 2
 
     /** Shoparize's offers for a product, kept like Google Shopping's: asked once a day, "nothing found" for [days] days. */
     fun saveShoparizeOffers(context: Context, productId: Long, day: String, offers: List<ShopOffer>, days: Int = 1) =
