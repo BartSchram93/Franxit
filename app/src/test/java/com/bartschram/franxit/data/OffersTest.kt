@@ -6,6 +6,20 @@ import org.junit.Test
 
 class OffersTest {
     @Test
+    fun aShopTheFirstSourceHasIsLeftOutOfTheSecond() {
+        val google = listOf(ShopOffer("Coolblue.be", 100.0), ShopOffer("MediaMarkt.be", 120.0))
+        val shoparize = listOf(ShopOffer("coolblue.be", 90.0), ShopOffer("mediamarkt.be", 110.0), ShopOffer("bol.com", 130.0))
+        // Coolblue is cheaper at Shoparize, but Google comes first: only the shop Google lacks stays.
+        assertEquals(listOf("bol.com"), Offers.withoutShopsOf(shoparize, google).map { it.seller })
+    }
+
+    @Test
+    fun withoutAFirstSourceTheSecondStaysAsItIs() {
+        val shoparize = listOf(ShopOffer("bol.com", 130.0))
+        assertEquals(shoparize, Offers.withoutShopsOf(shoparize, emptyList()))
+    }
+
+    @Test
     fun aCheaperShopWithUnknownStockBeatsADearerOneInStock() {
         val offers = listOf(ShopOffer("Dreamland", 499.99), ShopOffer("Coolblue", 699.99, true), ShopOffer("Bol.com", 489.0, false))
         assertEquals("Dreamland", Offers.cheapest(offers)!!.seller)

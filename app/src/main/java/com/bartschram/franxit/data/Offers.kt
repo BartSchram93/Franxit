@@ -15,6 +15,16 @@ object Offers {
             ?: offers.minByOrNull(price)
 
     /**
+     * [secondary] without the shops [primary] already has: where two sources list the same shop, the first
+     * source's offer counts, not the cheaper one (Google Shopping before Shoparize). A shop is the same shop
+     * under its different spellings ("MediaMarkt.be", "Mediamarkt").
+     */
+    fun withoutShopsOf(secondary: List<ShopOffer>, primary: List<ShopOffer>): List<ShopOffer> {
+        val taken = primary.map { TrustedShops.key(it.seller) }.toSet()
+        return secondary.filter { TrustedShops.key(it.seller) !in taken }
+    }
+
+    /**
      * The shops to show: every shop vergelijk.be (or the page you added) gives stays; Google Shopping
      * only adds shops that aren't there yet, or lowers the price of one that is. One offer per shop,
      * the cheaper. Sold-out shops are left out unless every shop is sold out.

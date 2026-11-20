@@ -422,7 +422,10 @@ class Repository private constructor(context: Context) {
         val shoparize = shoparizeShops(named, query)
         // (Which shops are trusted was decided when Google's and Shoparize's results were read.)
         // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
-        val extra = (extras.offers + shoparize).filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
+        val plausible = { offer: ShopOffer -> ExtraShopPrices.plausible(offer.price, ownCheapest, GoogleShopping.isReliableShop(offer.seller, null)) }
+        // Google Shopping comes first: a shop it lists keeps Google's offer, Shoparize only adds the shops Google lacks.
+        val google = extras.offers.filter(plausible)
+        val extra = google + Offers.withoutShopsOf(shoparize.filter(plausible), google)
         val (offers, cheapest) = store(extra)
         // The shops are in: show them now, before the site's price history is fetched.
         onFirstResults?.invoke()
