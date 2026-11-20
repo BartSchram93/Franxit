@@ -208,7 +208,7 @@ class Repository private constructor(context: Context) {
             return emptyList()
         }
         val listed = found.filterNot { GoogleShopping.isMarketplace(it.seller) }
-        val offers = listed.map { ShopOffer(Shops.name(it.seller), it.price, null) }
+        val offers = ShopPrices.fromShoparize(found)
         TrustedShops.learn(appContext, offers.map { it.seller })
         // The shop's own product page where Shoparize's link names it (cleaned of tracking); else the Buy button searches.
         ShoppingSettings.saveShoparizeLinks(appContext, product.id, listed.mapNotNull { offer -> offer.link?.let { Shops.name(offer.seller) to it } }.toMap())
@@ -427,18 +427,9 @@ class Repository private constructor(context: Context) {
         }
         // (Which shops are trusted was decided when Google's and Shoparize's results were read.)
         // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
-        val plausible = { offer: ShopOffer -> ExtraShopPrices.plausible(offer.price, ownCheapest, GoogleShopping.isReliableShop(offer.seller, null)) }
-        // The shops to show, one offer each: Google Shopping first, then Shoparize, then vergelijk.be (for a Google
-        // Shopping product its own shops are Google's), but a price two sources agree on wins (see Offers.pick).
-        // Sold-out shops aren't shown; only when every shop is sold out, they are (so the product still has a price).
-        fun combine(google: List<ShopOffer>, shoparize: List<ShopOffer>): List<ShopOffer> {
-            val first = google.filter(plausible)
-            val second = shoparize.filter(plausible)
-            // An offer of the product's own page far from what the other sources ask is another pack
-            // (Amazon at € 54,29 where the others ask € 5 to € 8 for 6 ragers).
-            val mine = Offers.withoutOutliers(own, first + second)
-            return Offers.pick(if (query != null) listOf(mine, second) else listOf(first, second, mine))
-        }
+        // The shops to show, one offer each (see ShopPrices.combine, where the choices are tested).
+        fun combine(google: List<ShopOffer>, shoparize: List<ShopOffer>): List<ShopOffer> =
+            ShopPrices.combine(own, google, shoparize, googleProduct = query != null)
         // Google Shopping and Shoparize are the slow part: store and show vergelijk.be's shops first, with what they
         // found last time (so the prices don't jump back and forth), then the fresh results.
         val searchesGoogle = searchesExtra(query, ownShops) &&
