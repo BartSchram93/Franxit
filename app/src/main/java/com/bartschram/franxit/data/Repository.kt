@@ -322,8 +322,16 @@ class Repository private constructor(context: Context) {
         val query = GoogleShopping.queryOf(product.url)
         // Google Shopping costs a search of your plan: at most once a day per product.
         if (query != null && product.latest?.day == LocalDate.now() && product.lastError == null) return null
+        // vergelijk.be is read once, when a product is added (its shops and long-term history). After
+        // that the daily check leaves their site alone and only asks Google Shopping, through our own
+        // search service. [detached] is such a product: it has been checked before.
+        val detached = SiteReads.detached(product.url, isSearch = query != null, checks = product.history.size)
         val result = try {
-            if (query == null) Scraper.fetch(product.url) else searchGoogleShopping(product.id, query)
+            when {
+                detached -> Scraper.Result(product.name, emptyList(), null)
+                query == null -> Scraper.fetch(product.url)
+                else -> searchGoogleShopping(product.id, query)
+            }
         } catch (e: Exception) {
             // Google Shopping used up (or its key refused): not the customer's problem, tried again at the next check.
             if (query != null && e.message in setOf(GoogleShopping.NO_SEARCHES_LEFT, GoogleShopping.BAD_KEY)) return null
@@ -347,7 +355,8 @@ class Repository private constructor(context: Context) {
         if (query == null) TrustedShops.learn(appContext, own.map { it.seller })
         // Optionally Google Shopping's shops too; one shop, one offer (the cheaper), by shop site.
         // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
-        val ownCheapest = own.minOfOrNull { it.price }
+        // Without vergelijk.be's shops, the last known price is what Google's results are held against.
+        val ownCheapest = own.minOfOrNull { it.price } ?: if (detached) product.latest?.price else null
         val ownShops = own.map { Shops.name(it.seller).lowercase() }.distinct().size
         // A product just added is still called "New product": Google is asked for the name the shop gave it.
         val named = product.copy(name = result.name.ifBlank { product.name })
@@ -370,7 +379,7 @@ class Repository private constructor(context: Context) {
         // Google Shopping is the slow part: store and show vergelijk.be's shops first, then add Google's.
         val searchesGoogle = searchesExtra(query, ownShops) &&
             ShoppingSettings.extraOffers(appContext, product.id, today.toString()) == null
-        if (searchesGoogle && onFirstResults != null) {
+        if (searchesGoogle && onFirstResults != null && !detached) {
             store(emptyList())
             onFirstResults()
         }
@@ -378,6 +387,8 @@ class Repository private constructor(context: Context) {
         // (Which shops are trusted was decided when Google's results were read.)
         // Only prices that are plausible next to vergelijk.be's cheapest count (see ExtraShopPrices).
         val extra = extras.offers.filter { ExtraShopPrices.plausible(it.price, ownCheapest, GoogleShopping.isReliableShop(it.seller, null)) }
+        // Google has nothing today (or can't be reached): keep what was last saved instead of emptying the shops.
+        if (detached && extra.isEmpty()) return null
         val (offers, cheapest) = store(extra)
         // The shops are in: show them now, before the site's price history is fetched.
         onFirstResults?.invoke()
@@ -385,7 +396,8 @@ class Repository private constructor(context: Context) {
         val point = PricePoint(today, cheapest.price, cheapest.seller, offers.size, now, cheapest.inStock)
         // Optional extra: the site's own long-term history. Never fails the check. It only gains a
         // day at a time, so once it reaches today a refresh skips it.
-        if (product.siteHistory.lastOrNull()?.day != today) {
+        // Only for a product's first checks (a failed first attempt may be retried, twice at most), never daily.
+        if (SiteReads.readsHistory(product.url, product.history.size, hasHistory = product.siteHistory.isNotEmpty())) {
             runCatching { VergelijkHistory.fetch(product.url) }.getOrNull()
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { db.replaceSiteHistory(product.id, it) }
