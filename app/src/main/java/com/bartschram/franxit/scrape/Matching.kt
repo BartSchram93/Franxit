@@ -21,7 +21,8 @@ object Matching {
     private val MULTIPLIER = Regex("""(?<![\w.,])(\d{1,2})\s?[x×](?!\w)""", RegexOption.IGNORE_CASE)
     private val SET_OF = Regex("""\b(?:set|pack|verpakking|doos)\s+(?:van|of|de)\s+(\d{1,2})\b|\b(\d{1,2})[\s-]?(?:pack|pak)\b""", RegexOption.IGNORE_CASE)
     private val COUNT = Regex(
-        """(?<![\w.,])(\d{1,4})\s?-?(stuks|stuk|st|pcs|pieces|pièces|delig|delen|ragers|capsules|caps|tabletten|tabs|kauwtabletten|zakjes|rollen|wasbeurten|doekjes|luiers)\b""",
+        """(?<![\w.,])(\d{1,4})\s?-?(stuks|stuk|st|pcs|pieces|pièces|delig|delen|ragers|capsules|capsule|caps|tabletten|tablets|tabs|kauwtabletten|""" +
+            """zakjes|sachets|rollen|wasbeurten|doekjes|billendoekjes|luiers|luierbroekjes|broekjes|vellen|pods|sticks)\b""",
         RegexOption.IGNORE_CASE,
     )
 
@@ -35,6 +36,22 @@ object Matching {
         val want = counts(wanted)
         val have = counts(title)
         return want.isNotEmpty() && have.isNotEmpty() && want.none { it in have }
+    }
+
+    /** The words of [text] that say which pack it is: "138 Luierbroekjes", "2x", "set van 6". */
+    fun packPhrases(text: String): List<String> =
+        (COUNT.findAll(text) + SET_OF.findAll(text) +
+            MULTIPLIER.findAll(text).filter { (it.groupValues[1].toIntOrNull() ?: 0) in 2..12 })
+            .map { it.value.trim() }.distinct().toList()
+
+    /**
+     * [short] with the pack its [full] name names and [short] leaves out: "Pampers Baby-Dry Pants Maat 6" with
+     * "138 Luierbroekjes" from "Pampers Baby-Dry Pants Maat 6, 138 Luierbroekjes, 14-19kg Maandbox". Without it,
+     * the pack of 160 looks like the same product.
+     */
+    fun withPack(short: String, full: String): String {
+        val missing = packPhrases(full).filter { !short.contains(it, ignoreCase = true) }
+        return (listOf(short.trim()) + missing).joinToString(" ")
     }
 
     /** How many pieces a text names ("60 Stuks", "6 ragers", "200 wasbeurten", "12-delig"). */

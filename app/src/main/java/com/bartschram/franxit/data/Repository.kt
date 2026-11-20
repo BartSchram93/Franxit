@@ -225,7 +225,9 @@ class Repository private constructor(context: Context) {
     private fun matchName(product: Product): String {
         val extra = product.name.split(',').getOrNull(1)?.trim().orEmpty()
         val isCode = Regex("""[A-Za-z0-9][A-Za-z0-9./-]{3,}""").matches(extra) && extra.any(Char::isDigit) && extra.any(Char::isLetter)
-        return if (isCode) "${product.displayName} $extra" else product.displayName
+        val base = if (isCode) "${product.displayName} $extra" else product.displayName
+        // The pack the full name names ("138 Luierbroekjes"), so another pack (160) isn't taken for this one.
+        return Matching.withPack(base, product.name)
     }
 
     private fun fullNameQuery(product: Product): String? {

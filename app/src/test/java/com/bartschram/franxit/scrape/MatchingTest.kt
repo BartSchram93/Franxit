@@ -138,4 +138,20 @@ class MatchingTest {
         )
         assertEquals("https://www.vergelijk.be/b_1000002/", Matching.rank(hits, "Gladi Magnetic Tiles 100 stuks Magnetisch Speelgoed").first().url)
     }
+
+    @Test
+    fun theShortNameKeepsThePackOfTheFullName() {
+        val full = "Pampers Baby-Dry Pants Maat 6, 138 Luierbroekjes, 14-19kg Maandbox"
+        assertEquals("Pampers Baby-Dry Pants Maat 6 138 Luierbroekjes", Matching.withPack("Pampers Baby-Dry Pants Maat 6", full))
+        // Nothing to add when the short name has it already, or the full name names no pack.
+        assertEquals("Dash 2x Waspoeder", Matching.withPack("Dash 2x Waspoeder", "Dash 2x Waspoeder, Alpenfris"))
+        assertEquals("Sony WH-1000XM6", Matching.withPack("Sony WH-1000XM6", "Sony WH-1000XM6, Zwart"))
+    }
+
+    @Test
+    fun anotherNumberOfDiaperPantsIsAnotherPack() {
+        val wanted = Matching.withPack("Pampers Baby-Dry Pants Maat 6", "Pampers Baby-Dry Pants Maat 6, 138 Luierbroekjes, 14-19kg Maandbox")
+        assertEquals(false, Matching.isSameProduct("Pampers Baby-Dry Pants Maat 6 - 160 Luierbroekjes - Maandbox", wanted, lenient = true))
+        assertEquals(true, Matching.isSameProduct("Pampers Baby-Dry Pants Maat 6 - 138 luierbroekjes - 14-19 kg", wanted, lenient = true))
+    }
 }
