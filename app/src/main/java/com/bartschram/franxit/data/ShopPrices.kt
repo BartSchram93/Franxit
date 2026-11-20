@@ -14,7 +14,8 @@ internal object ShopPrices {
      * - [own]: the product's own page (vergelijk.be, or a shop page you added); for a Google Shopping product
      *   ([googleProduct]) its own shops are Google's.
      * - [google], [shoparize]: the extra sources. Only prices plausible next to [own]'s cheapest count
-     *   (see ExtraShopPrices): a € 23 case is no € 349 tablet.
+     *   (see ExtraShopPrices): a € 23 case is no € 349 tablet. A price within what [own]'s shops ask counts too:
+     *   Galaxus at € 65,95 is no odd price where the product's own page lists Plein at € 70,54.
      * - An offer of [own] far from what the other sources ask is another pack (Amazon at € 54,29 where the others
      *   ask € 5 to € 8 for 6 ragers) and is left out.
      * - Then per shop: a price two sources agree on wins, else Google Shopping, then Shoparize, then [own]
@@ -22,7 +23,11 @@ internal object ShopPrices {
      */
     fun combine(own: List<ShopOffer>, google: List<ShopOffer>, shoparize: List<ShopOffer>, googleProduct: Boolean): List<ShopOffer> {
         val ownCheapest = own.minOfOrNull { it.price }
-        val plausible = { offer: ShopOffer -> ExtraShopPrices.plausible(offer.price, ownCheapest, GoogleShopping.isReliableShop(offer.seller, null)) }
+        val ownDearest = own.maxOfOrNull { it.price }
+        val plausible = { offer: ShopOffer ->
+            ExtraShopPrices.plausible(offer.price, ownCheapest, GoogleShopping.isReliableShop(offer.seller, null)) ||
+                (ownCheapest != null && ownDearest != null && offer.price in ownCheapest..ownDearest)
+        }
         val first = google.filter(plausible)
         val second = shoparize.filter(plausible)
         val mine = Offers.withoutOutliers(own, first + second)

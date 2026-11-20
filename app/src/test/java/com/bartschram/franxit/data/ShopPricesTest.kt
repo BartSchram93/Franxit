@@ -82,4 +82,25 @@ class ShopPricesTest {
         assertEquals(listOf("Pazzox.be"), offers.map { it.seller })
         assertTrue(offers.all { it.inStock == null })
     }
+
+    @Test
+    fun pampersAShopWithinThePricesOfTheProductsOwnPageCounts() {
+        // Pampers Baby-Dry Pants Maat 6, 138 luierbroekjes: Galaxus (€ 65,95) is over 1,5 times the cheapest
+        // (€ 41,06), but the product's own page lists Plein at € 70,54 for the same pack.
+        val own = listOf(ShopOffer("Bol.", 41.06, true), ShopOffer("Plein.be", 70.54, true))
+        val shoparize = ShopPrices.fromShoparize(
+            listOf(Scraper.Offer("bol.com", 41.06), Scraper.Offer("galaxus.be", 65.95), Scraper.Offer("plein.be", 70.54)),
+        )
+        assertEquals(
+            listOf("Bol.com" to 41.06, "Galaxus.be" to 65.95, "Plein.be" to 70.54),
+            shown(ShopPrices.combine(own, emptyList(), shoparize, googleProduct = false)),
+        )
+    }
+
+    @Test
+    fun aPriceAboveEveryShopOfTheOwnPageStillHasToBePlausible() {
+        val own = listOf(ShopOffer("Bol.", 41.06, true), ShopOffer("Plein.be", 70.54, true))
+        val shoparize = ShopPrices.fromShoparize(listOf(Scraper.Offer("galaxus.be", 140.0)))
+        assertEquals(listOf("Bol.", "Plein.be"), ShopPrices.combine(own, emptyList(), shoparize, googleProduct = false).map { it.seller })
+    }
 }
