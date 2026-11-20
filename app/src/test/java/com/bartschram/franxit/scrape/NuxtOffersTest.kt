@@ -48,4 +48,34 @@ class NuxtOffersTest {
         assertEquals(445.82, result.offers.first { it.seller == "Bol." }.price, 0.001)
         assertEquals("Amazon", result.cheapest.seller)
     }
+
+    // Tandenborstel.com: € 6,50, € 4,95 after its deal, € 10,90 with € 5,95 shipping; Plein.be € 5,20, € 13,15 with shipping.
+    private val withShipping = """
+        <script type="application/json" data-nuxt-data="nuxt-app" data-ssr="true" id="__NUXT_DATA__">[
+          {"shop":1,"offer":4},
+          {"brand":2},
+          {"name":3},
+          "Tandenborstel.com",
+          {"basePrice":5,"totalPrice":6,"deal":7,"productCondition":10},
+          6.5,
+          12.45,
+          {"baseDiscountedPrice":8,"discountedPrice":9},
+          4.95,
+          10.9,
+          "NEW",
+          {"shop":12,"offer":15},
+          {"brand":13},
+          {"name":14},
+          "Plein.be",
+          {"basePrice":16,"totalPrice":17,"productCondition":10},
+          5.2,
+          13.15
+        ]</script>
+    """.trimIndent()
+
+    @Test
+    fun theShopsOwnPriceCountsWithoutShipping() {
+        val offers = NuxtOffers.parse(withShipping)
+        assertEquals(listOf(Scraper.Offer("Tandenborstel.com", 4.95), Scraper.Offer("Plein.be", 5.2)), offers)
+    }
 }

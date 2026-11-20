@@ -44,9 +44,18 @@ object NuxtOffers {
             val seller = (deref(deref(entry, "shop") as? JSONObject, "brand") as? JSONObject)
                 ?.let { deref(it, "name") as? String }
                 ?: continue
+            // The shop's own price for the product, after its deal: what the shop's page shows. vergelijk.be's
+            // total adds the shipping, which Google Shopping and Shoparize leave out: with it, a shop looked
+            // € 5,95 dearer (Tandenborstel.com at € 10,90 for € 4,95 plus shipping). The total only when the
+            // page doesn't give the product price.
+            val deal = deref(offer, "deal") as? JSONObject
+            val base = (deref(offer, "basePrice") as? Number)?.toDouble()
+            val baseDiscounted = (deref(deal, "baseDiscountedPrice") as? Number)?.toDouble()
             val total = (deref(offer, "totalPrice") as? Number)?.toDouble()
-            val discounted = (deref(deref(offer, "deal") as? JSONObject, "discountedPrice") as? Number)?.toDouble()
-            val price = listOfNotNull(total, discounted).filter { it > 0 }.minOrNull() ?: continue
+            val discounted = (deref(deal, "discountedPrice") as? Number)?.toDouble()
+            val price = listOfNotNull(base, baseDiscounted).filter { it > 0 }.minOrNull()
+                ?: listOfNotNull(total, discounted).filter { it > 0 }.minOrNull()
+                ?: continue
             // The "Bekijk product" button opens this; vergelijk.be then redirects to the shop.
             val link = (deref(offer, "clickoutHash") as? String)?.let {
                 "https://www.vergelijk.be/clickout/register?hash=" + URLEncoder.encode(it, "UTF-8")
