@@ -127,7 +127,7 @@ fun DetailScreen(
     var renaming by rememberSaveable { mutableStateOf(false) }
     var settingTarget by rememberSaveable { mutableStateOf(false) }
     var openingShop by remember { mutableStateOf(false) }
-    var span by rememberSaveable { mutableStateOf(Span.M3) }
+    var span by rememberSaveable { mutableStateOf(Span.M1) }
     val uri = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val host = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
