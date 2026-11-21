@@ -303,10 +303,15 @@ class Repository private constructor(context: Context) {
         if (GoogleShopping.queryOf(product.url) != null) return@withContext shop?.let { shoparizeShopLink(product, it) }
         // A shop's own page you added (fitshop.be), with Google Shopping's shops next to it.
         val host = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
-        if ("vergelijk.be" !in host) return@withContext BuyLink.ownPage(product.url, shop)
-        // The button's shop on vergelijk.be's page, else through Shoparize (see BuyLink, where the cases are tested).
-        runCatching { BuyLink.fromPage(buyPage(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
-            ?: shop?.let { shoparizeShopLink(product, it) }
+        // Another shop than that page's ("Buy at Bol.com" on a Multibazar page): through Shoparize, never that page.
+        val found = if ("vergelijk.be" !in host) {
+            BuyLink.ownPage(product.url, shop) ?: shop?.let { shoparizeShopLink(product, it) }
+        } else {
+            // The button's shop on vergelijk.be's page, else through Shoparize (see BuyLink, where the cases are tested).
+            runCatching { BuyLink.fromPage(buyPage(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
+                ?: shop?.let { shoparizeShopLink(product, it) }
+        }
+        BuyLink.orSearch(found, shop, product.displayName)
     }
 
     /**

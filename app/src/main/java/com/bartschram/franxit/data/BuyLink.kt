@@ -32,6 +32,14 @@ internal object BuyLink {
     }
 
     /**
+     * The page [found] for the button's [shop], else a search for the product limited to that shop's site: never
+     * another shop's page. "Buy at Bol.com" opened Multibazar, the page the product was added from, when no page
+     * of bol.com's was known. Null only when no shop is named.
+     */
+    fun orSearch(found: String?, shop: String?, productName: String): String? =
+        found ?: shop?.let { Shoparize.shopSearchUrl(productName, it) }
+
+    /**
      * For a shop Shoparize [listed] for this product: its own product page ([cleanLink], from Shoparize's link without
      * tracking), else the shop's own search for [productName]. Shoparize's own links are never opened. Null for a shop
      * Shoparize didn't list.

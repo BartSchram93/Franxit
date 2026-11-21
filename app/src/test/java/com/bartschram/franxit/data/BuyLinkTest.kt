@@ -64,4 +64,17 @@ class BuyLinkTest {
         // A shop Shoparize didn't list.
         assertNull(BuyLink.fromShoparize(listed, "Bol.com", null, "Primrose Prox 180 Capsules"))
     }
+
+    @Test
+    fun aShopWithoutAKnownPageGetsASearchOnItsSiteNeverAnotherShop() {
+        // "Buy at Bol.com" on a product added from Multibazar opened Multibazar's page.
+        val multibazar = "https://www.multibazar.be/gladi-magnetische-tegels-100"
+        assertNull(BuyLink.ownPage(multibazar, "Bol.com"))
+        assertEquals(
+            "https://www.google.be/search?q=Gladi+magnetische+tegels+100+stuks+site%3Abol.com",
+            BuyLink.orSearch(null, "Bol.com", "Gladi magnetische tegels 100 stuks"),
+        )
+        assertEquals(multibazar, BuyLink.orSearch(multibazar, "Multibazar.be", "Gladi"))
+        assertNull(BuyLink.orSearch(null, null, "Gladi"))
+    }
 }
