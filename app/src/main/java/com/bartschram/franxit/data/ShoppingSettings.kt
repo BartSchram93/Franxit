@@ -51,7 +51,7 @@ object ShoppingSettings {
 
     private fun saveOffers(context: Context, key: String, version: Int, day: String, offers: List<ShopOffer>, days: Int) {
         val json = JSONObject().put("v", version).put("day", day)
-            .put("until", java.time.LocalDate.parse(day).plusDays(days - 1L).toString()).put(
+            .put("until", OfferCache.until(day, days)).put(
             "offers",
             org.json.JSONArray(offers.map { JSONObject().put("seller", it.seller).put("price", it.price).also { o -> it.inStock?.let { s -> o.put("inStock", s) } } }),
         )
@@ -76,8 +76,7 @@ object ShoppingSettings {
     /** [day] null: whatever was saved, whenever. */
     private fun loadOffers(context: Context, key: String, version: Int, day: String?): List<ShopOffer>? {
         val json = prefs(context).getString(key, null)?.let(::JSONObject) ?: return null
-        if (json.optInt("v", 0) != version) return null
-        if (day != null && (day > json.optString("until", "") || day < json.optString("day"))) return null
+        if (!OfferCache.usable(json.optInt("v", 0), version, json.optString("day"), json.optString("until", ""), day)) return null
         val list = json.getJSONArray("offers")
         return (0 until list.length()).map { list.getJSONObject(it).let { o -> ShopOffer(o.getString("seller"), o.getDouble("price"), if (o.has("inStock")) o.getBoolean("inStock") else null) } }
     }

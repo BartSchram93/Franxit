@@ -164,18 +164,17 @@ class Repository private constructor(context: Context) {
         if (!searchesExtra(query, ownShops)) return Extras(emptyList())
         val today = LocalDate.now().toString()
         ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return Extras(it) }
-        val name = product.displayName
         // What results are held against: the name with its model code ("… Zilverkleurig" + "GM-2100YM-8AER"), so another colour's code is out.
         val matchName = matchName(product)
         // The wording that worked last time first, then the product's name, its fuller name, and "kopen".
-        val terms = listOfNotNull(ShoppingSettings.extraTerm(appContext, product.id), name, fullNameQuery(product), "$name kopen")
+        val terms = SearchNames.googleTerms(product, ShoppingSettings.extraTerm(appContext, product.id))
         val found = try {
             searchGoogleShopping(product.id, matchName, terms, reference) { ShoppingSettings.setExtraTerm(appContext, product.id, it) }
         } catch (e: Exception) {
             return when (e.message) {
                 // Nothing for this product: asked once a day, not at every refresh.
                 GoogleShopping.NOT_FOUND -> {
-                    ShoppingSettings.saveExtraOffers(appContext, product.id, today, emptyList(), days = 3)
+                    ShoppingSettings.saveExtraOffers(appContext, product.id, today, emptyList(), days = OfferCache.GOOGLE_NOTHING_DAYS)
                     Extras(emptyList())
                 }
                 // Out of searches, a key that doesn't work, no connection: the customer isn't told, it just
@@ -202,7 +201,7 @@ class Repository private constructor(context: Context) {
         val today = LocalDate.now().toString()
         ShoppingSettings.shoparizeOffers(appContext, product.id, today)?.let { return it }
         val found = try {
-            Shoparize.offersFor(query ?: matchName(product))
+            Shoparize.offersFor(SearchNames.shoparize(product, query))
         } catch (e: Exception) {
             // No connection, or the site changed: nothing is saved, so it is asked again at the next check.
             return emptyList()
@@ -214,28 +213,12 @@ class Repository private constructor(context: Context) {
         ShoppingSettings.saveShoparizeLinks(appContext, product.id, listed.mapNotNull { offer -> offer.link?.let { Shops.name(offer.seller) to it } }.toMap())
         // Kept for the day, also when nothing was found: Shoparize sometimes answers with an empty page for a
         // while, and that must not hide its shops for days.
-        ShoppingSettings.saveShoparizeOffers(appContext, product.id, today, offers)
+        ShoppingSettings.saveShoparizeOffers(appContext, product.id, today, offers, days = OfferCache.SHOPARIZE_DAYS)
         return offers
     }
 
-    /**
-     * The name with the first thing after its comma ("Bose QuietComfort Ultra Earbuds" + "(2e gen) Zwart"),
-     * as a second wording to search for; null when that is no short variant, but specs ("36,3 cm", "256 GB").
-     */
-    private fun matchName(product: Product): String {
-        val extra = product.name.split(',').getOrNull(1)?.trim().orEmpty()
-        val isCode = Regex("""[A-Za-z0-9][A-Za-z0-9./-]{3,}""").matches(extra) && extra.any(Char::isDigit) && extra.any(Char::isLetter)
-        val base = if (isCode) "${product.displayName} $extra" else product.displayName
-        // The pack the full name names ("138 Luierbroekjes"), so another pack (160) isn't taken for this one.
-        return Matching.withPack(base, product.name)
-    }
-
-    private fun fullNameQuery(product: Product): String? {
-        val extra = product.name.split(',').getOrNull(1)?.trim().orEmpty()
-        val spec = Regex("""\d\s?(cm|inch|"|gb|mb|tb|mm|hz|mah|w|x)\b|^[\d.\s]+$""", RegexOption.IGNORE_CASE)
-        if (extra.isEmpty() || extra.split(Regex("\\s+")).size > 4 || spec.containsMatchIn(extra)) return null
-        return "${product.displayName} $extra"
-    }
+    /** What results are held against (see SearchNames, where the cases are tested). */
+    private fun matchName(product: Product): String = SearchNames.match(product)
 
     /** Switches a product's photo; the page's own photo comes back with a check (no Google search). */
     suspend fun setPhoto(productId: Long, choice: Photos.Choice) = withContext(Dispatchers.IO) {
@@ -274,7 +257,7 @@ class Repository private constructor(context: Context) {
 
     private suspend fun shopLinkUnchecked(product: Product, seller: String? = null): String? = withContext(Dispatchers.IO) {
         // A shop found through Google Shopping: its page from the last search (a new search would cost one).
-        val shop = seller ?: Offers.cheapest(product.offers)?.seller
+        val shop = BuyLink.shop(seller, product.offers)
         shop?.let { ShoppingSettings.link(appContext, product.id, it) }?.let { link ->
             if (!link.startsWith(GoogleShopping.TOKEN)) return@withContext link
             return@withContext lookUpStoreLink(product, shop, link.removePrefix(GoogleShopping.TOKEN))
@@ -282,17 +265,10 @@ class Repository private constructor(context: Context) {
         if (GoogleShopping.queryOf(product.url) != null) return@withContext shop?.let { shoparizeShopLink(product, it) }
         // A shop's own page you added (fitshop.be), with Google Shopping's shops next to it.
         val host = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
-        if ("vergelijk.be" !in host) return@withContext product.url.takeIf { shop == null || TrustedShops.key(shop) == TrustedShops.key(host) }
-        runCatching {
-            val result = Scraper.fetch(product.url)
-            // A shop vergelijk.be doesn't list but Shoparize does: the shop's own search, not vergelijk.be's cheapest link.
-            if (shop != null && result.offers.none { TrustedShops.same(it.seller, shop) }) {
-                shoparizeShopLink(product, shop)?.let { return@runCatching it }
-            }
-            // The shop the button names: the cheapest in the app, which need not be vergelijk.be's cheapest.
-            if (shop == null) result.cheapest.link
-            else result.offers.filter { TrustedShops.same(it.seller, shop) }.minByOrNull { it.price }?.link
-        }.getOrNull() ?: shop?.let { shoparizeShopLink(product, it) }
+        if ("vergelijk.be" !in host) return@withContext BuyLink.ownPage(product.url, shop)
+        // The button's shop on vergelijk.be's page, else through Shoparize (see BuyLink, where the cases are tested).
+        runCatching { BuyLink.fromPage(Scraper.fetch(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
+            ?: shop?.let { shoparizeShopLink(product, it) }
     }
 
     /**
@@ -302,8 +278,7 @@ class Repository private constructor(context: Context) {
      */
     private fun shoparizeShopLink(product: Product, shop: String): String? {
         val listed = ShoppingSettings.lastShoparizeOffers(appContext, product.id) ?: return null
-        if (listed.none { TrustedShops.same(it.seller, shop) }) return null
-        return ShoppingSettings.shoparizeLink(appContext, product.id, shop) ?: Shoparize.shopSearchUrl(product.displayName, shop)
+        return BuyLink.fromShoparize(listed, shop, ShoppingSettings.shoparizeLink(appContext, product.id, shop), product.displayName)
     }
 
     /**
