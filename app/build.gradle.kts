@@ -97,6 +97,7 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     "webImplementation"(libs.aptabase)
     implementation(libs.androidx.glance.appwidget)
+    implementation(libs.mlkit.text.recognition)
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
     debugImplementation(libs.androidx.compose.ui.tooling)

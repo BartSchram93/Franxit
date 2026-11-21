@@ -34,6 +34,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Where the camera app saves a photo of a price tag: the app's own cache, shared only with that camera app. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.photos"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/photo_paths" />
+        </provider>
+
         <receiver
             android:name=".widget.PriceListWidgetReceiver"
             android:exported="true"

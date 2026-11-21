@@ -119,6 +119,8 @@ fun SearchScreen(
                 title = { Text("Track a product") },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                // Search by a photo of a price tag in a shop: its name goes into the search field.
+                actions = { PriceTagSearch(onSearch = { query = it }) },
             )
         },
     ) { padding ->

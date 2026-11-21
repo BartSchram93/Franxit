@@ -207,4 +207,12 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "1 product couldn't be checked" to "1 product kon niet gecontroleerd worden",
     "%d products couldn't be checked" to "%d producten konden niet gecontroleerd worden",
     "New product" to "Nieuw product",
+    "Photo of a price tag" to "Foto van een prijskaartje",
+    "Take a photo" to "Foto nemen",
+    "Choose a photo" to "Foto kiezen",
+    "Reading the price tag…" to "Prijskaartje lezen…",
+    "Is this the product?" to "Is dit het product?",
+    "No name found on the photo. Type it yourself." to "Geen naam gevonden op de foto. Typ hem zelf.",
+    "Product name" to "Productnaam",
+    "Search" to "Zoeken",
 )

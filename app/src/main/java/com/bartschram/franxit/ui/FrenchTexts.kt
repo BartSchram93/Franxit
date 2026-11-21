@@ -207,4 +207,12 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "1 product couldn't be checked" to "1 produit n'a pas pu être vérifié",
     "%d products couldn't be checked" to "%d produits n'ont pas pu être vérifiés",
     "New product" to "Nouveau produit",
+    "Photo of a price tag" to "Photo d'une étiquette de prix",
+    "Take a photo" to "Prendre une photo",
+    "Choose a photo" to "Choisir une photo",
+    "Reading the price tag…" to "Lecture de l'étiquette…",
+    "Is this the product?" to "Est-ce le produit ?",
+    "No name found on the photo. Type it yourself." to "Aucun nom trouvé sur la photo. Tape-le toi-même.",
+    "Product name" to "Nom du produit",
+    "Search" to "Rechercher",
 )

@@ -10,6 +10,7 @@ glance = "1.1.1"
 junit = "4.13.2"
 orgJson = "20240303"
 aptabase = "0.1.0"
+mlkitText = "16.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -26,6 +27,8 @@ androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidge
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 aptabase = { group = "com.github.aptabase", name = "aptabase-kotlin", version.ref = "aptabase" }
+# Reads the text on a photo of a price tag on the phone itself (the model ships in the app: no upload).
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitText" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
