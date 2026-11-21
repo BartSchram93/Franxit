@@ -36,6 +36,12 @@ import java.time.LocalDate
 
 class Repository private constructor(context: Context) {
 
+    /** How long a looked-up Buy page is used again: a shop's page for a product rarely moves. */
+    private val LINK_MS = 30 * 60 * 1000L
+
+    /** At most this many shops' pages are looked up ahead. */
+    private val PREPARED_SHOPS = 6
+
     private val appContext = context.applicationContext
     private val db = Db(appContext)
     private val checkLock = Mutex()
@@ -252,8 +258,40 @@ class Repository private constructor(context: Context) {
 
 
     /** Only web addresses are ever opened: a link from a shop or from Google is not trusted with any other kind. */
-    suspend fun shopLink(product: Product, seller: String? = null): String? =
-        shopLinkUnchecked(product, seller)?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+    suspend fun shopLink(product: Product, seller: String? = null): String? {
+        // By the shop the button names: after a check the cheapest can be another shop.
+        val key = "${product.id}|${BuyLink.shop(seller, product.offers).orEmpty()}"
+        links[key]?.takeIf { System.currentTimeMillis() - it.first < LINK_MS }?.let { return it.second }
+        val link = shopLinkUnchecked(product, seller)?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+        if (link != null) links[key] = System.currentTimeMillis() to link
+        return link
+    }
+
+    /**
+     * Looks up the Buy button's pages for [product] ahead of a tap: the cheapest shop's and each shop's in the list,
+     * with vergelijk.be's page read once for all. A tap then opens the shop at once instead of after a download.
+     */
+    suspend fun prepareShopLinks(product: Product) {
+        // Not a Google Shopping shop whose page isn't known yet: looking that up is a search, only spent on a tap.
+        fun searchNeeded(shop: String?) = shop != null &&
+            ShoppingSettings.link(appContext, product.id, shop)?.startsWith(GoogleShopping.TOKEN) == true
+        withContext(Dispatchers.IO) {
+            if (!searchNeeded(BuyLink.shop(null, product.offers))) runCatching { shopLink(product, null) }
+            val sellers = product.offers.map { it.seller }.distinct().filterNot(::searchNeeded)
+            for (seller in sellers.take(PREPARED_SHOPS)) runCatching { shopLink(product, seller) }
+        }
+    }
+
+    /** The Buy button's pages already looked up, by product and shop, with when: kept [LINK_MS]. */
+    private val links = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, String>>()
+
+    /** vergelijk.be's product pages read for the Buy button, kept [LINK_MS]: one read serves every shop's button. */
+    private val pages = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, Scraper.Result>>()
+
+    private fun buyPage(url: String): Scraper.Result {
+        pages[url]?.takeIf { System.currentTimeMillis() - it.first < LINK_MS }?.let { return it.second }
+        return Scraper.fetch(url).also { pages[url] = System.currentTimeMillis() to it }
+    }
 
     private suspend fun shopLinkUnchecked(product: Product, seller: String? = null): String? = withContext(Dispatchers.IO) {
         // A shop found through Google Shopping: its page from the last search (a new search would cost one).
@@ -267,7 +305,7 @@ class Repository private constructor(context: Context) {
         val host = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
         if ("vergelijk.be" !in host) return@withContext BuyLink.ownPage(product.url, shop)
         // The button's shop on vergelijk.be's page, else through Shoparize (see BuyLink, where the cases are tested).
-        runCatching { BuyLink.fromPage(Scraper.fetch(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
+        runCatching { BuyLink.fromPage(buyPage(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
             ?: shop?.let { shoparizeShopLink(product, it) }
     }
 

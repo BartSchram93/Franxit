@@ -223,6 +223,8 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
         )
     } else if (selected != null) {
         BackHandler { selectedId = null }
+        // The Buy button's page looked up while you look at the product, so a tap opens it at once.
+        LaunchedEffect(selected.id) { repo.prepareShopLinks(selected) }
         DetailScreen(
             product = selected,
             refreshing = refreshing,
