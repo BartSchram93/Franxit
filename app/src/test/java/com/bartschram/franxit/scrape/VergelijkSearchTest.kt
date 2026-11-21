@@ -82,5 +82,9 @@ class VergelijkSearchTest {
         assertTrue(VergelijkSearch.fits(listOf(hit("Power XXL RO3134 Stofzuiger met zak")), "Rowenta RO3134"))
         assertFalse(VergelijkSearch.fits(emptyList(), "Rowenta RO3134EA"))
         assertTrue(VergelijkSearch.fits(listOf(hit("Dyson V15 Detect")), "dyson"))
+        // Two chance words of a long name are no fit; half the words of a short one are.
+        assertFalse(VergelijkSearch.fits(listOf(hit("Fastgrip Aqua Goalkeeper Gloves Wit 10")), "Dreame Aqua 10 Ultrarol Blanc"))
+        assertTrue(VergelijkSearch.fits(listOf(hit("Galaxy S24 128GB Zwart")), "samsung galaxy s24"))
+        assertTrue(VergelijkSearch.fits(listOf(hit("Airfryer XXL HD9650/90")), "Philips Airfryer XXL HD9650/90"))
     }
 }

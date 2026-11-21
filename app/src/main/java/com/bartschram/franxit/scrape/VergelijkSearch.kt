@@ -52,15 +52,17 @@ object VergelijkSearch {
     private fun isCode(word: String) = word.length >= 4 && word.any { it.isLetter() } && word.any { it.isDigit() }
 
     /**
-     * Whether a search found something like [query]: one of the first hits shares its model code ("RO3134"),
-     * or two of its words ("Aqua 10"); a name of one word, that word. Not one shared colour ("Blanc").
+     * Whether a search found something like [query]: one of the first hits shares its model code ("RO3134"), or
+     * at least two of its words and at least half of them ("Galaxy S24" for "Samsung Galaxy S24"); a name of one
+     * word, that word. Not one shared colour ("Blanc"), nor two chance words of a long name (gloves "Aqua … 10"
+     * for "Dreame Aqua 10 Ultrarol Blanc").
      */
     internal fun fits(hits: List<Hit>, query: String): Boolean {
         val wanted = words(query).toSet()
         if (wanted.isEmpty()) return hits.isNotEmpty()
         return hits.take(5).any { hit ->
             val shared = words(hit.title).filter { it in wanted }.toSet()
-            shared.any(::isCode) || shared.size >= minOf(2, wanted.size)
+            shared.any(::isCode) || (shared.size >= minOf(2, wanted.size) && shared.size * 2 >= wanted.size)
         }
     }
 
