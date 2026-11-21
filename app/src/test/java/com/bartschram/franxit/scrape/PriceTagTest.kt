@@ -71,4 +71,13 @@ class PriceTagTest {
         assertNull(PriceTag.name(lines("BLACK FRIDAY", "229€00", "Geldig t.e.m. 30.11.26", "8259771")))
         assertNull(PriceTag.name(emptyList()))
     }
+
+    @Test
+    fun aBrandThePhotoSplitIsJoinedAgain() {
+        // As read on the phone from a Krëfel tag: "ROWEN TA - RO3134EA".
+        assertEquals("Rowenta RO3134EA", PriceTag.name(lines("ROWEN TA - RO3134EA 7880057", "SLEDESTOFZUIGER MET ZAK", "119€00")))
+        // Two real words stay apart.
+        assertEquals("BLACK DECKER - X", PriceTag.joinBrand("BLACK DECKER - X"))
+        assertEquals("LG - OLED55C4", PriceTag.joinBrand("LG - OLED55C4"))
+    }
 }

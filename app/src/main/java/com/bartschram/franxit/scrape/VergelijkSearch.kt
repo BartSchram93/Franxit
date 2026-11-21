@@ -31,7 +31,31 @@ object VergelijkSearch {
         val results = runCatching {
             parseResults(Scraper.download("$BASE/api/v1/search/results/enhanced/combined?searchText=$q&page=1", "application/json"))
         }.getOrDefault(emptyList())
-        return withoutDuplicates(suggestions + results).take(40)
+        val hits = withoutDuplicates(suggestions + results).take(40)
+        if (hits.isNotEmpty()) return hits
+        // Nothing for "Rowenta RO3134EA": shops often leave the model code's variant out ("RO3134").
+        for (looser in looser(query)) {
+            val more = runCatching {
+                parseResults(Scraper.download("$BASE/api/v1/search/results/enhanced/combined?searchText=${URLEncoder.encode(looser, "UTF-8")}&page=1", "application/json"))
+            }.getOrDefault(emptyList())
+            if (more.isNotEmpty()) return withoutDuplicates(more).take(40)
+        }
+        return emptyList()
+    }
+
+    /** A model code with a variant after its number: "RO3134EA", "HD9650/90", "KM-2000B". */
+    private val VARIANT = Regex("""^(\p{L}{1,5}-?\d{3,})(?:/\w+|\p{L}{1,3})$""")
+
+    /**
+     * Looser searches for a name that found nothing, best first: its model codes without the variant
+     * ("Rowenta RO3134EA" as "Rowenta RO3134"), then that code alone. Empty when the name has no such code.
+     */
+    internal fun looser(query: String): List<String> {
+        val words = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val codes = words.mapNotNull { word -> VARIANT.find(word)?.groupValues?.get(1)?.let { word to it } }.toMap()
+        if (codes.isEmpty()) return emptyList()
+        val shorter = words.joinToString(" ") { codes[it] ?: it }
+        return (listOf(shorter) + codes.values).distinct().filter { it.isNotBlank() && it != query.trim() }
     }
 
     /**

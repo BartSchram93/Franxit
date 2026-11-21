@@ -36,7 +36,20 @@ object PriceTag {
             ?: candidates.firstOrNull { line -> line.text.split(' ').any { MODEL.matches(it) } }
             ?: candidates.maxByOrNull { it.height }
             ?: return null
-        return tidy(best.text).takeIf { it.count(Char::isLetter) >= 3 }
+        return tidy(joinBrand(best.text)).takeIf { it.count(Char::isLetter) >= 3 }
+    }
+
+    /**
+     * A brand the photo split in two ("ROWEN TA - RO3134EA", the letters of a tag's narrow font read with a gap):
+     * a piece of one or two letters is joined to the other word. Only before the dash, where the brand is one name.
+     */
+    internal fun joinBrand(text: String): String {
+        val dash = Regex("""\s+[-–]\s+""").find(text) ?: return text
+        val brand = text.substring(0, dash.range.first).split(' ').filter { it.isNotEmpty() }
+        if (brand.size != 2 || brand.any { word -> !word.all { it.isLetter() } }) return text
+        val (a, b) = brand
+        if (minOf(a.length, b.length) > 2 || a.length + b.length < 5) return text
+        return a + b + text.substring(dash.range.first)
     }
 
     private fun words(text: String) = text.lowercase().split(Regex("[^\\p{L}]+")).filter { it.isNotEmpty() }

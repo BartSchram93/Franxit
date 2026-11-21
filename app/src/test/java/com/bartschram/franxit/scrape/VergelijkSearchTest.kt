@@ -52,4 +52,15 @@ class VergelijkSearchTest {
         assertEquals(null, VergelijkSearch.photo(""))
         assertEquals(null, VergelijkSearch.photo("null"))
     }
+
+    @Test
+    fun aNameThatFoundNothingIsTriedWithoutTheModelsVariant() {
+        // Bol.com sells the "Rowenta RO3134EA" of a Krëfel tag as "Power XXL RO3134".
+        assertEquals(listOf("Rowenta RO3134", "RO3134"), VergelijkSearch.looser("Rowenta RO3134EA"))
+        assertEquals(listOf("Philips Airfryer XXL HD9650", "HD9650"), VergelijkSearch.looser("Philips Airfryer XXL HD9650/90"))
+        // Nothing to loosen: no extra searches.
+        assertEquals(emptyList<String>(), VergelijkSearch.looser("Singer M3405"))
+        assertEquals(emptyList<String>(), VergelijkSearch.looser("Sony WF-1000XM5"))
+        assertEquals(emptyList<String>(), VergelijkSearch.looser("Gladi magnetische tegels 100 stuks"))
+    }
 }
