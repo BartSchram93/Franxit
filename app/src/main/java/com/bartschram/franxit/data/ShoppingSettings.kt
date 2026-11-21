@@ -65,6 +65,13 @@ object ShoppingSettings {
         prefs(context).edit { putString("shoparize_links_$productId", json.toString()) }
     }
 
+    /** The product's full title on Shoparize ("999 Games Patchwork"), for the Buy button's search on a shop's site. */
+    fun saveShoparizeTitle(context: Context, productId: Long, title: String) =
+        prefs(context).edit { putString("shoparize_title_$productId", title) }
+
+    fun shoparizeTitle(context: Context, productId: Long): String? =
+        prefs(context).getString("shoparize_title_$productId", null)?.takeIf { it.isNotBlank() }
+
     fun shoparizeLink(context: Context, productId: Long, shop: String): String? =
         prefs(context).getString("shoparize_links_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)) }
             ?.takeIf { it.startsWith("https://") }

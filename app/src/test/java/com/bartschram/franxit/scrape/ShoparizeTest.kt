@@ -122,6 +122,16 @@ class ShoparizeTest {
     }
 
     @Test
+    fun theChosenProductsTitleComesWithItsShops() {
+        val found = Shoparize.productFor("Sony PlayStation 5 Slim Digital Edition") { url ->
+            if ("/be/q" in url) searchPage("Sony PlayStation 5 Slim Digital Edition 825GB" to "${page}sony-ps5/aaa") else sonyPage
+        }
+        assertEquals("Sony PlayStation 5 Slim Digital Edition 825GB", found.title)
+        assertEquals(3, found.offers.size)
+        assertEquals(Shoparize.Found(null, emptyList()), Shoparize.productFor("Something else") { searchPage() })
+    }
+
+    @Test
     fun withoutAClearProductNoProductPageIsRead() {
         val asked = mutableListOf<String>()
         val offers = Shoparize.offersFor("Samsung Galaxy S25") { url ->

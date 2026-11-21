@@ -77,4 +77,14 @@ class BuyLinkTest {
         assertEquals(multibazar, BuyLink.orSearch(multibazar, "Multibazar.be", "Gladi"))
         assertNull(BuyLink.orSearch(null, null, "Gladi"))
     }
+
+    @Test
+    fun aShopsSiteIsSearchedWithShoparizesFullerTitle() {
+        // "Patchwork site:bol.com" found poufs in patchwork fabric.
+        assertEquals("999 Games Patchwork", BuyLink.searchName("Patchwork", "999 Games Patchwork"))
+        // A title of another product, or one saying no more, is not used.
+        assertEquals("Patchwork", BuyLink.searchName("Patchwork", "Carcassonne"))
+        assertEquals("Patchwork", BuyLink.searchName("Patchwork", "patchwork"))
+        assertEquals("Patchwork", BuyLink.searchName("Patchwork", null))
+    }
 }

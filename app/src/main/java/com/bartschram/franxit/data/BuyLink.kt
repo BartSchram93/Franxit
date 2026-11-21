@@ -32,6 +32,18 @@ internal object BuyLink {
     }
 
     /**
+     * What a shop's site is searched with: Shoparize's title for the product when it says more than the app's name
+     * ("999 Games Patchwork" for "Patchwork", which on its own finds poufs in patchwork fabric), else that name.
+     */
+    fun searchName(name: String, shoparizeTitle: String?): String {
+        val title = shoparizeTitle?.trim().orEmpty()
+        if (title.isEmpty() || title.length > 80) return name
+        val words = { s: String -> s.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.toSet() }
+        // Only a title that is the same product in more words: all of the name's words in it.
+        return if (words(title).containsAll(words(name)) && words(title).size > words(name).size) title else name
+    }
+
+    /**
      * The page [found] for the button's [shop], else a search for the product limited to that shop's site: never
      * another shop's page. "Buy at Bol.com" opened Multibazar, the page the product was added from, when no page
      * of bol.com's was known. Null only when no shop is named.

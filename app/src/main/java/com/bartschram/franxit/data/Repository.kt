@@ -207,13 +207,14 @@ class Repository private constructor(context: Context) {
         val today = LocalDate.now().toString()
         ShoppingSettings.shoparizeOffers(appContext, product.id, today)?.let { return it }
         val found = try {
-            Shoparize.offersFor(SearchNames.shoparize(product, query))
+            Shoparize.productFor(SearchNames.shoparize(product, query))
         } catch (e: Exception) {
             // No connection, or the site changed: nothing is saved, so it is asked again at the next check.
             return emptyList()
         }
-        val listed = found.filterNot { GoogleShopping.isMarketplace(it.seller) }
-        val offers = ShopPrices.fromShoparize(found)
+        found.title?.let { ShoppingSettings.saveShoparizeTitle(appContext, product.id, it) }
+        val listed = found.offers.filterNot { GoogleShopping.isMarketplace(it.seller) }
+        val offers = ShopPrices.fromShoparize(found.offers)
         TrustedShops.learn(appContext, offers.map { it.seller })
         // The shop's own product page where Shoparize's link names it (cleaned of tracking); else the Buy button searches.
         ShoppingSettings.saveShoparizeLinks(appContext, product.id, listed.mapNotNull { offer -> offer.link?.let { Shops.name(offer.seller) to it } }.toMap())
@@ -311,7 +312,7 @@ class Repository private constructor(context: Context) {
             runCatching { BuyLink.fromPage(buyPage(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
                 ?: shop?.let { shoparizeShopLink(product, it) }
         }
-        BuyLink.orSearch(found, shop, product.displayName)
+        BuyLink.orSearch(found, shop, buyName(product))
     }
 
     /**
@@ -321,8 +322,12 @@ class Repository private constructor(context: Context) {
      */
     private fun shoparizeShopLink(product: Product, shop: String): String? {
         val listed = ShoppingSettings.lastShoparizeOffers(appContext, product.id) ?: return null
-        return BuyLink.fromShoparize(listed, shop, ShoppingSettings.shoparizeLink(appContext, product.id, shop), product.displayName)
+        return BuyLink.fromShoparize(listed, shop, ShoppingSettings.shoparizeLink(appContext, product.id, shop), buyName(product))
     }
+
+    /** The name a shop's site is searched with for the Buy button (see BuyLink.searchName). */
+    private fun buyName(product: Product): String =
+        BuyLink.searchName(product.displayName, ShoppingSettings.shoparizeTitle(appContext, product.id))
 
     /**
      * The shop's own page, looked up once and remembered. Without a key, searches left or a match,
