@@ -18,22 +18,26 @@ object GoogleShopping {
 
     fun urlFor(query: String): String = SEARCH + URLEncoder.encode(query.trim(), "UTF-8")
 
+    /** The big shops' own sites in Belgium, for [fallbackUrl]. */
+    private val BIG_SHOPS = listOf(
+        "bol" to "bol.com", "coolblue" to "coolblue.be", "fnac" to "fnac.be", "mediamarkt" to "mediamarkt.be",
+        "krefel" to "krefel.be", "krëfel" to "krefel.be",
+    )
+
     /**
-     * Where to send you when the shop's own page isn't known: the shop's own search for the
-     * product when it is one of the big shops, else Google's search.
+     * Where to send you when the shop's own page isn't known: for a big shop, a Google search limited to its site
+     * ("name site:bol.com"), whose first result is the shop's page for the product; else Google Shopping's search.
+     * Not the shop's own search: bol.com's finds nothing for a long product name, not even the product itself.
      */
     fun fallbackUrl(query: String, shop: String): String {
-        val q = URLEncoder.encode(query.trim(), "UTF-8")
-        val s = shop.lowercase()
-        return when {
-            s == "bol" || s.startsWith("bol.com") -> "https://www.bol.com/be/nl/s/?searchtext=$q"
-            "coolblue" in s -> "https://www.coolblue.be/nl/zoeken?query=$q"
-            "fnac" in s -> "https://www.fnac.be/SearchResult/ResultList.aspx?Search=$q"
-            "mediamarkt" in s -> "https://www.mediamarkt.be/nl/search.html?query=$q"
-            "krefel" in s || "krëfel" in s -> "https://www.krefel.be/nl/search?q=$q"
-            else -> urlFor("$query $shop")
-        }
+        val s = shop.trim().lowercase()
+        val domain = BIG_SHOPS.firstOrNull { (name, _) -> s == name || s.startsWith("$name.") || s.startsWith("$name ") }?.second
+        return domain?.let { siteSearchUrl(query, it) } ?: urlFor("$query $shop")
     }
+
+    /** A Google search for [query] on the site [domain] only: its first result is that site's page for it. */
+    fun siteSearchUrl(query: String, domain: String): String =
+        "https://www.google.be/search?q=" + URLEncoder.encode("${query.trim()} site:${domain.trim().lowercase().removePrefix("www.")}", "UTF-8")
 
     /** The search behind a Google Shopping product url; null for any other url. */
     fun queryOf(url: String): String? = url.takeIf { it.startsWith(SEARCH) }?.let { URLDecoder.decode(it.removePrefix(SEARCH), "UTF-8") }

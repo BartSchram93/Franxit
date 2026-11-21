@@ -155,21 +155,18 @@ object Shoparize {
         return if (kept.isEmpty()) base else base + "?" + kept.joinToString("&")
     }
 
-    /** Big shops with a search page of their own: the Buy button goes there. */
-    private val OWN_SEARCH = listOf("bol", "coolblue", "fnac", "mediamarkt", "krefel")
     private val DOMAIN = Regex("""[a-z0-9-]+(\.[a-z0-9-]+)+""")
 
     /**
      * Where the Buy button goes for a shop that only Shoparize lists. Never Shoparize itself: its links are
-     * tracking links. A big shop's own search page for the product, else a Google search limited to that
-     * shop's site ("name site:pazzox.be"), whose first result is the shop's page for the product.
+     * tracking links. A Google search limited to that shop's site ("name site:pazzox.be"), whose first result
+     * is the shop's page for the product. Also for bol.com, whose partner links don't name the product page and
+     * whose own search found nothing for the product's full name.
      */
     fun shopSearchUrl(query: String, shop: String): String {
-        val s = shop.trim().lowercase()
-        if (OWN_SEARCH.any { it in s }) return GoogleShopping.fallbackUrl(query, shop)
-        val domain = s.removePrefix("www.")
+        val domain = shop.trim().lowercase().removePrefix("www.")
         if (!DOMAIN.matches(domain)) return GoogleShopping.fallbackUrl(query, shop)
-        return "https://www.google.be/search?q=" + URLEncoder.encode("${query.trim()} site:$domain", "UTF-8")
+        return GoogleShopping.siteSearchUrl(query, domain)
     }
 
     private fun unescape(s: String) =

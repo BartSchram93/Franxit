@@ -609,9 +609,14 @@ class GoogleShoppingTest {
     }
 
     @Test
-    fun bigShopsFallBackToTheirOwnSearchNotGoogle() {
-        assertEquals("https://www.bol.com/be/nl/s/?searchtext=TCL+Nxtpaper+14", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "bol"))
-        assertEquals("https://www.bol.com/be/nl/s/?searchtext=TCL+Nxtpaper+14", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "bol.com"))
-        assertTrue(GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Dreamland").contains("google"))
+    fun bigShopsFallBackToAGoogleSearchOnTheirOwnSite() {
+        // bol.com's own search found nothing for a long name, not even the product itself.
+        val bol = "https://www.google.be/search?q=TCL+Nxtpaper+14+site%3Abol.com"
+        assertEquals(bol, GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "bol"))
+        assertEquals(bol, GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "bol.com"))
+        assertEquals(bol, GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Bol.com"))
+        assertEquals("https://www.google.be/search?q=TCL+Nxtpaper+14+site%3Akrefel.be", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Krëfel"))
+        assertEquals("https://www.google.be/search?q=TCL+Nxtpaper+14+site%3Acoolblue.be", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Coolblue"))
+        assertTrue(GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Dreamland").startsWith("https://www.google.be/search?tbm=shop"))
     }
 }

@@ -141,10 +141,15 @@ class ShoparizeTest {
     }
 
     @Test
-    fun aBigShopGetsItsOwnSearchPage() {
+    fun aBigShopAlsoGetsASearchLimitedToItsOwnSite() {
         assertEquals(
-            "https://www.coolblue.be/nl/zoeken?query=Sony+PlayStation+5",
+            "https://www.google.be/search?q=Sony+PlayStation+5+site%3Acoolblue.be",
             Shoparize.shopSearchUrl("Sony PlayStation 5", "Coolblue.be"),
+        )
+        // bol.com's partner links don't name the product page, and its own search missed the product.
+        assertEquals(
+            "https://www.google.be/search?q=Magnetische+Bouwstenen+Bus+Set+site%3Abol.com",
+            Shoparize.shopSearchUrl("Magnetische Bouwstenen Bus Set", "bol.com"),
         )
     }
 
