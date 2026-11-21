@@ -525,10 +525,13 @@ private const val SHOPS_SHOWN = 3
 
 /**
  * The part of the site's name that the short name doesn't already say ("128GB Wifi" under
- * "Apple iPad Air 13\""), or the whole site name for a custom name. Null when it adds nothing.
+ * "Apple iPad Air 13\""), or the whole site name for a custom name. Null when it adds nothing,
+ * also when it only repeats the name's words ("Chiaogoo Chiaogoo Twist" under "Chiaogoo Twist").
  */
 internal fun extraName(displayName: String, siteName: String): String? {
     if (displayName == siteName) return null
+    fun words(s: String) = s.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+    if (words(siteName).all { it in words(displayName) }) return null
     if (!siteName.startsWith(displayName, ignoreCase = true)) return siteName
     return siteName.substring(displayName.length).trim(' ', ',', '-', '–', '·').ifBlank { null }
 }

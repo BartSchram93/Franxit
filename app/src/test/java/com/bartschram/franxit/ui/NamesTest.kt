@@ -22,4 +22,12 @@ class NamesTest {
         assertNull(extraName("Wisberg WBTTVR55DNFW", "Wisberg WBTTVR55DNFW"))
         assertNull(extraName("Wisberg", "Wisberg ,"))
     }
+
+    @Test
+    fun aSiteNameThatOnlyRepeatsTheNamesWordsAddsNothing() {
+        assertNull(extraName("Chiaogoo Twist", "Chiaogoo Chiaogoo Twist"))
+        assertNull(extraName("Chiaogoo Twist", "chiaogoo twist"))
+        // A word more is worth showing.
+        assertEquals("Lace 13 cm", extraName("Chiaogoo Twist", "Chiaogoo Twist Lace 13 cm"))
+    }
 }

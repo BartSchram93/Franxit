@@ -406,7 +406,14 @@ internal fun ProductPhoto(bitmap: ImageBitmap?, size: Dp, corner: Dp) {
     val tile = if (dark) Color(0xFFE4E4E0) else Color.White
     val shape = RoundedCornerShape(corner)
     if (bitmap == null) {
-        Box(Modifier.size(size).clip(shape).background(MaterialTheme.colorScheme.secondaryContainer))
+        // No photo (none yet, still loading, or removed): a quiet cart, so the tile doesn't look broken.
+        Box(Modifier.size(size).clip(shape).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
+            Icon(
+                Icons.Default.ShoppingCart, contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.45f),
+                modifier = Modifier.size(size * 0.42f),
+            )
+        }
         return
     }
     Image(
