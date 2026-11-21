@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -398,7 +399,13 @@ fun DetailScreen(
                         Spacer(Modifier.width(14.dp))
                         Column {
                             Text("Photo", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            TextButton(onClick = { onPhoto(choice) }, contentPadding = PaddingValues(0.dp)) { Text(label) }
+                            // Padding inside the button, so its rounded corners don't cut off the first letters of a
+                            // label on two lines; moved left by as much, so the text lines up with "Photo" above it.
+                            TextButton(
+                                onClick = { onPhoto(choice) },
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.offset(x = (-10).dp),
+                            ) { Text(label) }
                         }
                     }
                 }
