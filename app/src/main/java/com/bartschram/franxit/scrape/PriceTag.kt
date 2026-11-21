@@ -29,7 +29,7 @@ object PriceTag {
     /** The product's name, as it would be typed ("Singer M3405"); null when no line looks like a name. */
     fun name(lines: List<Line>): String? {
         val candidates = lines.sortedBy { it.top }
-            .map { it.copy(text = it.text.replace(ARTICLE, " ").replace(Regex("\\s+"), " ").trim()) }
+            .map { it.copy(text = separateBrand(it.text.replace(ARTICLE, " ").replace(Regex("\\s+"), " ").trim())) }
             .filter { isName(it.text) }
         // The brand and model line first ("SINGER - M3405"), else a line with a model code, else the tallest text.
         val best = candidates.firstOrNull { BRAND_MODEL.containsMatchIn(it.text) }
@@ -37,6 +37,20 @@ object PriceTag {
             ?: candidates.maxByOrNull { it.height }
             ?: return null
         return tidy(joinBrand(best.text)).takeIf { it.count(Char::isLetter) >= 3 }
+    }
+
+    /**
+     * "DREAME-AQUA 10 ULTRA ROL BLANC": the gap around the dash after the brand not read. Put back for a line in
+     * capitals (as tags write the brand and model), so the brand stays a word of its own ("Coca-Cola" is kept).
+     */
+    internal fun separateBrand(text: String): String {
+        if (!isShouting(text)) return text
+        return text.replaceFirst(Regex("""^(\p{L}{2,})[-–](?=\p{L}{2})"""), "$1 - ")
+    }
+
+    private fun isShouting(text: String): Boolean {
+        val letters = text.filter { it.isLetter() }
+        return letters.isNotEmpty() && letters.count { it.isUpperCase() } >= letters.length * 0.8
     }
 
     /**
@@ -66,8 +80,7 @@ object PriceTag {
      * is changed, and model codes stay as they are; a line written normally ("Philips Airfryer XXL") is kept.
      */
     private fun tidy(text: String): String {
-        val letters = text.filter { it.isLetter() }
-        val shouting = letters.isNotEmpty() && letters.count { it.isUpperCase() } >= letters.length * 0.8
+        val shouting = isShouting(text)
         return text.replace(Regex("""\s+[-–]\s+"""), " ").split(' ').filter { it.isNotBlank() }.joinToString(" ") { word ->
             if (shouting && word.length >= 2 && word.all { it.isLetter() }) word.lowercase().replaceFirstChar { it.uppercase() } else word
         }

@@ -22,6 +22,19 @@ object VergelijkSearch {
     private const val BASE = "https://www.vergelijk.be"
 
     fun search(query: String): List<Hit> {
+        if (query.isBlank()) return emptyList()
+        val hits = once(query)
+        if (fits(hits, query)) return hits
+        // Nothing that looks like it: "Dreame-Aqua 10 Ultrarol Blanc" (from a price tag) only finds bed covers in
+        // "blanc", "Aqua 10 Ultrarol Blanc" finds the robot. At most a few looser searches, only when needed.
+        for (looser in looser(query)) {
+            val more = once(looser)
+            if (fits(more, looser)) return withoutDuplicates(more + hits).take(40)
+        }
+        return hits
+    }
+
+    private fun once(query: String): List<Hit> {
         val q = URLEncoder.encode(query.trim(), "UTF-8")
         if (q.isEmpty()) return emptyList()
         // Suggestions are few but precise; full results add more (often accessories) below them.
@@ -31,31 +44,46 @@ object VergelijkSearch {
         val results = runCatching {
             parseResults(Scraper.download("$BASE/api/v1/search/results/enhanced/combined?searchText=$q&page=1", "application/json"))
         }.getOrDefault(emptyList())
-        val hits = withoutDuplicates(suggestions + results).take(40)
-        if (hits.isNotEmpty()) return hits
-        // Nothing for "Rowenta RO3134EA": shops often leave the model code's variant out ("RO3134").
-        for (looser in looser(query)) {
-            val more = runCatching {
-                parseResults(Scraper.download("$BASE/api/v1/search/results/enhanced/combined?searchText=${URLEncoder.encode(looser, "UTF-8")}&page=1", "application/json"))
-            }.getOrDefault(emptyList())
-            if (more.isNotEmpty()) return withoutDuplicates(more).take(40)
+        return withoutDuplicates(suggestions + results).take(40)
+    }
+
+    private fun words(text: String) = text.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+
+    private fun isCode(word: String) = word.length >= 4 && word.any { it.isLetter() } && word.any { it.isDigit() }
+
+    /**
+     * Whether a search found something like [query]: one of the first hits shares its model code ("RO3134"),
+     * or two of its words ("Aqua 10"); a name of one word, that word. Not one shared colour ("Blanc").
+     */
+    internal fun fits(hits: List<Hit>, query: String): Boolean {
+        val wanted = words(query).toSet()
+        if (wanted.isEmpty()) return hits.isNotEmpty()
+        return hits.take(5).any { hit ->
+            val shared = words(hit.title).filter { it in wanted }.toSet()
+            shared.any(::isCode) || shared.size >= minOf(2, wanted.size)
         }
-        return emptyList()
     }
 
     /** A model code with a variant after its number: "RO3134EA", "HD9650/90", "KM-2000B". */
     private val VARIANT = Regex("""^(\p{L}{1,5}-?\d{3,})(?:/\w+|\p{L}{1,3})$""")
 
     /**
-     * Looser searches for a name that found nothing, best first: its model codes without the variant
-     * ("Rowenta RO3134EA" as "Rowenta RO3134"), then that code alone. Empty when the name has no such code.
+     * Looser searches for a name that found nothing like it, best first, at most three: its model codes without
+     * the variant ("Rowenta RO3134EA" as "Rowenta RO3134", shops often leave it out), the brand with the words up
+     * to the first number ("Dreame Aqua 10"), the name without its brand ("Aqua 10 Ultrarol Blanc"), the code alone.
      */
     internal fun looser(query: String): List<String> {
-        val words = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        // "DREAME-AQUA" as read on a tag: a dash between two words of letters parts them.
+        val words = query.trim().replace(Regex("""(?<=\p{L})[-–](?=\p{L}{3})"""), " ")
+            .split(Regex("\\s+")).filter { it.isNotEmpty() && it != "-" && it != "–" }
         val codes = words.mapNotNull { word -> VARIANT.find(word)?.groupValues?.get(1)?.let { word to it } }.toMap()
-        if (codes.isEmpty()) return emptyList()
-        val shorter = words.joinToString(" ") { codes[it] ?: it }
-        return (listOf(shorter) + codes.values).distinct().filter { it.isNotBlank() && it != query.trim() }
+        val found = mutableListOf<String>()
+        if (codes.isNotEmpty()) found += words.joinToString(" ") { codes[it] ?: it }
+        val number = words.indexOfFirst { word -> word.any { it.isDigit() } }
+        if (number in 2 until words.size - 1) found += words.take(number + 1).joinToString(" ")
+        if (words.size >= 3) found += words.drop(1).joinToString(" ")
+        found += codes.values
+        return found.distinct().filter { it.isNotBlank() && it != query.trim() }.take(3)
     }
 
     /**

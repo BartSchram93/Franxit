@@ -1,6 +1,8 @@
 package com.bartschram.franxit.scrape
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VergelijkSearchTest {
@@ -54,13 +56,31 @@ class VergelijkSearchTest {
     }
 
     @Test
-    fun aNameThatFoundNothingIsTriedWithoutTheModelsVariant() {
+    fun aNameThatFoundNothingLikeItIsTriedLooser() {
         // Bol.com sells the "Rowenta RO3134EA" of a Krëfel tag as "Power XXL RO3134".
         assertEquals(listOf("Rowenta RO3134", "RO3134"), VergelijkSearch.looser("Rowenta RO3134EA"))
-        assertEquals(listOf("Philips Airfryer XXL HD9650", "HD9650"), VergelijkSearch.looser("Philips Airfryer XXL HD9650/90"))
+        // "DREAME-AQUA 10 ULTRAROL BLANC" as read on a tag: vergelijk.be calls it "Aqua 10 Roller White".
+        assertEquals(listOf("DREAME AQUA 10", "AQUA 10 Ultrarol Blanc"), VergelijkSearch.looser("DREAME-AQUA 10 Ultrarol Blanc"))
+        assertEquals(
+            listOf("Philips Airfryer XXL HD9650", "Airfryer XXL HD9650/90", "HD9650"),
+            VergelijkSearch.looser("Philips Airfryer XXL HD9650/90"),
+        )
         // Nothing to loosen: no extra searches.
         assertEquals(emptyList<String>(), VergelijkSearch.looser("Singer M3405"))
         assertEquals(emptyList<String>(), VergelijkSearch.looser("Sony WF-1000XM5"))
-        assertEquals(emptyList<String>(), VergelijkSearch.looser("Gladi magnetische tegels 100 stuks"))
+        assertEquals(emptyList<String>(), VergelijkSearch.looser("dyson v15"))
+    }
+
+    private fun hit(title: String) = VergelijkSearch.Hit(title, "https://www.vergelijk.be/x/", null)
+
+    @Test
+    fun onlyASharedColourIsNoFit() {
+        val beds = listOf(hit("dekbedovertrek Divine Blanc 260x240 cm"), hit("Le corbeau blanc - Andrzej Stasiuk"))
+        assertFalse(VergelijkSearch.fits(beds, "DREAME-AQUA 10 Ultrarol Blanc"))
+        assertTrue(VergelijkSearch.fits(listOf(hit("Aqua 10 Roller White")), "AQUA 10 Ultrarol Blanc"))
+        // A shared model code is enough.
+        assertTrue(VergelijkSearch.fits(listOf(hit("Power XXL RO3134 Stofzuiger met zak")), "Rowenta RO3134"))
+        assertFalse(VergelijkSearch.fits(emptyList(), "Rowenta RO3134EA"))
+        assertTrue(VergelijkSearch.fits(listOf(hit("Dyson V15 Detect")), "dyson"))
     }
 }

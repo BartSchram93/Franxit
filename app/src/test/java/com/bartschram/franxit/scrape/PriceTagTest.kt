@@ -80,4 +80,11 @@ class PriceTagTest {
         assertEquals("BLACK DECKER - X", PriceTag.joinBrand("BLACK DECKER - X"))
         assertEquals("LG - OLED55C4", PriceTag.joinBrand("LG - OLED55C4"))
     }
+
+    @Test
+    fun aDashWithoutGapsStillPartsTheBrand() {
+        // As read on the phone: "DREAME-AQUA 10 ULTRAROL BLANC".
+        assertEquals("Dreame Aqua 10 Ultrarol Blanc", PriceTag.name(lines("DREAME-AQUA 10 ULTRAROL BLANC 7656335", "Robot Stofzuiger", "649€00")))
+        assertEquals("Coca-Cola Zero", PriceTag.separateBrand("Coca-Cola Zero"))
+    }
 }
