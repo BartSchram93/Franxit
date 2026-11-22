@@ -65,6 +65,12 @@ object ProductPhoto {
     private val FILLER = setOf(
         "de", "het", "een", "en", "van", "voor", "met", "in", "op", "bij", "kopen", "online", "the", "a", "an", "and", "of",
         "for", "with", "buy", "le", "la", "les", "des", "du", "et", "pour", "avec", "en", "un", "une", "der", "die", "das", "und",
+        // Shops' selling words in titles ("… - Best Price", "Laagste prijs!"): no part of what the product is.
+        "best", "beste", "price", "prices", "prijs", "prijzen", "prix", "meilleur", "lowest", "laagste", "goedkoop",
+        "goedkoopste", "cheap", "cheapest", "deal", "deals", "sale", "promo", "promotie", "aanbieding", "aanbiedingen",
+        "korting", "discount", "offer", "offers", "gratis", "free", "shipping", "verzending", "levering", "delivery",
+        "bestellen", "order", "acheter", "achat", "vergelijk", "vergelijken", "compare", "comparer", "review", "reviews",
+        "official", "officieel", "officiële", "stock", "voorraad", "nu", "now", "hier", "here",
     )
 
     /** Words of web addresses and shops in titles ("Amazon.com.be", "bol.com"): no part of a product's name. */
@@ -75,7 +81,8 @@ object ProductPhoto {
     )
 
     private fun tokens(text: String) = text.split(Regex("[^\\p{L}\\p{N}]+"))
-        .filter { it.length >= 2 && it.lowercase() !in FILLER }
+        // A lone digit is part of the name ("MX Master 4"); a lone letter isn't ("300 g").
+        .filter { (it.length >= 2 || it.all(Char::isDigit)) && it.lowercase() !in FILLER }
 
     /**
      * The name the titles of pages with the same product agree on (Google Lens's matches): the words in at least two

@@ -65,4 +65,11 @@ class ProductPhotoTest {
         assertEquals("Maltesers Maxi 300", ProductPhoto.common(titles))
         assertEquals("Maltesers Chocolade 300 gr", ProductPhoto.common(listOf("Maltesers Chocolade 300 gr Delhaize")))
     }
+
+    @Test
+    fun sellingWordsAreNoPartOfTheName() {
+        // A Lens search ended in "Best Price".
+        val titles = listOf("Logitech MX Master 4 - Best Price", "Logitech MX Master 4 | Best price online", "Logitech MX Master 4 kopen? Laagste prijs")
+        assertEquals("Logitech MX Master 4", ProductPhoto.common(titles))
+    }
 }
