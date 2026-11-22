@@ -6,24 +6,36 @@
 // - Answers are kept for a day and shared by everyone: the same product costs one search a day.
 // - A limit on fresh searches (the ones that cost a LiteScrape request) per IP address per day.
 // - Optional: the secret APP_TOKEN. When it is set, only requests that carry it (the app does) pass.
-// - POST /recognize: a photo of a product (JPEG, sent only when you choose so in the app) goes to Google Cloud
-//   Vision's web detection, which says what is on it ("dreame aqua 10 ultra roller"). The key is the secret
-//   VISION_KEY. Limits per IP address and in all per day keep it within Vision's free 1,000 a month. The photo is
-//   not kept, here or in the cache.
+// - POST /recognize: a photo of a product (JPEG, sent only when you choose so in the app) goes to Google Lens through
+//   SerpApi (secret SERPAPI_KEY): uploaded to SerpApi's Image API, then searched; the titles of the pages with the
+//   same product come back ("Theelichthouder - Molly - geglazuurd"). Without that key, Google Cloud Vision's web
+//   detection (secret VISION_KEY) is used. The photo is not kept here.
+// - Limits per day are counted in Workers KV (binding LIMITS) when it is bound; the cache otherwise (which does
+//   nothing on a workers.dev address, so bind LIMITS there).
 
 const DAY = 86400;
 const MAX_FRESH_PER_IP = 30;      // fresh searches per IP address per day
 
-const MAX_RECOGNIZE_PER_IP = 10;  // photos recognised per IP address per day
-const MAX_RECOGNIZE_PER_DAY = 30; // photos recognised per day in all: about 900 a month, Vision's free 1,000
-const MAX_PHOTO_BYTES = 1_500_000;
+const MAX_RECOGNIZE_PER_IP = 5;   // photos recognised per IP address per day
+const MAX_RECOGNIZE_PER_DAY = 8;  // photos recognised per day in all: about 240 a month, SerpApi's free 250
+const MAX_PHOTO_BYTES = 500_000;  // SerpApi's Image API takes at most 500 KB
 
 const bad = () => new Response("Bad request", { status: 400 });
 
-/** One more of today's uses under [key]; false when [max] were used already. */
-async function countToday(ctx, key, max) {
-  const cache = caches.default;
+/**
+ * One more of today's uses under [key]; false when [max] were used already. In Workers KV (binding LIMITS) when
+ * bound, else in the cache. KV can be a little behind between places, so a limit may be passed by one or two.
+ */
+async function countToday(env, ctx, key, max) {
   const day = new Date().toISOString().slice(0, 10);
+  if (env.LIMITS) {
+    const name = `count/${key}/${day}`;
+    const used = parseInt((await env.LIMITS.get(name)) || "0", 10) || 0;
+    if (used >= max) return false;
+    ctx.waitUntil(env.LIMITS.put(name, String(used + 1), { expirationTtl: 2 * DAY }));
+    return true;
+  }
+  const cache = caches.default;
   const counterKey = new Request(`https://cache.invalid/count/${key}/${day}`);
   const counted = await cache.match(counterKey);
   const used = counted ? parseInt(await counted.text(), 10) || 0 : 0;
@@ -32,14 +44,43 @@ async function countToday(ctx, key, max) {
   return true;
 }
 
-/** What Google Cloud Vision sees on a photo: its best guess, the things it names and the titles of pages with it. */
+/** What is on a photo: through Google Lens (SerpApi) when its key is set, else Google Cloud Vision. */
 async function recognize(request, env, ctx) {
-  if (!env.VISION_KEY) return new Response("Not configured", { status: 500 });
+  if (!env.SERPAPI_KEY && !env.VISION_KEY) return new Response("Not configured", { status: 500 });
   const photo = await request.arrayBuffer();
   if (photo.byteLength < 1000 || photo.byteLength > MAX_PHOTO_BYTES) return bad();
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  if (!(await countToday(ctx, `recognize/${ip}`, MAX_RECOGNIZE_PER_IP))) return new Response("Too many photos today", { status: 429 });
-  if (!(await countToday(ctx, "recognize/all", MAX_RECOGNIZE_PER_DAY))) return new Response("Too many photos today", { status: 429 });
+  if (!(await countToday(env, ctx, `recognize/${ip}`, MAX_RECOGNIZE_PER_IP))) return new Response("Too many photos today", { status: 429 });
+  if (!(await countToday(env, ctx, "recognize/all", MAX_RECOGNIZE_PER_DAY))) return new Response("Too many photos today", { status: 429 });
+  return env.SERPAPI_KEY ? lens(photo, env) : vision(photo, env);
+}
+
+const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+
+/** Google Lens through SerpApi: the photo uploaded (an id for 10 minutes), then the titles of its visual matches. */
+async function lens(photo, env) {
+  const form = new FormData();
+  form.append("image", new Blob([photo], { type: "image/jpeg" }), "photo.jpg");
+  form.append("api_key", env.SERPAPI_KEY);
+  const uploaded = await fetch("https://serpapi.com/image", { method: "POST", body: form });
+  let upload;
+  try { upload = await uploaded.json(); } catch { return new Response("Recognition service error", { status: 502 }); }
+  if (!uploaded.ok || upload.error || !upload.image_id) return new Response("Recognition service error", { status: liteStatus(uploaded.status) });
+  const params = new URLSearchParams({ engine: "google_lens", image_id: upload.image_id, type: "visual_matches", hl: "nl", country: "be", api_key: env.SERPAPI_KEY });
+  const answer = await fetch(`https://serpapi.com/search?${params}`);
+  let data;
+  try { data = await answer.json(); } catch { return new Response("Recognition service error", { status: 502 }); }
+  if (!answer.ok || data.error) {
+    // No matches is an answer, not an error.
+    if (/hasn't returned any results|no results/i.test(data.error || "")) return json({ guess: "", entities: [], titles: [] });
+    return new Response("Recognition service error", { status: liteStatus(answer.status) });
+  }
+  const titles = (data.visual_matches || []).map((m) => (m.title || "").trim()).filter(Boolean).slice(0, 15);
+  return json({ guess: "", entities: [], titles });
+}
+
+/** Google Cloud Vision's web detection: its best guess, the things it names and the titles of pages with the photo. */
+async function vision(photo, env) {
   const bytes = new Uint8Array(photo);
   let binary = "";
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
@@ -63,7 +104,7 @@ async function recognize(request, env, ctx) {
     entities: (web.webEntities || []).filter((e) => e.description).map((e) => ({ name: e.description, score: e.score || 0 })),
     titles: (web.pagesWithMatchingImages || []).map((p) => (p.pageTitle || "").replace(/<[^>]*>/g, "")).filter(Boolean).slice(0, 10),
   };
-  return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+  return json(body);
 }
 
 // ---- LiteScrape: its answers are turned into the format the app reads ("shopping_results", "product_results.stores") ----
@@ -207,16 +248,9 @@ export default {
     const hit = await cache.match(cacheKey);
     if (hit) return hit;
 
-    const day = new Date().toISOString().slice(0, 10);
-
     // A fresh search is counted per IP address per day.
     const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-    const counterKey = new Request(`https://cache.invalid/count/${ip}/${day}`);
-    const counted = await cache.match(counterKey);
-    const used = counted ? parseInt(await counted.text(), 10) || 0 : 0;
-    if (used >= MAX_FRESH_PER_IP) return new Response("Too many searches today", { status: 429 });
-
-    ctx.waitUntil(cache.put(counterKey, new Response(String(used + 1), { headers: { "Cache-Control": `max-age=${DAY}` } })));
+    if (!(await countToday(env, ctx, ip, MAX_FRESH_PER_IP))) return new Response("Too many searches today", { status: 429 });
 
     if (!env.LITESCRAPE_KEY) return new Response("Not configured", { status: 500 });
     const target = liteRequest(url.pathname, { q: upstream.get("q"), token: url.searchParams.get("page_token") });

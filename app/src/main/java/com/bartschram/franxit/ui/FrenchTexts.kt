@@ -223,7 +223,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "%s couldn't be read" to "%s n'a pas pu être lu",
     "Recognising the product…" to "Reconnaissance du produit…",
     "No price tag found" to "Aucune étiquette de prix trouvée",
-    "Recognise the product on the photo online? The photo is then sent to Google Cloud Vision." to "Reconnaître le produit de la photo en ligne ? La photo est alors envoyée à Google Cloud Vision.",
+    "Recognise the product on the photo online? The photo is then sent to Google Lens." to "Reconnaître le produit de la photo en ligne ? La photo est alors envoyée à Google Lens.",
     "Recognise" to "Reconnaître",
     "Type it myself" to "Le taper moi-même",
     "The product couldn't be recognised. Type its name." to "Le produit n'a pas pu être reconnu. Tape son nom.",

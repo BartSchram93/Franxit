@@ -37,4 +37,22 @@ class ProductPhotoTest {
         assertFalse(box.clear)
         assertFalse(PriceTag.read(emptyList()).clear)
     }
+
+    @Test
+    fun googleLensTitlesAgreeOnTheName() {
+        // Lens's matches for a photo of three Serax Molly tealight holders, as on a tester's phone.
+        val titles = listOf(
+            "Theelichthouder - Molly - geglazuurd - Serax",
+            "Molly Glaseret Keramik - Kontrast Interiør",
+            "SERAX - Marie Michielssen - Glazed tealight holder Molly",
+            "Serax Marie Michielssen Molly bloempot 04",
+        )
+        assertEquals("Serax Marie Michielssen Molly", ProductPhoto.common(titles))
+        val json = """{"guess":"","entities":[],"titles":["Theelichthouder - Molly - geglazuurd - Serax","Serax Marie Michielssen Molly bloempot 04"]}"""
+        assertEquals("Molly Serax", ProductPhoto.name(json))
+        // One title: its first part. Nothing shared: nothing.
+        assertEquals("Dreame Aqua 10 Ultra Roller", ProductPhoto.common(listOf("Dreame Aqua 10 Ultra Roller | Coolblue")))
+        assertNull(ProductPhoto.common(listOf("Blue vase", "Red chair")))
+        assertNull(ProductPhoto.common(emptyList()))
+    }
 }

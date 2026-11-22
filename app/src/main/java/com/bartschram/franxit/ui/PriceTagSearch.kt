@@ -54,8 +54,9 @@ import com.google.mlkit.vision.text.Text as ReadText
  * is read from it on the phone itself (no upload, the price is left out: see PriceTag), and "Is this the
  * product?" shows it, to search for as it is or to change first.
  *
- * A photo without a clear price tag (of the product itself) can be recognised online instead, by Google Cloud
- * Vision, but only when you choose so: the photo then leaves the phone. The price tag always comes first.
+ * A photo without a clear price tag (of the product itself) can be recognised online instead, by Google Lens
+ * (through the app's search service), but only when you choose so: the photo then leaves the phone. The price tag
+ * always comes first.
  */
 @Composable
 fun PriceTagSearch(onSearch: (String) -> Unit) {
@@ -138,7 +139,7 @@ fun PriceTagSearch(onSearch: (String) -> Unit) {
             title = { Text("No price tag found") },
             text = {
                 Text(
-                    "Recognise the product on the photo online? The photo is then sent to Google Cloud Vision.",
+                    "Recognise the product on the photo online? The photo is then sent to Google Lens.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             },
@@ -212,6 +213,9 @@ private object PriceTagPhotos {
     /** The largest side of a photo sent to be recognised: enough for Vision, small to send. */
     private const val MAX_SIDE = 1024
 
+    /** The largest photo the recognition service takes (SerpApi's limit is 500 KB). */
+    private const val MAX_BYTES = 480_000
+
     /** The product on the photo at [uri], recognised online (see ProductPhoto); null when nothing was. */
     suspend fun recognize(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
         ProductPhoto.recognize(smallJpeg(context, uri) ?: throw java.io.IOException("Photo can't be read"))
@@ -229,6 +233,16 @@ private object PriceTagPhotos {
         } ?: return null
         val scale = MAX_SIDE.toFloat() / maxOf(decoded.width, decoded.height)
         val small = if (scale < 1f) Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt(), (decoded.height * scale).toInt(), true) else decoded
-        return ByteArrayOutputStream().use { out -> small.compress(Bitmap.CompressFormat.JPEG, 85, out); out.toByteArray() }
+        // The recognition service takes at most 500 KB: a lower quality until it fits, then a smaller photo. A phone's
+        // photo of 10 MB or more is a few hundred KB by then.
+        var photo = small
+        repeat(3) {
+            for (quality in listOf(85, 70, 55)) {
+                val jpeg = ByteArrayOutputStream().use { out -> photo.compress(Bitmap.CompressFormat.JPEG, quality, out); out.toByteArray() }
+                if (jpeg.size <= MAX_BYTES) return jpeg
+            }
+            photo = Bitmap.createScaledBitmap(photo, photo.width * 3 / 4, photo.height * 3 / 4, true)
+        }
+        return null
     }
 }

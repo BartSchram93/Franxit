@@ -223,7 +223,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "%s couldn't be read" to "%s kon niet gelezen worden",
     "Recognising the product…" to "Product herkennen…",
     "No price tag found" to "Geen prijskaartje gevonden",
-    "Recognise the product on the photo online? The photo is then sent to Google Cloud Vision." to "Het product op de foto online laten herkennen? De foto wordt dan naar Google Cloud Vision gestuurd.",
+    "Recognise the product on the photo online? The photo is then sent to Google Lens." to "Het product op de foto online laten herkennen? De foto wordt dan naar Google Lens gestuurd.",
     "Recognise" to "Herkennen",
     "Type it myself" to "Zelf typen",
     "The product couldn't be recognised. Type its name." to "Het product kon niet herkend worden. Typ de naam.",

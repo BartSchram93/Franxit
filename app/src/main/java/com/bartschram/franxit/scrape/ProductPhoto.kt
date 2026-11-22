@@ -6,12 +6,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * What product a photo shows, when it is no price tag: Google Cloud Vision's web detection, asked through the app's
- * search service (the Cloudflare Worker, which holds the key). Only when you choose so: the photo leaves the phone.
+ * What product a photo shows, when it is no price tag: Google Lens (through SerpApi), or else Google Cloud Vision's web
+ * detection, asked through the app's search service (the Cloudflare Worker, which holds the keys). Only when you
+ * choose so: the photo leaves the phone.
  */
 object ProductPhoto {
 
-    /** Shown when the day's photos are used up: the service keeps within Vision's free use. */
+    /** Shown when the day's photos are used up: the service keeps within the free searches of its plan. */
     const val TOO_MANY = "Too many photos recognised today. Try again tomorrow, or type the name."
 
     /** The product's name for [jpeg]; null when Vision saw nothing useful. Throws when the service can't be reached. */
@@ -50,12 +51,45 @@ object ProductPhoto {
                 ?.let { return it }
         }
         if (guessWords.size >= 2) return tidy(guess)
+        common(titles)?.let { return it }
         val entities = data.optJSONArray("entities")
         val best = entities?.let { list -> (0 until list.length()).mapNotNull { list.optJSONObject(it) } }
             ?.filter { it.optDouble("score", 0.0) >= 0.5 }
             ?.map { it.optString("name").trim() }
             ?.firstOrNull { it.count(Char::isLetter) >= 3 }
         return best ?: guess.takeIf { it.count(Char::isLetter) >= 3 }?.let(::tidy)
+    }
+
+    /** Words that say nothing about which product it is. */
+    private val FILLER = setOf(
+        "de", "het", "een", "en", "van", "voor", "met", "in", "op", "bij", "kopen", "online", "the", "a", "an", "and", "of",
+        "for", "with", "buy", "le", "la", "les", "des", "du", "et", "pour", "avec", "en", "un", "une", "der", "die", "das", "und",
+    )
+
+    private fun tokens(text: String) = text.split(Regex("[^\\p{L}\\p{N}]+"))
+        .filter { it.length >= 2 && it.lowercase() !in FILLER }
+
+    /**
+     * The name the titles of pages with the same product agree on (Google Lens's matches): the words in at least two
+     * of them, in the order of the title that has most of them. "Theelichthouder - Molly - geglazuurd - Serax" and
+     * "Serax Marie Michielssen Molly bloempot" give "Molly Serax"; with more titles, "Serax Marie Michielssen Molly".
+     * With one title, its first part. Null when they share nothing.
+     */
+    internal fun common(titles: List<String>): String? {
+        val list = titles.map { it.trim() }.filter { it.isNotEmpty() }
+        if (list.isEmpty()) return null
+        if (list.size == 1) return firstPart(list.first()).takeIf { it.count(Char::isLetter) >= 3 }?.let(::tidyTitle)
+        val seen = list.map { title -> tokens(title).map { it.lowercase() }.toSet() }
+        val shared = seen.flatten().groupingBy { it }.eachCount().filterValues { it >= 2 }.keys
+        if (shared.isEmpty()) return null
+        val best = list.withIndex().maxByOrNull { (i, _) -> seen[i].count { it in shared } * 100 - i }!!.value
+        val name = tokens(best).filter { it.lowercase() in shared }.distinctBy { it.lowercase() }.take(6)
+        return name.takeIf { it.isNotEmpty() && it.joinToString("").count(Char::isLetter) >= 3 }?.joinToString(" ")?.let(::tidyTitle)
+    }
+
+    /** "SERAX Molly" as "Serax Molly": a word in capitals of letters only, longer than an abbreviation, as typed. */
+    private fun tidyTitle(text: String) = text.split(' ').filter { it.isNotEmpty() }.joinToString(" ") { word ->
+        if (word.length > 3 && word.all { it.isLetter() && it.isUpperCase() }) word.lowercase().replaceFirstChar { it.uppercase() } else word
     }
 
     private fun words(text: String) = text.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.toSet()
