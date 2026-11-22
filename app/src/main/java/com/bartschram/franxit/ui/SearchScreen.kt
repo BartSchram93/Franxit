@@ -176,11 +176,22 @@ fun SearchScreen(
                         )
                     }
                 }
-                items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null, hit.image) { onPick(hit.url, hit.title) } }
                 // For products vergelijk.be doesn't have: Google Shopping, one search of your plan a day.
                 val google = shoppingQuery?.takeIf { onGoogleShopping != null && !searching && it.length >= 2 }
-                if (google != null && (link == null || shopLink != null)) {
-                    item {
+                    ?.takeIf { link == null || shopLink != null }
+                // First when nothing found looks like what you searched for (Maltesers on vergelijk.be: Maxi-Cosi
+                // strollers), so the way to follow it isn't below a list of other products.
+                val googleFirst = google != null && shopLink == null && results.isNotEmpty() && !VergelijkSearch.fits(results, google)
+                if (google != null && googleFirst) {
+                    item(key = "google") {
+                        ResultRow(t("Track via Google Shopping: \"%s\"", google), "Not found on comparison sites · checked once a day", null) {
+                            onGoogleShopping?.invoke(google)
+                        }
+                    }
+                }
+                items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null, hit.image) { onPick(hit.url, hit.title) } }
+                if (google != null && !googleFirst) {
+                    item(key = "google") {
                         ResultRow(t("Track via Google Shopping: \"%s\"", google), "Checked once a day", null) {
                             onGoogleShopping?.invoke(google)
                         }

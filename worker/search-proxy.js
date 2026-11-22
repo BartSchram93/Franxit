@@ -75,8 +75,9 @@ async function lens(photo, env) {
     if (/hasn't returned any results|no results/i.test(data.error || "")) return json({ guess: "", entities: [], titles: [] });
     return new Response("Recognition service error", { status: liteStatus(answer.status) });
   }
-  const titles = (data.visual_matches || []).map((m) => (m.title || "").trim()).filter(Boolean).slice(0, 15);
-  return json({ guess: "", entities: [], titles });
+  const matches = (data.visual_matches || []).filter((m) => (m.title || "").trim()).slice(0, 15);
+  // The shop of each match ("Amazon.com.be", "Delhaize"): the app leaves its name out of the product's.
+  return json({ guess: "", entities: [], titles: matches.map((m) => m.title.trim()), sources: matches.map((m) => (m.source || "").trim()) });
 }
 
 /** Google Cloud Vision's web detection: its best guess, the things it names and the titles of pages with the photo. */

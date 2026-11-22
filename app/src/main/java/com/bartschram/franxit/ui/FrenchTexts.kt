@@ -233,4 +233,5 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "No internet connection, tried again at the next check" to "Pas de connexion internet, la prochaine vérification réessaie",
     "Google Shopping had a problem, tried again at the next check" to "Google Shopping a eu un problème, la prochaine vérification réessaie",
     "Google Shopping couldn't be reached" to "Google Shopping était injoignable",
+    "Not found on comparison sites · checked once a day" to "Introuvable sur les comparateurs · vérifié une fois par jour",
 )

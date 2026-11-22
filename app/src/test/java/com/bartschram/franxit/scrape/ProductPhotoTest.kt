@@ -55,4 +55,14 @@ class ProductPhotoTest {
         assertNull(ProductPhoto.common(listOf("Blue vase", "Red chair")))
         assertNull(ProductPhoto.common(emptyList()))
     }
+
+    @Test
+    fun theShopsInLensTitlesAreNoPartOfTheName() {
+        // A tester's photo of Maltesers gave "Maltesers maxi 300 Amazon com be", which found Maxi-Cosi strollers.
+        val titles = listOf("Maltesers Maxi 300 g - Amazon.com.be", "Maltesers Maxi 300g | Amazon.com.be", "Maltesers chocolade 300 g - Delhaize")
+        assertEquals("Maltesers Maxi 300", ProductPhoto.common(titles, listOf("Amazon.com.be", "Amazon.com.be", "Delhaize")))
+        // Also without the sources (a search service not updated yet): known shops and web words are left out.
+        assertEquals("Maltesers Maxi 300", ProductPhoto.common(titles))
+        assertEquals("Maltesers Chocolade 300 gr", ProductPhoto.common(listOf("Maltesers Chocolade 300 gr Delhaize")))
+    }
 }

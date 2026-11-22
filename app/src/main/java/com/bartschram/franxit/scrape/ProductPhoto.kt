@@ -51,7 +51,8 @@ object ProductPhoto {
                 ?.let { return it }
         }
         if (guessWords.size >= 2) return tidy(guess)
-        common(titles)?.let { return it }
+        val sources = data.optJSONArray("sources")?.let { list -> (0 until list.length()).map { list.optString(it) } }.orEmpty()
+        common(titles, sources)?.let { return it }
         val entities = data.optJSONArray("entities")
         val best = entities?.let { list -> (0 until list.length()).mapNotNull { list.optJSONObject(it) } }
             ?.filter { it.optDouble("score", 0.0) >= 0.5 }
@@ -66,6 +67,13 @@ object ProductPhoto {
         "for", "with", "buy", "le", "la", "les", "des", "du", "et", "pour", "avec", "en", "un", "une", "der", "die", "das", "und",
     )
 
+    /** Words of web addresses and shops in titles ("Amazon.com.be", "bol.com"): no part of a product's name. */
+    private val WEB = setOf(
+        "www", "com", "be", "nl", "fr", "de", "eu", "net", "org", "co", "uk", "shop", "store", "webshop", "online",
+        "amazon", "bol", "coolblue", "mediamarkt", "fnac", "krefel", "vandenborre", "delhaize", "colruyt", "carrefour",
+        "albert", "heijn", "ah", "aldi", "lidl", "kruidvat", "action", "ebay", "etsy", "temu", "aliexpress", "zalando",
+    )
+
     private fun tokens(text: String) = text.split(Regex("[^\\p{L}\\p{N}]+"))
         .filter { it.length >= 2 && it.lowercase() !in FILLER }
 
@@ -75,15 +83,21 @@ object ProductPhoto {
      * "Serax Marie Michielssen Molly bloempot" give "Molly Serax"; with more titles, "Serax Marie Michielssen Molly".
      * With one title, its first part. Null when they share nothing.
      */
-    internal fun common(titles: List<String>): String? {
-        val list = titles.map { it.trim() }.filter { it.isNotEmpty() }
+    internal fun common(titles: List<String>, sources: List<String> = emptyList()): String? {
+        // The shops' names are left out: "Maltesers Maxi 300 g - Amazon.com.be" several times over is no
+        // "Maltesers maxi 300 Amazon com be".
+        val shopWords = WEB + sources.flatMap { source -> tokens(source).map { it.lowercase() } }
+        fun words(title: String) = tokens(title).filter { it.lowercase() !in shopWords }
+        val list = titles.map { it.trim() }.filter { title -> words(title).isNotEmpty() }
         if (list.isEmpty()) return null
-        if (list.size == 1) return firstPart(list.first()).takeIf { it.count(Char::isLetter) >= 3 }?.let(::tidyTitle)
-        val seen = list.map { title -> tokens(title).map { it.lowercase() }.toSet() }
+        if (list.size == 1) {
+            return words(firstPart(list.first())).joinToString(" ").takeIf { it.count(Char::isLetter) >= 3 }?.let(::tidyTitle)
+        }
+        val seen = list.map { title -> words(title).map { it.lowercase() }.toSet() }
         val shared = seen.flatten().groupingBy { it }.eachCount().filterValues { it >= 2 }.keys
         if (shared.isEmpty()) return null
         val best = list.withIndex().maxByOrNull { (i, _) -> seen[i].count { it in shared } * 100 - i }!!.value
-        val name = tokens(best).filter { it.lowercase() in shared }.distinctBy { it.lowercase() }.take(6)
+        val name = words(best).filter { it.lowercase() in shared }.distinctBy { it.lowercase() }.take(6)
         return name.takeIf { it.isNotEmpty() && it.joinToString("").count(Char::isLetter) >= 3 }?.joinToString(" ")?.let(::tidyTitle)
     }
 
