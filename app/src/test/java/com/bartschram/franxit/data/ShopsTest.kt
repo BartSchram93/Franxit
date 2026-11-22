@@ -33,4 +33,10 @@ class ShopsTest {
     fun ignoresAccents() {
         assertEquals("Krefel.be", Shops.name("Krëfel"))
     }
+
+    @Test
+    fun aShopInSmallLettersGetsACapital() {
+        assertEquals("Nintendo", Shops.name("nintendo"))
+        assertEquals("eBay", Shops.name("eBay"))
+    }
 }

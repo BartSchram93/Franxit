@@ -46,6 +46,8 @@ object Shops {
         PARTNERS[key]?.let { return if (partners) "$it partner" else it }
         // Already a website ("coolblue.be", "Techinn.com"): just a capital first letter.
         if (DOMAIN.matches(trimmed)) return trimmed.replaceFirstChar { it.uppercase() }
+        // A name in small letters only ("nintendo", as Google Shopping writes some shops): with a capital.
+        if (trimmed.isNotEmpty() && trimmed.none { it.isUpperCase() }) return trimmed.replaceFirstChar { it.uppercase() }
         return trimmed
     }
 }
