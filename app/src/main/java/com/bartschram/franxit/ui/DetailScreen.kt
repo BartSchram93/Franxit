@@ -453,7 +453,7 @@ private fun filter(history: List<PricePoint>, span: Span): List<PricePoint> {
 private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopLink: suspend (String) -> String?) {
     // Cheapest for you first: with a shop discount that can differ from the shops' own order.
     val offers = remember(product.offers, discounts) {
-        mergeSameShop(product.offers).sortedBy { Discounts.yourPrice(it, discounts) }
+        mergeSameShop(product.offers).sortedWith(compareBy({ it.inStock == false }, { Discounts.yourPrice(it, discounts) }))
     }
     if (offers.size < 2) return
     val uri = LocalUriHandler.current

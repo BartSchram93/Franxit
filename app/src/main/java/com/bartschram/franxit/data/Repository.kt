@@ -265,6 +265,49 @@ class Repository private constructor(context: Context) {
     }
 
 
+    /** Shop pages read at the same time; a check waits at most [SHOP_CHECK_SECONDS] for all of them. */
+    private val shopReaders = java.util.concurrent.Executors.newFixedThreadPool(4)
+    private val SHOP_CHECK_SECONDS = 25L
+    /** What a shop's page said, by its link, with when: read again after [SHOP_CHECK_MS]. */
+    private val shopPages = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, ShopCheck.Seen?>>()
+    private val SHOP_CHECK_MS = 3 * 60 * 60 * 1000L
+
+    /**
+     * [offers] as each shop's own product page shows them, where the app knows that page (from Google Shopping or
+     * Shoparize; not a search): Google lists prices without saying whether a shop has the product (Coolblue's
+     * Zelda Edition, sold out). The page the product was added from is already read ([own]). A page that can't be
+     * read, or is of another product, changes nothing.
+     */
+    private fun checkShopPages(product: Product, offers: List<ShopOffer>, own: Scraper.Result): List<ShopOffer> {
+        val ownHost = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
+        val links = offers.associate { offer ->
+            val link = listOf(ShoppingSettings.link(appContext, product.id, offer.seller), ShoppingSettings.shoparizeLink(appContext, product.id, offer.seller))
+                .firstOrNull(ShopCheck::isProductPage)
+                ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
+            offer.seller to link
+        }
+        val name = own.name.ifBlank { product.displayName }
+        val tasks = links.values.filterNotNull().distinct().map { link ->
+            java.util.concurrent.Callable {
+                shopPages[link]?.takeIf { System.currentTimeMillis() - it.first < SHOP_CHECK_MS }?.let { return@Callable link to it.second }
+                val seen = try {
+                    ShopCheck.seen(Scraper.fetch(link), name)
+                } catch (e: IOException) {
+                    // "Not available at … right now": the page says sold out without a price.
+                    if (e.message?.startsWith("Not available at") == true) ShopCheck.SOLD_OUT else null
+                } catch (e: Exception) {
+                    null
+                }
+                shopPages[link] = System.currentTimeMillis() to seen
+                link to seen
+            }
+        }
+        if (tasks.isEmpty()) return offers
+        val seen = runCatching { shopReaders.invokeAll(tasks, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
+            .mapNotNull { future -> runCatching { future.get() }.getOrNull() }.toMap()
+        return offers.map { offer -> ShopCheck.apply(offer, links[offer.seller]?.let { seen[it] }) }
+    }
+
     /** Only web addresses are ever opened: a link from a shop or from Google is not trusted with any other kind. */
     suspend fun shopLink(product: Product, seller: String? = null): String? {
         // By the shop the button names: after a check the cheapest can be another shop.
@@ -476,7 +519,8 @@ class Repository private constructor(context: Context) {
         }
         val extras = extraShops(named, query, ownCheapest, ownShops)
         val shoparize = shoparizeShops(named, query)
-        val (offers, cheapest) = store(combine(extras.offers, shoparize))
+        // Each shop's own page, where its link is known: sold out there, or another price, as the shop says it.
+        val (offers, cheapest) = store(checkShopPages(named, combine(extras.offers, shoparize), result))
         // The shops are in: show them now, before the site's price history is fetched.
         onFirstResults?.invoke()
         if (cheapest == null) return null
