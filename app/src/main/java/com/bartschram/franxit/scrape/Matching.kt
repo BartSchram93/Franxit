@@ -184,6 +184,32 @@ object Matching {
 
     private val SIZE = Regex("""\d+([.,]\d+)?\s?("|″|”|''|-?inch\b|-?cm\b)|\d+[.,]\d+""", RegexOption.IGNORE_CASE)
 
+    /**
+     * Whether a shop's [title] on Google's page for a product is clearly another product: Google groups related
+     * products under one ("Nintendo Switch 2 (2026) + Pokémon Legends: Z-A" at Coolblue under the Switch 2 Zelda
+     * Edition). Lenient, as a shop may write the product otherwise (bol.com's "HCKB-200B" for the KB200B): never
+     * when it carries the name's model code; otherwise another when it shares little of the name (under 40% of its
+     * words) and names two or more things the name doesn't.
+     */
+    fun isOtherProduct(title: String, wanted: String): Boolean {
+        if (title.isBlank()) return false
+        val want = words(wanted)
+        if (want.filter(::isModelCode).any { it in compact(title) }) return false
+        // Not by a "+" or an edition word: a shop's title adds a case and stylus to a tablet ("TCL NXTPAPER 14 + Flip
+        // Case"), or writes the edition in English ("40th Anniversary Edition" for "40-jarig jubileum").
+        val have = words(title)
+        val shared = want.count { it in have }.toDouble() / want.size.coerceAtLeast(1)
+        return shared < 0.4 && have.count { it !in want }.let { it >= 2 }
+    }
+
+    /** The words in a shop page's address ("…/nintendo-switch-2-2026-pokemon-legends-z-a/…"), when they read as a title. */
+    fun titleFromLink(link: String): String? {
+        val path = runCatching { java.net.URI(link).path }.getOrNull().orEmpty()
+        val slug = path.split('/').filter { it.isNotBlank() }.maxByOrNull { part -> part.count { it == '-' } } ?: return null
+        val words = slug.removeSuffix(".html").split('-').filter { it.isNotBlank() }
+        return words.takeIf { list -> list.count { w -> w.any(Char::isLetter) } >= 3 }?.joinToString(" ")
+    }
+
     private val BUNDLE = Regex("""\s\+\s|\bbundel\b|\bbundle\b|\bset met\b|\bincl\.?\b|\binclusief\b""", RegexOption.IGNORE_CASE)
 
     private fun compact(text: String) = text.lowercase().filter { it.isLetterOrDigit() }

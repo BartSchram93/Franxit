@@ -164,4 +164,18 @@ class MatchingTest {
         assertTrue(Matching.isSameProduct("Patchwork - Bordspel - 999 Games", "Patchwork"))
         assertTrue(Matching.isSameProduct("Patchwork Express", "Patchwork Express"))
     }
+
+    @Test
+    fun googleGroupsRelatedProductsUnderOne() {
+        val zelda = "Nintendo Console Switch 2 Limited Edition 40-jarig jubileum The Legend of Zelda"
+        // Coolblue's € 514 under the Zelda Edition was this bundle.
+        assertTrue(Matching.isOtherProduct("Nintendo Switch 2 (2026) + Pokémon Legends: Z-A", zelda))
+        assertTrue(Matching.isOtherProduct(Matching.titleFromLink("https://www.coolblue.be/en/product/971234/nintendo-switch-2-2026-pokemon-legends-z-a.html")!!, zelda))
+        // The edition itself, written otherwise, stays.
+        assertFalse(Matching.isOtherProduct("Nintendo Switch 2 - The Legend of Zelda 40th Anniversary Edition", zelda))
+        // A shop's own way of writing the model stays: bol.com's "HCKB-200B" for the KB200B.
+        assertFalse(Matching.isOtherProduct("Hercules HCKB-200B Keyboardbank", "Hercules KB200B keyboardbank"))
+        assertFalse(Matching.isOtherProduct("", zelda))
+        assertNull(Matching.titleFromLink("https://www.bol.com/be/nl/p/9300000238157452/"))
+    }
 }

@@ -278,6 +278,9 @@ object GoogleShopping {
             val title = s.optString("title")
             // Google groups colours and variants of one model together: the shop's own title tells them apart.
             if (title.isNotBlank() && Matching.isOtherVariant(title, query)) return@mapNotNull null
+            // Google also groups related products under one: a shop's title (or, without one, its page's address)
+            // that is clearly another product is left out.
+            if (Matching.isOtherProduct(title.ifBlank { Matching.titleFromLink(link).orEmpty() }, query)) return@mapNotNull null
             if (name.isBlank() || price <= 0 || isForeignShop(name) || isMarketplace(name)) return@mapNotNull null
             if (SECOND_HAND.containsMatchIn("$name $title ${s.optJSONArray("details_and_offers")}")) return@mapNotNull null
             // Dutch or English pages only (bol.com's French page is left out; its Dutch one is listed too).
