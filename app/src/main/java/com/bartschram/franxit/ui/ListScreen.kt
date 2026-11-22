@@ -519,7 +519,7 @@ private fun ProductCard(
                 }
                 if (product.lastError != null) {
                     Text(
-                        t("Last check failed: %s", tMessage(product.lastError.orEmpty())),
+                        tMessage(product.lastError.orEmpty()),
                         style = MaterialTheme.typography.bodySmall,
                         color = PriceUp,
                         maxLines = 1,

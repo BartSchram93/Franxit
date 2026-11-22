@@ -212,7 +212,7 @@ fun DetailScreen(
             }
             product.lastError?.let {
                 Spacer(Modifier.height(8.dp))
-                Text(t("Last check failed: %s", tMessage(it)), style = MaterialTheme.typography.bodySmall, color = PriceUp)
+                Text(tMessage(it), style = MaterialTheme.typography.bodySmall, color = PriceUp)
             }
 
             Spacer(Modifier.height(20.dp))

@@ -232,7 +232,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             onRefresh = {
                 scope.launch {
                     refreshing = true
-                    repo.checkOne(selected.id).onFailure { toast(t("Check failed: %s", tMessage(it.message.orEmpty()))) }
+                    repo.checkOne(selected.id).onFailure { toast(tMessage(it.message.orEmpty())) }
                     refreshing = false
                 }
             },

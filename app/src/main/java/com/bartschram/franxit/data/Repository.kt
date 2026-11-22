@@ -82,7 +82,7 @@ class Repository private constructor(context: Context) {
      * Starts tracking [url] and checks its price right away. Returns the product id.
      * [name] is what the search called it, shown until the first check names it properly.
      * [onCreated] is called at once, before anything is fetched, so the product can open with
-     * its searching words. A check that fails is shown on the product ("Last check failed"), not thrown.
+     * its searching words. A check that fails is shown on the product (why, in words), not thrown.
      */
     suspend fun add(url: String, name: String? = null, onCreated: (Long) -> Unit = {}): Long = withContext(Dispatchers.IO) {
         val host = runCatching { URI(url).host }.getOrNull() ?: url
