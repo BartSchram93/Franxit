@@ -1,6 +1,8 @@
 package com.bartschram.franxit.ui
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -33,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.bartschram.franxit.R
 import com.bartschram.franxit.scrape.PriceTag
+import com.bartschram.franxit.scrape.ProductPhoto
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -40,6 +43,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -49,6 +53,9 @@ import com.google.mlkit.vision.text.Text as ReadText
  * Search by a photo of a shop's price tag: take one with the camera app or choose one. The product's name
  * is read from it on the phone itself (no upload, the price is left out: see PriceTag), and "Is this the
  * product?" shows it, to search for as it is or to change first.
+ *
+ * A photo without a clear price tag (of the product itself) can be recognised online instead, by Google Cloud
+ * Vision, but only when you choose so: the photo then leaves the phone. The price tag always comes first.
  */
 @Composable
 fun PriceTagSearch(onSearch: (String) -> Unit) {
@@ -56,16 +63,38 @@ fun PriceTagSearch(onSearch: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     var menu by remember { mutableStateOf(false) }
     var reading by remember { mutableStateOf(false) }
+    var recognizing by remember { mutableStateOf(false) }
     // After reading: the name to confirm or change ("" when none was found); null while there's nothing to ask.
     var found by remember { mutableStateOf<String?>(null) }
+    // Why the name is empty or may be off, shown above it (online recognition failed or saw nothing).
+    var note by remember { mutableStateOf<String?>(null) }
+    // A photo without a clear price tag: whether to recognise the product on it online. Its text so far, if any.
+    var askOnline by remember { mutableStateOf<Pair<Uri, String?>?>(null) }
     val photo = remember { PriceTagPhotos.newUri(context) }
 
     fun read(uri: Uri) {
         reading = true
+        note = null
         scope.launch {
-            val name = runCatching { PriceTagPhotos.name(context, uri) }.getOrNull()
+            val reading0 = runCatching { PriceTagPhotos.read(context, uri) }.getOrNull()
             reading = false
-            found = name.orEmpty()
+            if (reading0?.clear == true) found = reading0.name.orEmpty() else askOnline = uri to reading0?.name
+        }
+    }
+
+    fun recognize(uri: Uri, fallback: String?) {
+        recognizing = true
+        scope.launch {
+            val result = runCatching { PriceTagPhotos.recognize(context, uri) }
+            recognizing = false
+            val name = result.getOrNull()
+            note = when {
+                result.isFailure -> result.exceptionOrNull()?.message?.takeIf { it == ProductPhoto.TOO_MANY }
+                    ?: "The product couldn't be recognised. Type its name."
+                name == null -> "Nothing recognised on the photo. Type its name."
+                else -> null
+            }
+            found = name ?: fallback.orEmpty()
         }
     }
 
@@ -89,17 +118,36 @@ fun PriceTagSearch(onSearch: (String) -> Unit) {
         }
     }
 
-    if (reading) {
+    if (reading || recognizing) {
         AlertDialog(
             onDismissRequest = {},
             text = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     LoadingDots()
                     Spacer(Modifier.width(14.dp))
-                    Text("Reading the price tag…")
+                    Text(if (reading) "Reading the price tag…" else "Recognising the product…")
                 }
             },
             confirmButton = {},
+        )
+    }
+
+    askOnline?.let { (uri, text) ->
+        AlertDialog(
+            onDismissRequest = { askOnline = null },
+            title = { Text("No price tag found") },
+            text = {
+                Text(
+                    "Recognise the product on the photo online? The photo is then sent to Google Cloud Vision.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { askOnline = null; recognize(uri, text) }) { Text("Recognise") }
+            },
+            dismissButton = {
+                TextButton(onClick = { askOnline = null; note = null; found = text.orEmpty() }) { Text("Type it myself") }
+            },
         )
     }
 
@@ -110,8 +158,9 @@ fun PriceTagSearch(onSearch: (String) -> Unit) {
             title = { Text("Is this the product?") },
             text = {
                 Column {
-                    if (name.isEmpty()) {
-                        Text("No name found on the photo. Type it yourself.", style = MaterialTheme.typography.bodyMedium)
+                    val message = note ?: "No name found on the photo. Type it yourself.".takeIf { name.isEmpty() }
+                    if (message != null) {
+                        Text(message, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(12.dp))
                     }
                     OutlinedTextField(
@@ -141,8 +190,8 @@ private object PriceTagPhotos {
         return FileProvider.getUriForFile(context, "${context.packageName}.photos", file)
     }
 
-    /** The product's name on the photo at [uri] (see PriceTag); null when none was found. Read on the phone itself. */
-    suspend fun name(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
+    /** The product's name on the photo at [uri] (see PriceTag), and whether it is clearly a price tag's. Read on the phone itself. */
+    suspend fun read(context: Context, uri: Uri): PriceTag.Reading = withContext(Dispatchers.IO) {
         val image = InputImage.fromFilePath(context, uri)
         val reader = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
         try {
@@ -154,9 +203,32 @@ private object PriceTagPhotos {
             val lines = read.textBlocks.flatMap { it.lines }.map { line ->
                 PriceTag.Line(line.text, line.boundingBox?.top ?: 0, line.boundingBox?.height() ?: 0)
             }
-            PriceTag.name(lines)
+            PriceTag.read(lines)
         } finally {
             reader.close()
         }
+    }
+
+    /** The largest side of a photo sent to be recognised: enough for Vision, small to send. */
+    private const val MAX_SIDE = 1024
+
+    /** The product on the photo at [uri], recognised online (see ProductPhoto); null when nothing was. */
+    suspend fun recognize(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
+        ProductPhoto.recognize(smallJpeg(context, uri) ?: throw java.io.IOException("Photo can't be read"))
+    }
+
+    /** The photo made small (at most [MAX_SIDE] pixels a side) as JPEG: only what Vision needs is sent. */
+    private fun smallJpeg(context: Context, uri: Uri): ByteArray? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        val side = maxOf(bounds.outWidth, bounds.outHeight).takeIf { it > 0 } ?: return null
+        var sample = 1
+        while (side / (sample * 2) >= MAX_SIDE) sample *= 2
+        val decoded = context.contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
+        } ?: return null
+        val scale = MAX_SIDE.toFloat() / maxOf(decoded.width, decoded.height)
+        val small = if (scale < 1f) Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt(), (decoded.height * scale).toInt(), true) else decoded
+        return ByteArrayOutputStream().use { out -> small.compress(Bitmap.CompressFormat.JPEG, 85, out); out.toByteArray() }
     }
 }

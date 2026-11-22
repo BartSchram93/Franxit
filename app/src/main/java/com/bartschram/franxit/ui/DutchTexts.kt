@@ -223,4 +223,12 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Not available at %s right now" to "Nu niet leverbaar bij %s",
     "%s's page shows no price the app can read" to "De pagina van %s toont geen prijs die de app kan lezen",
     "%s couldn't be read" to "%s kon niet gelezen worden",
+    "Recognising the product…" to "Product herkennen…",
+    "No price tag found" to "Geen prijskaartje gevonden",
+    "Recognise the product on the photo online? The photo is then sent to Google Cloud Vision." to "Het product op de foto online laten herkennen? De foto wordt dan naar Google Cloud Vision gestuurd.",
+    "Recognise" to "Herkennen",
+    "Type it myself" to "Zelf typen",
+    "The product couldn't be recognised. Type its name." to "Het product kon niet herkend worden. Typ de naam.",
+    "Nothing recognised on the photo. Type its name." to "Niets herkend op de foto. Typ de naam.",
+    "Too many photos recognised today. Try again tomorrow, or type the name." to "Vandaag al te veel foto's herkend. Probeer morgen opnieuw, of typ de naam.",
 )

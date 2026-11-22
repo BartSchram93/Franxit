@@ -223,4 +223,12 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Not available at %s right now" to "Pas disponible chez %s pour le moment",
     "%s's page shows no price the app can read" to "La page de %s ne montre aucun prix que l'appli peut lire",
     "%s couldn't be read" to "%s n'a pas pu être lu",
+    "Recognising the product…" to "Reconnaissance du produit…",
+    "No price tag found" to "Aucune étiquette de prix trouvée",
+    "Recognise the product on the photo online? The photo is then sent to Google Cloud Vision." to "Reconnaître le produit de la photo en ligne ? La photo est alors envoyée à Google Cloud Vision.",
+    "Recognise" to "Reconnaître",
+    "Type it myself" to "Le taper moi-même",
+    "The product couldn't be recognised. Type its name." to "Le produit n'a pas pu être reconnu. Tape son nom.",
+    "Nothing recognised on the photo. Type its name." to "Rien reconnu sur la photo. Tape son nom.",
+    "Too many photos recognised today. Try again tomorrow, or type the name." to "Trop de photos reconnues aujourd'hui. Réessaie demain, ou tape le nom.",
 )

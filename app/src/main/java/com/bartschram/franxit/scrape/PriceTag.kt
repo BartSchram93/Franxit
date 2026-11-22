@@ -27,16 +27,25 @@ object PriceTag {
     private val MODEL = Regex("""(?=[\p{L}\p{N}/.-]*\p{L})(?=[\p{L}\p{N}/.-]*\p{N})[\p{L}\p{N}][\p{L}\p{N}/.-]{2,}""")
 
     /** The product's name, as it would be typed ("Singer M3405"); null when no line looks like a name. */
-    fun name(lines: List<Line>): String? {
+    fun name(lines: List<Line>): String? = read(lines).name
+
+    /**
+     * What the photo says: the [name] (null when none), and whether it [clear]ly is a price tag's name: a brand and
+     * model ("ROWENTA - RO3134EA") or a model code. Otherwise the photo is likely of the product itself, and the app
+     * offers to recognise it online.
+     */
+    data class Reading(val name: String?, val clear: Boolean)
+
+    fun read(lines: List<Line>): Reading {
         val candidates = lines.sortedBy { it.top }
             .map { it.copy(text = separateBrand(it.text.replace(ARTICLE, " ").replace(Regex("\\s+"), " ").trim())) }
             .filter { isName(it.text) }
         // The brand and model line first ("SINGER - M3405"), else a line with a model code, else the tallest text.
-        val best = candidates.firstOrNull { BRAND_MODEL.containsMatchIn(it.text) }
+        val clear = candidates.firstOrNull { BRAND_MODEL.containsMatchIn(it.text) }
             ?: candidates.firstOrNull { line -> line.text.split(' ').any { MODEL.matches(it) } }
-            ?: candidates.maxByOrNull { it.height }
-            ?: return null
-        return tidy(joinBrand(best.text)).takeIf { it.count(Char::isLetter) >= 3 }
+        val best = clear ?: candidates.maxByOrNull { it.height } ?: return Reading(null, false)
+        val name = tidy(joinBrand(best.text)).takeIf { it.count(Char::isLetter) >= 3 }
+        return Reading(name, clear != null && name != null)
     }
 
     /**
