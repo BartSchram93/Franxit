@@ -120,6 +120,9 @@ object Matching {
         if (!wantCodes.all { it in haveCompact }) return false
         // The same product in another colour (a black watch for the silver one) is not this product.
         if (otherColour(title, wanted)) return false
+        // Another edition of it ("Patchwork Express", "Patchwork Doodle", an expansion) is another product at
+        // another price: €20.99 at Fnac for "Patchwork" was one.
+        if (otherEdition(title, wanted)) return false
         // Specs ("8GB", "256gb", "6000mah") aren't model codes: shops add them to titles, they don't make another product.
         if (have.filter { isModelCode(it) && !isSpec(it) }.any { it !in wantCompact }) return false
         // Numbers in the name must be in the title too: "TCL Smartphone 60 SE Nxtpaper 5G" isn't the
@@ -127,6 +130,19 @@ object Matching {
         if (want.filter { w -> w.all(Char::isDigit) }.any { it !in have }) return false
         // Without a model code, most of the words have to match.
         return wantCodes.isNotEmpty() || want.count { it in have }.toDouble() / want.size >= 0.6
+    }
+
+    /** Words that make another edition of a product: smaller, bigger, for children, an expansion. */
+    private val EDITION = Regex(
+        """\b(express|doodle|junior|kids|kinderversie|deluxe|uitbreiding|uitbreidingsset|expansion|extension|erweiterung|""" +
+            """reiseditie|reisversie|reisspel|travel edition|big box|jubileumeditie|anniversary edition|starter ?set)\b""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /** Whether [title] names an edition [wanted] doesn't ("Patchwork Express" for "Patchwork"). */
+    internal fun otherEdition(title: String, wanted: String): Boolean {
+        val want = EDITION.findAll(wanted).map { it.value.lowercase() }.toSet()
+        return EDITION.findAll(title).any { it.value.lowercase() !in want }
     }
 
     /** Colour words in Dutch, English and French, each to one colour. */

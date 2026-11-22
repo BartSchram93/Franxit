@@ -321,4 +321,12 @@ class ShoparizeTest {
     fun theSearchUrlEscapesTheWords() {
         assertEquals("https://www.shoparize.com/be/q?q=Sony+WF-1000XM6+%26+case", Shoparize.searchUrl(" Sony WF-1000XM6 & case "))
     }
+
+    @Test
+    fun searchedWithTheBrandButFoundByTheNameAlone() {
+        val found = Shoparize.productFor("999 Games Patchwork", also = "Patchwork", download = { url ->
+            if ("/be/q" in url) searchPage("Patchwork Bordspel" to "${page}patchwork/aaa") else sonyPage
+        })
+        assertEquals("Patchwork Bordspel", found.title)
+    }
 }

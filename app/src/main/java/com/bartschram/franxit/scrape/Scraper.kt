@@ -21,7 +21,8 @@ object Scraper {
     /** [inStock] is null when the page doesn't say. [link] goes straight to the shop, when known. */
     data class Offer(val seller: String, val price: Double, val inStock: Boolean? = null, val link: String? = null)
 
-    data class Result(val name: String, val offers: List<Offer>, val image: String? = null) {
+    /** [brand]: the maker the page names ("999 Games"), when it does. */
+    data class Result(val name: String, val offers: List<Offer>, val image: String? = null, val brand: String? = null) {
         /** Cheapest offer you can actually buy, falling back to the cheapest one listed. */
         val cheapest: Offer
             get() = offers.filter { it.inStock != false }.minByOrNull { it.price } ?: offers.minBy { it.price }
@@ -186,7 +187,7 @@ object Scraper {
         val products = all.filter { isType(it, "Product") }
         val fromSchema = products.firstNotNullOfOrNull { product ->
             offers(product.opt("offers")).takeIf { it.isNotEmpty() }
-                ?.let { Result(product.optString("name").trim(), it, image(product.opt("image"), all)) }
+                ?.let { Result(product.optString("name").trim(), it, image(product.opt("image"), all), brand(product.opt("brand"))) }
         }
         // vergelijk.be: its app state has the prices after discounts, which schema.org leaves out.
         val shopOffers = NuxtOffers.parse(html)
@@ -194,10 +195,18 @@ object Scraper {
         if (shopOffers.isNotEmpty() && products.isNotEmpty()) {
             val product = products.firstOrNull()
             val name = fromSchema?.name ?: product?.optString("name")?.trim().orEmpty()
-            return Result(name, shopOffers, fromSchema?.image ?: product?.let { image(it.opt("image"), all) })
+            return Result(name, shopOffers, fromSchema?.image ?: product?.let { image(it.opt("image"), all) }, product?.let { brand(it.opt("brand")) })
         }
         return fromSchema ?: throw IOException("No prices found on page")
     }
+
+    /** schema.org's brand: a name, a Brand or Organization with a name, or a list of those. */
+    internal fun brand(value: Any?): String? = when (value) {
+        is String -> value
+        is JSONObject -> value.optString("name")
+        is JSONArray -> (0 until value.length()).firstNotNullOfOrNull { brand(value.opt(it)) }
+        else -> null
+    }?.trim()?.takeIf { it.isNotEmpty() && it.lowercase() !in setOf("null", "unbranded", "geen merk", "no brand", "generic") }
 
     /** A url from schema.org's image: a string, a list, an ImageObject, or a reference by "@id". */
     private fun image(value: Any?, all: List<JSONObject>): String? {

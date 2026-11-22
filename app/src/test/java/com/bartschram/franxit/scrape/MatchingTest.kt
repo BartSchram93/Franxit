@@ -154,4 +154,14 @@ class MatchingTest {
         assertEquals(false, Matching.isSameProduct("Pampers Baby-Dry Pants Maat 6 - 160 Luierbroekjes - Maandbox", wanted, lenient = true))
         assertEquals(true, Matching.isSameProduct("Pampers Baby-Dry Pants Maat 6 - 138 luierbroekjes - 14-19 kg", wanted, lenient = true))
     }
+
+    @Test
+    fun anotherEditionIsAnotherProduct() {
+        // €20.99 at Fnac for "Patchwork" (€48.99 for the game itself).
+        assertFalse(Matching.isSameProduct("Patchwork Express - Bordspel", "Patchwork"))
+        assertFalse(Matching.isSameProduct("Patchwork Doodle", "Patchwork", lenient = true))
+        assertFalse(Matching.isSameProduct("Catan Uitbreiding Zeevaarders", "Catan"))
+        assertTrue(Matching.isSameProduct("Patchwork - Bordspel - 999 Games", "Patchwork"))
+        assertTrue(Matching.isSameProduct("Patchwork Express", "Patchwork Express"))
+    }
 }

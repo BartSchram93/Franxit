@@ -104,7 +104,7 @@ object Shoparize {
     fun offersFor(
         wanted: String,
         download: (String) -> String = { Scraper.download(it, "text/html,application/xhtml+xml", HEADERS) },
-    ): List<Scraper.Offer> = productFor(wanted, download).offers
+    ): List<Scraper.Offer> = productFor(wanted, download = download).offers
 
     /** The product Shoparize lists for [wanted]: its full title ("999 Games Patchwork", null when none) and shops. */
     data class Found(val title: String?, val offers: List<Scraper.Offer>)
@@ -112,13 +112,15 @@ object Shoparize {
     /** As [offersFor], with the product's title on Shoparize: a fuller name to search a shop's site with. */
     fun productFor(
         wanted: String,
+        also: String? = null,
         download: (String) -> String = { Scraper.download(it, "text/html,application/xhtml+xml", HEADERS) },
     ): Found {
         val tidy = tidy(wanted)
         for (query in queries(wanted)) {
             val hits = parseSearch(download(searchUrl(query)))
-            // The tidied name first, then the name as it is (tidying must not make a good match worse).
-            val hit = best(hits, tidy) ?: best(hits, wanted.trim()) ?: continue
+            // The tidied name first, then the name as it is (tidying must not make a good match worse), then [also]:
+            // the name without the brand searched with ("Patchwork" for "999 Games Patchwork"), as titles often lack it.
+            val hit = best(hits, tidy) ?: best(hits, wanted.trim()) ?: also?.let { best(hits, tidy(it)) ?: best(hits, it.trim()) } ?: continue
             return Found(hit.title, parseOffers(download(hit.url)))
         }
         return Found(null, emptyList())

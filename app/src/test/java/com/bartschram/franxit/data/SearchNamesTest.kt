@@ -53,4 +53,15 @@ class SearchNamesTest {
         val renamed = product("Pampers Baby-Dry Pants Maat 6, 138 Luierbroekjes, 14-19kg Maandbox", custom = "Luiers Lena")
         assertEquals("Luiers Lena 138 Luierbroekjes", SearchNames.match(renamed))
     }
+
+    @Test
+    fun patchworkIsSearchedWithItsBrand() {
+        val patchwork = product("Patchwork")
+        assertEquals("999 Games Patchwork", SearchNames.withBrand("Patchwork", "999 Games"))
+        assertEquals("999 Games Patchwork", SearchNames.withBrand("999 Games Patchwork", "999 Games"))
+        assertEquals("Sony WH-1000XM5", SearchNames.withBrand("Sony WH-1000XM5", "SONY"))
+        assertEquals("Patchwork", SearchNames.withBrand("Patchwork", null))
+        assertEquals(listOf("999 Games Patchwork", "Patchwork", "Patchwork kopen"), SearchNames.googleTerms(patchwork, saved = null, brand = "999 Games"))
+        assertEquals("999 Games Patchwork", SearchNames.shoparize(patchwork, query = null, brand = "999 Games"))
+    }
 }

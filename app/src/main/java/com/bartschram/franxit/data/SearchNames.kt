@@ -36,10 +36,29 @@ internal object SearchNames {
         return "${product.displayName} $extra"
     }
 
-    /** The wordings to search Google Shopping with, in order: the one that worked last time ([saved]) first. */
-    fun googleTerms(product: Product, saved: String?): List<String> =
-        listOfNotNull(saved, product.displayName, fullName(product), "${product.displayName} kopen")
+    /**
+     * [name] with the [brand] its page names in front, when the name doesn't hold it already: "999 Games Patchwork"
+     * for "Patchwork", which on its own finds poufs, other editions and other games. Only to search with: shops often
+     * leave the brand out of their titles, so results are still held against the name without it.
+     */
+    fun withBrand(name: String, brand: String?): String {
+        val b = brand?.trim().orEmpty()
+        if (b.isEmpty()) return name
+        fun words(s: String) = s.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }
+        return if (name.lowercase().contains(b.lowercase()) || words(name).containsAll(words(b))) name else "$b $name"
+    }
 
-    /** What Shoparize is searched with: the words typed for a Google Shopping product ([query]), else the match name. */
-    fun shoparize(product: Product, query: String?): String = query ?: match(product)
+    /**
+     * The wordings to search Google Shopping with, in order: the one that worked last time ([saved]) first, then
+     * the name with its [brand] when that says more.
+     */
+    fun googleTerms(product: Product, saved: String?, brand: String? = null): List<String> =
+        listOfNotNull(saved, withBrand(product.displayName, brand), product.displayName, fullName(product), "${product.displayName} kopen")
+            .distinct()
+
+    /**
+     * What Shoparize is searched with: the words typed for a Google Shopping product ([query]), else the match
+     * name with its [brand].
+     */
+    fun shoparize(product: Product, query: String?, brand: String? = null): String = query ?: withBrand(match(product), brand)
 }

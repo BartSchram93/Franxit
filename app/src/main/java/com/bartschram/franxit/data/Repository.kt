@@ -173,7 +173,7 @@ class Repository private constructor(context: Context) {
         // What results are held against: the name with its model code ("… Zilverkleurig" + "GM-2100YM-8AER"), so another colour's code is out.
         val matchName = matchName(product)
         // The wording that worked last time first, then the product's name, its fuller name, and "kopen".
-        val terms = SearchNames.googleTerms(product, ShoppingSettings.extraTerm(appContext, product.id))
+        val terms = SearchNames.googleTerms(product, ShoppingSettings.extraTerm(appContext, product.id), ShoppingSettings.brand(appContext, product.id))
         val found = try {
             searchGoogleShopping(product.id, matchName, terms, reference) { ShoppingSettings.setExtraTerm(appContext, product.id, it) }
         } catch (e: Exception) {
@@ -207,7 +207,11 @@ class Repository private constructor(context: Context) {
         val today = LocalDate.now().toString()
         ShoppingSettings.shoparizeOffers(appContext, product.id, today)?.let { return it }
         val found = try {
-            Shoparize.productFor(SearchNames.shoparize(product, query))
+            // Searched with the brand ("999 Games Patchwork"), held against the name too: titles often leave it out.
+            Shoparize.productFor(
+                SearchNames.shoparize(product, query, ShoppingSettings.brand(appContext, product.id)),
+                also = query ?: matchName(product),
+            )
         } catch (e: Exception) {
             // No connection, or the site changed: nothing is saved, so it is asked again at the next check.
             return emptyList()
@@ -330,7 +334,10 @@ class Repository private constructor(context: Context) {
 
     /** The name a shop's site is searched with for the Buy button (see BuyLink.searchName). */
     private fun buyName(product: Product): String =
-        BuyLink.searchName(product.displayName, ShoppingSettings.shoparizeTitle(appContext, product.id))
+        BuyLink.searchName(
+            SearchNames.withBrand(product.displayName, ShoppingSettings.brand(appContext, product.id)),
+            ShoppingSettings.shoparizeTitle(appContext, product.id),
+        )
 
     /**
      * The shop's own page, looked up once and remembered. Without a key, searches left or a match,
@@ -439,6 +446,7 @@ class Repository private constructor(context: Context) {
         val named = product.copy(name = result.name.ifBlank { product.name })
         // The page's photo, unless you chose Google Shopping's or none for this product.
         result.image?.let { Photos.saveSitePhoto(appContext, product.id, it) }
+        if (query == null) result.brand?.let { ShoppingSettings.saveBrand(appContext, product.id, it) }
         if (query != null || Photos.choice(appContext, product.id) == Photos.Choice.SITE) {
             result.image?.let { runCatching { Images.save(appContext, product.id, it) } }
         }

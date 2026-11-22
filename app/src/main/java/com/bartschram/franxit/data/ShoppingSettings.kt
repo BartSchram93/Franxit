@@ -65,6 +65,11 @@ object ShoppingSettings {
         prefs(context).edit { putString("shoparize_links_$productId", json.toString()) }
     }
 
+    /** The brand the product's own page names ("999 Games"), from its last check: to search other shops with. */
+    fun saveBrand(context: Context, productId: Long, brand: String) = prefs(context).edit { putString("brand_$productId", brand) }
+
+    fun brand(context: Context, productId: Long): String? = prefs(context).getString("brand_$productId", null)?.takeIf { it.isNotBlank() }
+
     /** The product's full title on Shoparize ("999 Games Patchwork"), for the Buy button's search on a shop's site. */
     fun saveShoparizeTitle(context: Context, productId: Long, title: String) =
         prefs(context).edit { putString("shoparize_title_$productId", title) }

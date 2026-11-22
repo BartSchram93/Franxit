@@ -80,4 +80,13 @@ class ScraperTest {
         assertEquals(false, Scraper.movedElsewhere(product, "https://www.vergelijk.be/stoelen/hercules/kb200b_123"))
         assertEquals(true, Scraper.movedElsewhere(product, "https://www.vergelijk.be/stoelen/"))
     }
+
+    @Test
+    fun theBrandAShopPageNames() {
+        val page = """<script type="application/ld+json">{"@type":"Product","name":"Patchwork","brand":{"@type":"Brand","name":"999 Games"},
+            "offers":{"@type":"Offer","price":"16.95","priceCurrency":"EUR"}}</script>"""
+        assertEquals("999 Games", Scraper.parse(page).brand)
+        assertEquals("Asmodee", Scraper.brand("Asmodee"))
+        assertEquals(null, Scraper.brand("Unbranded"))
+    }
 }
