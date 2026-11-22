@@ -436,6 +436,11 @@ private fun ProductCard(
     val latest = product.latest
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
+    // Where it's cheapest for you (after your shop discounts), as the detail screen's Buy button.
+    val best = remember(product.offers, discounts) { Discounts.bestForYou(product.offers, discounts) }
+    // The shop named under the name: of several at the same lowest price (€ 99 at bol.com, Coolblue and Vandenborre),
+    // the one the Buy button opens, so the list and the product's page name the same shop.
+    val shop = latest?.let { l -> best?.takeIf { kotlin.math.abs(it.price - l.price) < 0.005 }?.seller ?: l.seller }
     val photo by produceState<ImageBitmap?>(null, product.id, product.lastChecked, photoVersion) {
         value = withContext(Dispatchers.IO) { Images.load(context, product.id)?.asImageBitmap() }
     }
@@ -464,7 +469,7 @@ private fun ProductCard(
                     )
                     if (latest != null) {
                         Text(
-                            latest.seller.ifBlank { "Cheapest offer" }.let(Shops::name),
+                            shop.orEmpty().ifBlank { "Cheapest offer" }.let(Shops::name),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -498,7 +503,6 @@ private fun ProductCard(
                 return@Column
             }
             // Extra lines, each only when it has something to say, evenly spaced.
-            val best = remember(product.offers, discounts) { Discounts.bestForYou(product.offers, discounts) }
             val percent = best?.let { Discounts.percentFor(it.seller, discounts) }
             // The price change since tracking started is on the detail screen; the card stays short.
             val lines = product.targetPrice != null || percent != null || product.lastError != null
@@ -514,7 +518,7 @@ private fun ProductCard(
                         // Green when your discount gets you to or below your alert.
                         belowAlert = product.targetPrice?.let { yours <= it + 0.005 } == true,
                         // The shop is already named above when it's the same one.
-                        shop = best.seller.takeIf { it != latest.seller }?.let(Shops::name),
+                        shop = best.seller.takeIf { it != shop }?.let(Shops::name),
                     )
                 }
                 if (product.lastError != null) {
