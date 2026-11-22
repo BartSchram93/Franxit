@@ -33,7 +33,7 @@ class GoogleShoppingTest {
             found.result.offers.map { it.seller to it.price },
         )
         // No shop page in the result: a Google Shopping search for the product at that shop.
-        assertEquals("https://www.google.be/search?q=Hercules+KB200B+keyboardbank+site%3Abax-shop.be", found.links["Bax-shop.be"])
+        assertEquals("https://duckduckgo.com/?q=%5CHercules+KB200B+keyboardbank+site%3Abax-shop.be", found.links["Bax-shop.be"])
     }
 
     @Test
@@ -611,12 +611,12 @@ class GoogleShoppingTest {
     @Test
     fun bigShopsFallBackToAGoogleSearchOnTheirOwnSite() {
         // bol.com's own search found nothing for a long name, not even the product itself.
-        val bol = "https://www.google.be/search?q=TCL+Nxtpaper+14+site%3Abol.com"
+        val bol = "https://duckduckgo.com/?q=%5CTCL+Nxtpaper+14+site%3Abol.com"
         assertEquals(bol, GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "bol"))
         assertEquals(bol, GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "bol.com"))
         assertEquals(bol, GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Bol.com"))
-        assertEquals("https://www.google.be/search?q=TCL+Nxtpaper+14+site%3Akrefel.be", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Krëfel"))
-        assertEquals("https://www.google.be/search?q=TCL+Nxtpaper+14+site%3Acoolblue.be", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Coolblue"))
+        assertEquals("https://duckduckgo.com/?q=%5CTCL+Nxtpaper+14+site%3Akrefel.be", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Krëfel"))
+        assertEquals("https://duckduckgo.com/?q=%5CTCL+Nxtpaper+14+site%3Acoolblue.be", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Coolblue"))
         // A shop known only by its name: a plain search, not Google Shopping's list of shops again.
         assertEquals("https://www.google.be/search?q=TCL+Nxtpaper+14+Dreamland", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Dreamland"))
         assertEquals("https://www.google.be/search?q=Zelda+Edition+nintendo", GoogleShopping.fallbackUrl("Zelda Edition", "nintendo"))

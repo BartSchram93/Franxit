@@ -25,8 +25,8 @@ object GoogleShopping {
     )
 
     /**
-     * Where to send you when the shop's own page isn't known: for a big shop, a Google search limited to its site
-     * ("name site:bol.com"), whose first result is the shop's page for the product; else Google Shopping's search.
+     * Where to send you when the shop's own page isn't known: for a shop with a known site, a search limited to it
+     * ("name site:bol.com") that opens its first result, the shop's page for the product; else a plain Google search.
      * Not the shop's own search: bol.com's finds nothing for a long product name, not even the product itself.
      */
     fun fallbackUrl(query: String, shop: String): String {
@@ -40,9 +40,10 @@ object GoogleShopping {
             ?: ("https://www.google.be/search?q=" + URLEncoder.encode("${query.trim()} ${shop.trim()}", "UTF-8"))
     }
 
-    /** A Google search for [query] on the site [domain] only: its first result is that site's page for it. */
+    /** A search for [query] on the site [domain] only, that opens its first result: that site's page for it. */
     fun siteSearchUrl(query: String, domain: String): String =
-        "https://www.google.be/search?q=" + URLEncoder.encode("${query.trim()} site:${domain.trim().lowercase().removePrefix("www.")}", "UTF-8")
+        // DuckDuckGo's "\\" sends you straight to the first result: the shop's page, not a list of results first.
+        "https://duckduckgo.com/?q=" + URLEncoder.encode("\\${query.trim()} site:${domain.trim().lowercase().removePrefix("www.")}", "UTF-8")
 
     /** The search behind a Google Shopping product url; null for any other url. */
     fun queryOf(url: String): String? = url.takeIf { it.startsWith(SEARCH) }?.let { URLDecoder.decode(it.removePrefix(SEARCH), "UTF-8") }
