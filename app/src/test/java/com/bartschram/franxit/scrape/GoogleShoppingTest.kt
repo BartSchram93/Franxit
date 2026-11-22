@@ -619,4 +619,14 @@ class GoogleShoppingTest {
         assertEquals("https://www.google.be/search?q=TCL+Nxtpaper+14+site%3Acoolblue.be", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Coolblue"))
         assertTrue(GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Dreamland").startsWith("https://www.google.be/search?tbm=shop"))
     }
+
+    @Test
+    fun aFailedSearchSaysWhyInWords() {
+        // What a tester saw for "Hercules KB-200B": "Last check failed: timeout".
+        assertEquals(GoogleShopping.TOO_SLOW, GoogleShopping.explain(java.net.SocketTimeoutException("timeout")))
+        assertEquals(GoogleShopping.NO_CONNECTION, GoogleShopping.explain(java.net.UnknownHostException("franxit-zoeken")))
+        assertEquals(GoogleShopping.BAD_KEY, GoogleShopping.explain(java.io.IOException("HTTP 401")))
+        assertEquals(GoogleShopping.NO_SEARCHES_LEFT, GoogleShopping.explain(java.io.IOException("HTTP 429")))
+        assertEquals("Google Shopping had a problem, tried again at the next check", GoogleShopping.explain(java.io.IOException("HTTP 502")))
+    }
 }

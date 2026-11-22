@@ -231,4 +231,8 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "The product couldn't be recognised. Type its name." to "Le produit n'a pas pu être reconnu. Tape son nom.",
     "Nothing recognised on the photo. Type its name." to "Rien reconnu sur la photo. Tape son nom.",
     "Too many photos recognised today. Try again tomorrow, or type the name." to "Trop de photos reconnues aujourd'hui. Réessaie demain, ou tape le nom.",
+    "Google Shopping didn't answer in time, tried again at the next check" to "Google Shopping n'a pas répondu à temps, la prochaine vérification réessaie",
+    "No internet connection, tried again at the next check" to "Pas de connexion internet, la prochaine vérification réessaie",
+    "Google Shopping had a problem, tried again at the next check" to "Google Shopping a eu un problème, la prochaine vérification réessaie",
+    "Google Shopping couldn't be reached" to "Google Shopping était injoignable",
 )

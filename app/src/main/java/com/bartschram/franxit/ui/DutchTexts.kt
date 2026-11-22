@@ -231,4 +231,8 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "The product couldn't be recognised. Type its name." to "Het product kon niet herkend worden. Typ de naam.",
     "Nothing recognised on the photo. Type its name." to "Niets herkend op de foto. Typ de naam.",
     "Too many photos recognised today. Try again tomorrow, or type the name." to "Vandaag al te veel foto's herkend. Probeer morgen opnieuw, of typ de naam.",
+    "Google Shopping didn't answer in time, tried again at the next check" to "Google Shopping antwoordde niet op tijd, de volgende controle probeert opnieuw",
+    "No internet connection, tried again at the next check" to "Geen internetverbinding, de volgende controle probeert opnieuw",
+    "Google Shopping had a problem, tried again at the next check" to "Google Shopping had een probleem, de volgende controle probeert opnieuw",
+    "Google Shopping couldn't be reached" to "Google Shopping was niet bereikbaar",
 )

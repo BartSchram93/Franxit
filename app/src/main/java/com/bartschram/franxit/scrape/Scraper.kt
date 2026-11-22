@@ -118,8 +118,8 @@ object Scraper {
         return a != b
     }
 
-    internal fun download(url: String, accept: String, headers: Map<String, String> = emptyMap()): String =
-        downloadPage(url, accept, headers).first
+    internal fun download(url: String, accept: String, headers: Map<String, String> = emptyMap(), readTimeoutMs: Int = 30_000): String =
+        downloadPage(url, accept, headers, readTimeoutMs).first
 
     private const val MAX_REDIRECTS = 10
 
@@ -128,7 +128,7 @@ object Scraper {
      * like a browser: a shop that sets a cookie and sends you back to the same page (vtechnl.com) otherwise
      * sends the app round in circles ("Too many follow-up requests"). Cookies live for this one download only.
      */
-    private fun downloadPage(url: String, accept: String, headers: Map<String, String> = emptyMap()): Pair<String, String> {
+    private fun downloadPage(url: String, accept: String, headers: Map<String, String> = emptyMap(), readTimeoutMs: Int = 30_000): Pair<String, String> {
         val cookies = mutableMapOf<String, MutableMap<String, String>>()
         var current = url
         repeat(MAX_REDIRECTS) {
@@ -137,7 +137,7 @@ object Scraper {
             try {
                 conn.instanceFollowRedirects = false
                 conn.connectTimeout = 20_000
-                conn.readTimeout = 30_000
+                conn.readTimeout = readTimeoutMs
                 conn.setRequestProperty("User-Agent", USER_AGENT)
                 conn.setRequestProperty("Accept", accept)
                 conn.setRequestProperty("Accept-Language", "nl-BE,nl;q=0.9,en;q=0.8")

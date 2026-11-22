@@ -107,20 +107,39 @@ object GoogleShopping {
      */
     const val PROXY = "https://franxit-zoeken.schram-bart.workers.dev"
 
-    /** One request to the search service, with its errors in plain words. */
+    /** How long a search may take: Google Shopping through LiteScrape can take most of a minute. */
+    private const val SEARCH_TIMEOUT_MS = 75_000
+
+    /**
+     * One request to the search service, with its errors in plain words. A search that takes too long is asked once
+     * more: the service may have it by then (it keeps answers for a day).
+     */
     private fun serp(path: String): String {
-        try {
-            return Scraper.download(
-                PROXY + path, "application/json",
-                com.bartschram.franxit.BuildConfig.APP_TOKEN.takeIf { it.isNotBlank() }?.let { mapOf("X-Franxit-Token" to it) }.orEmpty(),
-            )
-        } catch (e: IOException) {
-            throw when (e.message) {
-                "HTTP 401" -> IOException(BAD_KEY)
-                "HTTP 429" -> IOException(NO_SEARCHES_LEFT)
-                else -> e
+        val token = com.bartschram.franxit.BuildConfig.APP_TOKEN.takeIf { it.isNotBlank() }?.let { mapOf("X-Franxit-Token" to it) }.orEmpty()
+        var last: IOException? = null
+        repeat(2) {
+            try {
+                return Scraper.download(PROXY + path, "application/json", token, SEARCH_TIMEOUT_MS)
+            } catch (e: java.net.SocketTimeoutException) {
+                last = e
+            } catch (e: IOException) {
+                throw IOException(explain(e), e)
             }
         }
+        throw IOException(explain(last ?: IOException()), last)
+    }
+
+    const val TOO_SLOW = "Google Shopping didn't answer in time, tried again at the next check"
+    const val NO_CONNECTION = "No internet connection, tried again at the next check"
+
+    /** A failed request to the search service in words ("timeout" was all a check said). */
+    internal fun explain(e: IOException): String = when {
+        e is java.net.SocketTimeoutException -> TOO_SLOW
+        e is java.net.UnknownHostException || e is java.net.ConnectException -> NO_CONNECTION
+        e.message == "HTTP 401" -> BAD_KEY
+        e.message == "HTTP 429" -> NO_SEARCHES_LEFT
+        e.message.orEmpty().matches(Regex("""HTTP 5\d\d""")) -> "Google Shopping had a problem, tried again at the next check"
+        else -> e.message ?: "Google Shopping couldn't be reached"
     }
 
     const val NOT_FOUND = "Not found on Google Shopping"
