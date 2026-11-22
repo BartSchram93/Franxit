@@ -215,4 +215,12 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "No name found on the photo. Type it yourself." to "Geen naam gevonden op de foto. Typ hem zelf.",
     "Product name" to "Productnaam",
     "Search" to "Zoeken",
+    "%s only allows browsers" to "%s laat alleen browsers toe",
+    "%s didn't answer in time" to "%s antwoordde niet op tijd",
+    "No internet connection, or %s can't be reached" to "Geen internetverbinding, of %s is niet bereikbaar",
+    "Couldn't connect securely to %s" to "Geen veilige verbinding met %s mogelijk",
+    "%s had a problem, tried again at the next check" to "%s had een probleem, de volgende controle probeert opnieuw",
+    "Not available at %s right now" to "Nu niet leverbaar bij %s",
+    "%s's page shows no price the app can read" to "De pagina van %s toont geen prijs die de app kan lezen",
+    "%s couldn't be read" to "%s kon niet gelezen worden",
 )

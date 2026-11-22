@@ -27,4 +27,13 @@ object Photos {
     fun googlePhoto(context: Context, productId: Long): String? = prefs(context).getString("google_$productId", null)
 
     fun saveGooglePhoto(context: Context, productId: Long, url: String) = prefs(context).edit { putString("google_$productId", url) }
+
+    /**
+     * The photo of the product's own page (the shop's, vergelijk.be's or Google Shopping's for a product found
+     * there), from its last check: "Use the shop's photo again" puts it back at once, without a new check (which
+     * a Google Shopping product skips the rest of the day, and a shop that keeps apps out never gets through).
+     */
+    fun sitePhoto(context: Context, productId: Long): String? = prefs(context).getString("site_$productId", null)
+
+    fun saveSitePhoto(context: Context, productId: Long, url: String) = prefs(context).edit { putString("site_$productId", url) }
 }

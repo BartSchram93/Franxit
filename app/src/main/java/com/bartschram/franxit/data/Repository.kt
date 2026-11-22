@@ -234,7 +234,10 @@ class Repository private constructor(context: Context) {
         when (choice) {
             Photos.Choice.NONE -> Unit
             Photos.Choice.GOOGLE -> Photos.googlePhoto(appContext, productId)?.let { runCatching { Images.save(appContext, productId, it) } }
-            Photos.Choice.SITE -> checkOne(productId)
+            // The page's photo from its last check; only without one, a new check fetches it.
+            Photos.Choice.SITE -> Photos.sitePhoto(appContext, productId)
+                ?.let { photo -> runCatching { Images.save(appContext, productId, photo) }.getOrNull() }
+                ?: checkOne(productId)
         }
         changed()
     }
@@ -435,6 +438,7 @@ class Repository private constructor(context: Context) {
         // A product just added is still called "New product": Google is asked for the name the shop gave it.
         val named = product.copy(name = result.name.ifBlank { product.name })
         // The page's photo, unless you chose Google Shopping's or none for this product.
+        result.image?.let { Photos.saveSitePhoto(appContext, product.id, it) }
         if (query != null || Photos.choice(appContext, product.id) == Photos.Choice.SITE) {
             result.image?.let { runCatching { Images.save(appContext, product.id, it) } }
         }

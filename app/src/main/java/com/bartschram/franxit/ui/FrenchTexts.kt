@@ -215,4 +215,12 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "No name found on the photo. Type it yourself." to "Aucun nom trouvé sur la photo. Tape-le toi-même.",
     "Product name" to "Nom du produit",
     "Search" to "Rechercher",
+    "%s only allows browsers" to "%s n'accepte que les navigateurs",
+    "%s didn't answer in time" to "%s n'a pas répondu à temps",
+    "No internet connection, or %s can't be reached" to "Pas de connexion internet, ou %s est injoignable",
+    "Couldn't connect securely to %s" to "Impossible de se connecter de façon sécurisée à %s",
+    "%s had a problem, tried again at the next check" to "%s a eu un problème, la prochaine vérification réessaie",
+    "Not available at %s right now" to "Pas disponible chez %s pour le moment",
+    "%s's page shows no price the app can read" to "La page de %s ne montre aucun prix que l'appli peut lire",
+    "%s couldn't be read" to "%s n'a pas pu être lu",
 )

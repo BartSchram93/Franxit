@@ -6,7 +6,11 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.ProtocolException
+import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 
 /**
  * Reads the schema.org Product data (JSON-LD) that comparison sites such as vergelijk.be embed
@@ -35,11 +39,31 @@ object Scraper {
     /** What a check says when a product page is gone: the site removed it, or sends you elsewhere. */
     fun goneMessage(url: String) = if ("vergelijk.be" in URL(url).host) "No longer listed" else "No longer on " + shop(url)
 
+    /**
+     * What a check says when a page couldn't be read, so you see why ("Vtechnl.com didn't answer in time") and not
+     * Java's words ("Too many follow-up requests: 21"). The app's own messages pass unchanged.
+     */
+    internal fun explain(e: Exception, url: String): String {
+        val shop = shop(url)
+        val message = e.message.orEmpty()
+        return when {
+            e is SocketTimeoutException -> "$shop didn't answer in time"
+            e is UnknownHostException -> "No internet connection, or $shop can't be reached"
+            e is SSLException -> "Couldn't connect securely to $shop"
+            // Sent round in circles: a shop that only lets browsers in (it wants cookies or scripts the app lacks).
+            e is ProtocolException || message.startsWith("Too many") -> "$shop only allows browsers"
+            Regex("""HTTP 5\d\d""").matches(message) -> "$shop had a problem, tried again at the next check"
+            Regex("""HTTP \d+""").matches(message) -> "$shop refused the page ($message)"
+            message.isBlank() -> "$shop couldn't be read"
+            else -> message
+        }
+    }
+
     fun fetch(url: String): Result {
         val (html, finalUrl) = try {
             downloadPage(url, "text/html,application/xhtml+xml")
         } catch (e: IOException) {
-            throw if (e.message == "HTTP 404" || e.message == "HTTP 410") IOException(goneMessage(url)) else e
+            throw if (e.message == "HTTP 404" || e.message == "HTTP 410") IOException(goneMessage(url)) else IOException(explain(e, url), e)
         }
         // A removed product redirects to a category or the home page, full of other products'
         // prices (Pokémon cards for a piano bench): that page is no answer for this product.
@@ -51,8 +75,22 @@ object Scraper {
             // A check page instead of the product ("Just a moment…"): say the shop keeps apps out,
             // rather than that the page has no prices.
             if (isBrowserCheck(html)) throw IOException("${shop(url)} only allows browsers")
-            throw e
+            // Sold out: shops often leave the price off then. Said so, not that the app can't read the page.
+            if (isUnavailable(html)) throw IOException("Not available at ${shop(url)} right now")
+            throw IOException("${shop(url)}'s page shows no price the app can read")
         }
+    }
+
+    private val UNAVAILABLE = listOf(
+        "schema.org/outofstock", "schema.org/soldout", "schema.org/discontinued", "\"outofstock\"", "\"soldout\"",
+        "niet leverbaar", "niet meer leverbaar", "tijdelijk uitverkocht", "uitverkocht", "niet op voorraad",
+        "épuisé", "indisponible", "rupture de stock", "out of stock", "sold out", "currently unavailable",
+    )
+
+    /** A product page that says the product can't be bought now. */
+    internal fun isUnavailable(html: String): Boolean {
+        val lower = html.lowercase()
+        return UNAVAILABLE.any { it in lower }
     }
 
     private fun shop(url: String) = Shops.name(URL(url).host)
@@ -82,25 +120,61 @@ object Scraper {
     internal fun download(url: String, accept: String, headers: Map<String, String> = emptyMap()): String =
         downloadPage(url, accept, headers).first
 
-    /** The page and the url it ended on, after redirects. */
+    private const val MAX_REDIRECTS = 10
+
+    /**
+     * The page and the url it ended on, after redirects. Followed here, with the cookies each site sets on the way,
+     * like a browser: a shop that sets a cookie and sends you back to the same page (vtechnl.com) otherwise
+     * sends the app round in circles ("Too many follow-up requests"). Cookies live for this one download only.
+     */
     private fun downloadPage(url: String, accept: String, headers: Map<String, String> = emptyMap()): Pair<String, String> {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        try {
-            conn.connectTimeout = 20_000
-            conn.readTimeout = 30_000
-            conn.setRequestProperty("User-Agent", USER_AGENT)
-            conn.setRequestProperty("Accept", accept)
-            conn.setRequestProperty("Accept-Language", "nl-BE,nl;q=0.9,en;q=0.8")
-            headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
-            val code = conn.responseCode
-            // 403/406/429: the usual answers of shops that keep apps out.
-            if (code == 403 || code == 406 || code == 429) throw IOException("${shop(url)} only allows browsers")
-            if (code !in 200..299) throw IOException("HTTP $code")
-            return conn.inputStream.bufferedReader().use { it.readText() } to conn.url.toString()
-        } finally {
-            conn.disconnect()
+        val cookies = mutableMapOf<String, MutableMap<String, String>>()
+        var current = url
+        repeat(MAX_REDIRECTS) {
+            val address = URL(current)
+            val conn = address.openConnection() as HttpURLConnection
+            try {
+                conn.instanceFollowRedirects = false
+                conn.connectTimeout = 20_000
+                conn.readTimeout = 30_000
+                conn.setRequestProperty("User-Agent", USER_AGENT)
+                conn.setRequestProperty("Accept", accept)
+                conn.setRequestProperty("Accept-Language", "nl-BE,nl;q=0.9,en;q=0.8")
+                headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
+                cookieHeader(cookies, address.host)?.let { conn.setRequestProperty("Cookie", it) }
+                val code = conn.responseCode
+                keepCookies(cookies, address.host, conn.headerFields.filterKeys { it.equals("Set-Cookie", ignoreCase = true) }.values.flatten())
+                val location = conn.getHeaderField("Location")
+                if (code in 300..399 && !location.isNullOrBlank()) {
+                    current = URL(address, location).toString()
+                    return@repeat
+                }
+                // 403/406/429: the usual answers of shops that keep apps out.
+                if (code == 403 || code == 406 || code == 429) throw IOException("${shop(url)} only allows browsers")
+                if (code !in 200..299) throw IOException("HTTP $code")
+                return conn.inputStream.bufferedReader().use { it.readText() } to current
+            } finally {
+                conn.disconnect()
+            }
+        }
+        throw IOException("${shop(url)} only allows browsers")
+    }
+
+    /** The cookies a site set ("name=value; Path=/; …"), by host: only the name and value are kept. */
+    internal fun keepCookies(jar: MutableMap<String, MutableMap<String, String>>, host: String, setCookies: List<String>) {
+        for (line in setCookies) {
+            val pair = line.substringBefore(';').trim()
+            val name = pair.substringBefore('=', "").trim()
+            if (name.isEmpty()) continue
+            jar.getOrPut(siteOf(host)) { mutableMapOf() }[name] = pair.substringAfter('=')
         }
     }
+
+    /** The Cookie header for [host]: only its own site's cookies ("www.shop.be" and "shop.be" share them). */
+    internal fun cookieHeader(jar: Map<String, Map<String, String>>, host: String): String? =
+        jar[siteOf(host)]?.takeIf { it.isNotEmpty() }?.entries?.joinToString("; ") { "${it.key}=${it.value}" }
+
+    private fun siteOf(host: String) = host.lowercase().removePrefix("www.")
 
     fun parse(html: String): Result {
         val all = LD_JSON.findAll(html)

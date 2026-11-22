@@ -78,6 +78,11 @@ fun t(en: String, vararg args: Any?): String = String.format(L10n.locale, L10n.t
 fun tMessage(message: String): String {
     if (L10n.lang == L10n.Lang.EN) return message
     Regex("""No longer on (.+)""").matchEntire(message)?.let { return t("No longer on %s", it.groupValues[1]) }
+    // A shop's name in a reason a page couldn't be read (Scraper.explain).
+    for (shape in SHOP_MESSAGES) {
+        val pattern = Regex("^" + Regex.escape(shape).replace("%s", "\\E(.+?)\\Q") + "$")
+        pattern.matchEntire(message)?.let { return t(shape, it.groupValues[1]) }
+    }
     Regex("""Found (\d+) extra shops""").matchEntire(message)?.let { return t("Found %d extra shops", it.groupValues[1].toInt()) }
     Regex("""Nothing matched “(.+)” on Google""").matchEntire(message)?.let { return t("Nothing matched “%s” on Google", it.groupValues[1]) }
     Regex("""Google found (\d+) shops for “(.+)”, but their prices didn't fit""").matchEntire(message)?.let {
@@ -89,3 +94,15 @@ fun tMessage(message: String): String {
     if (message.startsWith("Google Shopping: ")) return "Google Shopping: " + t(message.removePrefix("Google Shopping: "))
     return t(message)
 }
+
+/** Reasons a page couldn't be read, with the shop's name as %s (see Scraper). */
+private val SHOP_MESSAGES = listOf(
+    "%s only allows browsers",
+    "%s didn't answer in time",
+    "No internet connection, or %s can't be reached",
+    "Couldn't connect securely to %s",
+    "%s had a problem, tried again at the next check",
+    "Not available at %s right now",
+    "%s's page shows no price the app can read",
+    "%s couldn't be read",
+)
