@@ -302,7 +302,8 @@ class Repository private constructor(context: Context) {
             // A link through Google (".../url?q=https://www.coolblue.be/...") is read at the shop's own address.
             val link = listOf(ShoppingSettings.link(appContext, product.id, offer.seller), ShoppingSettings.shoparizeLink(appContext, product.id, offer.seller))
                 .map(ShopCheck::direct)
-                .firstOrNull(ShopCheck::isProductPage)
+                // A page for another country (Nintendo's UK store, in pounds) is no link: the shop is looked up anew.
+                .firstOrNull { ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) }
                 ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
             offer.seller to link
         }
@@ -315,7 +316,13 @@ class Repository private constructor(context: Context) {
         val today = LocalDate.now().toString()
         // Pages found earlier (and read as this product then): read again, as long as they stay this product.
         val remembered = offers.filter { links[it.seller] == null && !TrustedShops.same(it.seller, ownHost) }
-            .mapNotNull { offer -> ShoppingSettings.foundLink(appContext, product.id, offer.seller)?.let { offer.seller to it } }.toMap()
+            .mapNotNull { offer ->
+                val link = ShoppingSettings.foundLink(appContext, product.id, offer.seller) ?: return@mapNotNull null
+                if (DuckDuckGo.isOtherCountry(link)) {
+                    ShoppingSettings.forgetFoundLink(appContext, product.id, offer.seller)
+                    null
+                } else offer.seller to link
+            }.toMap()
         val toFind = offers.filter { links[it.seller] == null && it.seller !in remembered && !TrustedShops.same(it.seller, ownHost) }
             .sortedBy { it.price }
             .map { offer -> offer.seller to GoogleShopping.siteOf(offer.seller) }
@@ -465,7 +472,7 @@ class Repository private constructor(context: Context) {
         // A shop found through Google Shopping: its page from the last search (a new search would cost one).
         val shop = BuyLink.shop(seller, product.offers)
         // A page the app found itself and read as this product: when no source gives the shop's product page.
-        val foundPage = shop?.let { ShoppingSettings.foundLink(appContext, product.id, it) }
+        val foundPage = shop?.let { ShoppingSettings.foundLink(appContext, product.id, it) }?.takeIf { !DuckDuckGo.isOtherCountry(it) }
         shop?.let { ShoppingSettings.link(appContext, product.id, it) }?.let { link ->
             val page = if (link.startsWith(GoogleShopping.TOKEN)) lookUpStoreLink(product, shop, link.removePrefix(GoogleShopping.TOKEN)) else link
             // Google's link when it is the shop's page; a search only when nothing better is known.

@@ -242,12 +242,22 @@ object Scraper {
         else -> false
     }
 
+    /**
+     * The currency an offer names ("GBP"), from itself or its price specification; null when it names none (then
+     * euros, as on every Belgian shop).
+     */
+    private fun currency(offer: JSONObject): String? =
+        offer.optString("priceCurrency").ifBlank { offer.optJSONObject("priceSpecification")?.optString("priceCurrency").orEmpty() }
+            .trim().uppercase().takeIf { it.isNotEmpty() }
+
     private fun offers(value: Any?): List<Offer> = when (value) {
         is JSONArray -> (0 until value.length()).flatMap { offers(value.opt(it)) }
         is JSONObject -> {
             val nested = offers(value.opt("offers"))
             when {
                 nested.isNotEmpty() -> nested
+                // A price in pounds or another currency (Nintendo's UK store, £ 434,99) is no price in euros.
+                currency(value).let { it != null && it != "EUR" } -> emptyList()
                 isType(value, "AggregateOffer") ->
                     listOfNotNull(price(value.opt("lowPrice"))?.let { Offer("", it) })
                 else -> listOfNotNull(price(value.opt("price"))?.let { Offer(seller(value), it, inStock(value)) })

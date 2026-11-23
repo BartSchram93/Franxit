@@ -77,4 +77,15 @@ class DuckDuckGoTest {
         assertEquals(DuckDuckGo.Lookup(nintendo), DuckDuckGo.lookupInBrowserPage(page) { it == "store.nintendo.com" })
         assertEquals(DuckDuckGo.Lookup(null), DuckDuckGo.lookupInBrowserPage("<article>No results</article>") { it == "store.nintendo.com" })
     }
+
+    @Test
+    fun aPageForAnotherCountryIsPassedOver() {
+        val uk = "https://store.nintendo.com/en-gb/nintendo-switch-2-the-legend-of-zelda-40th-anniversary-edition-P00211"
+        assertTrue(DuckDuckGo.isOtherCountry(uk))
+        assertFalse(DuckDuckGo.isOtherCountry(nintendo))
+        assertFalse(DuckDuckGo.isOtherCountry("https://www.fnac.be/a123/zelda"))
+        val page = result("//duckduckgo.com/l/?uddg=" + java.net.URLEncoder.encode(uk, "UTF-8") + "&amp;rut=a") +
+            result("//duckduckgo.com/l/?uddg=" + java.net.URLEncoder.encode(nintendo, "UTF-8") + "&amp;rut=b")
+        assertEquals(nintendo, DuckDuckGo.firstResult(page, "store.nintendo.com"))
+    }
 }

@@ -1,6 +1,7 @@
 package com.bartschram.franxit.scrape
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 
@@ -88,5 +89,14 @@ class ScraperTest {
         assertEquals("999 Games", Scraper.parse(page).brand)
         assertEquals("Asmodee", Scraper.brand("Asmodee"))
         assertEquals(null, Scraper.brand("Unbranded"))
+    }
+
+    @Test
+    fun aPriceInAnotherCurrencyIsNoPriceInEuros() {
+        val pounds = """<script type="application/ld+json">{"@type":"Product","name":"Zelda Edition",
+            "offers":{"@type":"Offer","price":"434.99","priceCurrency":"GBP"}}</script>"""
+        assertTrue(runCatching { Scraper.parse(pounds) }.isFailure)
+        val euros = pounds.replace("GBP", "EUR").replace("434.99", "519.99")
+        assertEquals(519.99, Scraper.parse(euros).offers.single().price, 0.001)
     }
 }
