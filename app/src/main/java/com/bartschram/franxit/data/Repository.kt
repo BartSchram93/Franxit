@@ -328,6 +328,8 @@ class Repository private constructor(context: Context) {
         val allLinks = links + found
         val tasks = allLinks.values.filterNotNull().distinct().map { link ->
             java.util.concurrent.Callable {
+                // A search or list page, or another product's page by its address: not read, the shop is left out.
+                if (ShopCheck.isElsewhere(link, name)) return@Callable link to ShopCheck.ELSEWHERE
                 shopPages[link]?.takeIf { System.currentTimeMillis() - it.first < SHOP_CHECK_MS }?.let { return@Callable link to it.second }
                 val seen = try {
                     ShopCheck.seen(Scraper.fetch(link), name)
@@ -362,6 +364,14 @@ class Repository private constructor(context: Context) {
         val key = "${product.id}|${BuyLink.shop(seller, product.offers).orEmpty()}"
         links[key]?.takeIf { System.currentTimeMillis() - it.first < LINK_MS }?.let { return it.second }
         val link = shopLinkUnchecked(product, seller)?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+            // A shop's search or list page, or another product's page ("fr.fnac.be/se77634/La-Legende-des-Quatres"
+            // for a keyboard bench): a search for the product on the shop's site instead.
+            ?.let { found ->
+                val shop = BuyLink.shop(seller, product.offers)
+                if (shop != null && ShopCheck.isProductPage(found) && ShopCheck.isElsewhere(found, product.name)) {
+                    BuyLink.orSearch(null, shop, buyName(product))
+                } else found
+            }
         if (link != null) links[key] = System.currentTimeMillis() to link
         return link
     }

@@ -15,7 +15,10 @@ internal object ShopCheck {
      * [otherColour]: the page is of the same model in another colour (Galaxus's pink Selphy CP1500 for the black one),
      * so its listed price is no price of this product.
      */
-    data class Seen(val price: Double?, val inStock: Boolean?, val otherColour: Boolean = false)
+    data class Seen(val price: Double?, val inStock: Boolean?, val otherColour: Boolean = false, val otherProduct: Boolean = false)
+
+    /** The shop's link is no page of this product (a search, a list, another product): the shop is left out. */
+    val ELSEWHERE = Seen(null, null, otherProduct = true)
 
     /** A page that says the product can't be bought now, without a price. */
     val SOLD_OUT = Seen(null, false)
@@ -26,7 +29,8 @@ internal object ShopCheck {
      */
     fun seen(page: Scraper.Result, name: String): Seen? {
         if (Matching.otherColour(page.name, name)) return Seen(null, null, otherColour = true)
-        if (page.offers.isEmpty() || Matching.isOtherProduct(page.name, name)) return null
+        if (Matching.isOtherProduct(page.name, name)) return ELSEWHERE
+        if (page.offers.isEmpty()) return null
         val inStock = when {
             page.offers.all { it.inStock == false } -> false
             page.offers.any { it.inStock == true } -> true
@@ -43,8 +47,8 @@ internal object ShopCheck {
      */
     fun apply(offer: ShopOffer, seen: Seen?): ShopOffer? {
         if (seen == null) return offer
-        // The shop's page is of another colour: its price isn't this product's, the shop is left out.
-        if (seen.otherColour) return null
+        // The shop's page is of another colour or another product: its price isn't this product's, the shop is left out.
+        if (seen.otherColour || seen.otherProduct) return null
         var checked = offer
         seen.inStock?.let { checked = checked.copy(inStock = it) }
         seen.price?.takeIf { it > 0 && it / offer.price in 0.5..1.5 }?.let { checked = checked.copy(price = it) }
@@ -66,6 +70,21 @@ internal object ShopCheck {
         }
         return target?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
             ?.takeIf { !it.substringAfter("//").substringBefore('/').contains("google.") } ?: link
+    }
+
+    /** Paths and parameters of a shop's search or list pages ("fr.fnac.be/se77634/…", "/zoeken?q=…"). */
+    private val LISTING_PATH = Regex("""/(search|zoeken|zoek|recherche|rechercher|catalogsearch|s|se\d+|ia\d+|c\d+|categor(y|ie|ies)|collections?)(/|$)""", RegexOption.IGNORE_CASE)
+    private val LISTING_QUERY = Regex("""[?&](q|query|search|searchtext|keyword|keywords|text|Search)=""")
+
+    /**
+     * Whether the shop's [link] is clearly no page of the product called [name]: a search or list page (Fnac's
+     * "se77634" for a series of books), or a page its own address names as another product ("La-Legende-des-
+     * Quatres" for a keyboard bench). A shop with such a link is left out: its price may be of anything.
+     */
+    fun isElsewhere(link: String, name: String): Boolean {
+        val path = runCatching { java.net.URI(link).path }.getOrNull().orEmpty()
+        if (LISTING_PATH.containsMatchIn(path) || LISTING_QUERY.containsMatchIn(link)) return true
+        return Matching.titleFromLink(link)?.let { Matching.isOtherProduct(it, name) } == true
     }
 
     /** A link that is a shop's product page, not a search that leads to one. */

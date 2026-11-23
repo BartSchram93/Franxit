@@ -26,7 +26,8 @@ class ShopCheckTest {
     @Test
     fun aPageOfAnotherProductOrPriceChangesNothing() {
         val bundle = Scraper.Result("Nintendo Switch 2 (2026) + Pokémon Legends: Z-A", listOf(Scraper.Offer("Coolblue", 514.0, inStock = true)))
-        assertNull(ShopCheck.seen(bundle, zelda))
+        // A page of another product: the shop is left out.
+        assertEquals(ShopCheck.ELSEWHERE, ShopCheck.seen(bundle, zelda))
         // Far from the listed price (an accessory's, another version's): only the stock counts.
         assertEquals(ShopOffer("Fnac.be", 719.0, true), ShopCheck.apply(ShopOffer("Fnac.be", 719.0, null), ShopCheck.Seen(49.99, true)))
         assertEquals(ShopOffer("Fnac.be", 719.0, false), ShopCheck.apply(ShopOffer("Fnac.be", 719.0, null), ShopCheck.SOLD_OUT))
@@ -64,5 +65,23 @@ class ShopCheckTest {
         // The same colour, or a page that names none: as before.
         val black = Scraper.Result("Canon SELPHY CP1500 zwart", listOf(Scraper.Offer("Galaxus", 118.0, inStock = true)))
         assertEquals(ShopOffer("Galaxus.be", 118.0, true), ShopCheck.apply(ShopOffer("Galaxus.be", 119.0, null), ShopCheck.seen(black, "Canon Selphy CP1500 Zwart")))
+    }
+
+    @Test
+    fun aShopWhoseLinkIsNoPageOfTheProductIsLeftOut() {
+        val bench = "Hercules Stands KB-200B keyboardbank"
+        // Fnac's link for the keyboard bench: a list of books.
+        assertTrue(ShopCheck.isElsewhere("https://fr.fnac.be/se77634/La-Legende-des-Quatres", bench))
+        assertTrue(ShopCheck.isElsewhere("https://www.coolblue.be/nl/zoeken?query=hercules", bench))
+        assertTrue(ShopCheck.isElsewhere("https://www.bol.com/be/nl/s/?searchtext=hercules", bench))
+        // Product pages stay.
+        assertFalse(ShopCheck.isElsewhere("https://www.bax-shop.be/keyboardbanken/hercules-kb200b-keyboardbank", bench))
+        assertFalse(ShopCheck.isElsewhere("https://www.fnac.be/a12345/Hercules-KB200B-Keyboardbank", bench))
+        assertFalse(ShopCheck.isElsewhere("https://www.bol.com/be/nl/p/hercules-hckb-200b/9300000012345/", bench))
+        assertFalse(ShopCheck.isElsewhere("https://www.kamera-express.be/product/12422729/canon-selphy-cp1500-black", "Canon Selphy CP1500 Zwart"))
+        // A page of another product leaves the shop out too.
+        assertNull(ShopCheck.apply(ShopOffer("Fnac.be", 135.0, null), ShopCheck.ELSEWHERE))
+        val book = Scraper.Result("La Légende des Quatres - Le clan des loups", listOf(Scraper.Offer("Fnac", 15.9)))
+        assertEquals(ShopCheck.ELSEWHERE, ShopCheck.seen(book, bench))
     }
 }
