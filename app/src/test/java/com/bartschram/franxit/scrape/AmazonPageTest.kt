@@ -47,15 +47,4 @@ class AmazonPageTest {
         val big = """<div id="apex_mobile"><span class="a-price-whole">1.119<span class="a-price-decimal">,</span></span><span class="a-price-fraction">99</span></div>"""
         assertEquals(1119.99, AmazonPage.parse(big)!!.offers.single().price, 0.001)
     }
-
-    @Test
-    fun withoutABuyBoxTheOtherSellersCheapest() {
-        // The TCL NXTPAPER 14: no buy box, "8 options from €415,06"; vergelijk.be still said € 360.
-        val box = """<div id="buybox-see-all-buying-choices"><a>8 options from <span class="a-price"><span class="a-offscreen">€415,06</span></span></a></div>"""
-        assertEquals(415.06, AmazonPage.parse(box)!!.offers.single().price, 0.001)
-        val text = """<a class="a-button-text">8 options from €<span>415</span><sup>06</sup></a>"""
-        assertEquals(415.06, AmazonPage.parse(text)!!.offers.single().price, 0.001)
-        val nl = """<span>8 opties vanaf € 1.015,50</span>"""
-        assertEquals(1015.5, AmazonPage.parse(nl)!!.offers.single().price, 0.001)
-    }
 }

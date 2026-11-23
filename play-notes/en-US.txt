@@ -1,1 +1,2 @@
-• A shop is only shown when the app can open its product page (not in another colour)
+• Shops with a vergelijk.be link are shown again (Bol, Fnac)
+• Amazon shows the right page and price again

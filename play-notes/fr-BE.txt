@@ -1,1 +1,2 @@
-• Une boutique n'est affichée que si l'app peut ouvrir la page du produit (pas dans une autre couleur)
+• Les boutiques avec un lien de vergelijk.be sont de nouveau affichées (Bol, Fnac)
+• Amazon affiche de nouveau la bonne page et le bon prix

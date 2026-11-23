@@ -129,4 +129,13 @@ class ShopCheckTest {
         assertFalse(ShopCheck.isLandingOf("https://www.bol.com/be/nl/s/?searchtext=mx+master", "Bol.com"))
         assertFalse(ShopCheck.isLandingOf("https://www.bol.com/nl/nl/p/logitech-mx-master-4/9300000236200000/", "Bol.com"))
     }
+
+    @Test
+    fun amazonsTabletAddressIsThisProductByItsShortName() {
+        // Google's link for Amazon.com.be's TCL NXTPAPER 14 at € 360.
+        val link = "https://www.amazon.com.be/-/nl/TCL-NXTPAPER-Octa-Core-RAM-uitbreiding-geheugen/dp/B0DB1NG88R"
+        org.junit.Assert.assertFalse(ShopCheck.isElsewhere(link, "TCL NXTPAPER 14"))
+        // Fnac's book for a keyboard bench stays another product.
+        org.junit.Assert.assertTrue(ShopCheck.isElsewhere("https://www.fr.fnac.be/a123/La-Legende-des-Quatres", "Hercules Keyboard Bench"))
+    }
 }

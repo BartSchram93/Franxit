@@ -15,13 +15,6 @@ object AmazonPage {
         "corePriceDisplay_mobile_feature_div|corePrice_mobile_feature_div|apex_desktop|apex_mobile|apex_offerDisplay_mobile"
     private val CORE_PRICE = Regex("""id=["'](?:$PRICE_BLOCKS)["'][\s\S]{0,3000}?class=["']a-offscreen["']>\s*([^<]{1,40})<""")
     private val WHOLE_PRICE = Regex("""id=["'](?:$PRICE_BLOCKS)["'][\s\S]{0,3000}?class=["']a-price-whole["']>\s*([0-9][0-9.,]*)[\s\S]{0,200}?class=["']a-price-fraction["']>\s*([0-9]{2})""")
-    // No buy box, only other sellers ("8 options from €415,06"): what it can be bought for is the cheapest of those,
-    // not the € 360 a comparison site still lists (the TCL NXTPAPER 14).
-    private const val OTHER_SELLERS = "buybox-see-all-buying-choices|olpLinkWidget_feature_div|aod-ingress-link|" +
-        "moreBuyingChoices_feature_div|all-offers-display|olp_feature_div"
-    private val OTHER_SELLERS_PRICE = Regex("""id=["'](?:$OTHER_SELLERS)["'][\s\S]{0,2000}?class=["']a-offscreen["']>\s*([^<]{1,40})<""")
-    private val OTHER_SELLERS_WHOLE = Regex("""id=["'](?:$OTHER_SELLERS)["'][\s\S]{0,2000}?class=["']a-price-whole["']>\s*([0-9][0-9.,]*)[\s\S]{0,200}?class=["']a-price-fraction["']>\s*([0-9]{2})""")
-    private val OTHER_SELLERS_TEXT = Regex("""\b\d+\s+(?:options|opties|aanbiedingen|offres|offers|nieuw|new|neuf)\b[^€<]{0,40}(?:from|vanaf|à partir de|dès)?\s*(?:<[^>]+>\s*)*€\s*(?:<[^>]+>\s*)*([0-9][0-9.]*)(?:\s*(?:<[^>]+>\s*)*[,.]?(?:<[^>]+>\s*)*([0-9]{2}))?""", RegexOption.IGNORE_CASE)
     private val AVAILABILITY = Regex("""id=["']availability["'][^>]*>([\s\S]{0,600}?)</div>""")
     private val UNAVAILABLE = Regex("""currently unavailable|momenteel niet (?:verkrijgbaar|beschikbaar)|actuellement indisponible|niet op voorraad|out of stock""", RegexOption.IGNORE_CASE)
 
@@ -33,7 +26,6 @@ object AmazonPage {
             ?: CORE_PRICE.find(html)?.groupValues?.get(1)?.let(::euros)
             ?: WHOLE_PRICE.find(html)?.let { m -> euros(m.groupValues[1].trimEnd('.', ',') + "," + m.groupValues[2]) }
             ?: PRICE_AMOUNT.find(html)?.groupValues?.get(1)?.toDoubleOrNull()
-            ?: otherSellers(html)
         val availability = AVAILABILITY.find(html)?.groupValues?.get(1)?.replace(Regex("<[^>]+>"), " ")?.trim().orEmpty()
         val inStock = when {
             availability.isEmpty() -> null
@@ -46,12 +38,6 @@ object AmazonPage {
         if (price == null || price <= 0) return null
         return Scraper.Result(title, listOf(Scraper.Offer("Amazon.com.be", price, inStock)))
     }
-
-    /** The cheapest of the other sellers when Amazon itself doesn't sell it ("8 options from €415,06"). */
-    private fun otherSellers(html: String): Double? =
-        OTHER_SELLERS_PRICE.find(html)?.groupValues?.get(1)?.let(::euros)
-            ?: OTHER_SELLERS_WHOLE.find(html)?.let { m -> euros(m.groupValues[1].trimEnd('.', ',') + "," + m.groupValues[2]) }
-            ?: OTHER_SELLERS_TEXT.find(html)?.let { m -> euros(m.groupValues[1].trimEnd('.') + "," + m.groupValues[2].ifEmpty { "00" }) }
 
     /** Whether the page says the product shown can't be bought now (with no price for it). */
     fun isSoldOut(html: String): Boolean {

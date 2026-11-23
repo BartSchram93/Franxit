@@ -328,7 +328,7 @@ class Repository private constructor(context: Context) {
             if (known != null) {
                 // (One remembered before this rule: a landing on another country's site.)
                 if (known == FOREIGN || (known != "-" && DuckDuckGo.isForeignSite(known))) foreign += offer.seller
-                else if (known != "-" && otherVersion(known, name)) wrongLandings += offer.seller
+                else if (known != "-" && otherVersion(known, name, product)) wrongLandings += offer.seller
                 else if (known != "-") landings[offer.seller] = known
                 continue
             }
@@ -342,7 +342,7 @@ class Repository private constructor(context: Context) {
                 }
                 val landing = end?.takeIf { ShopCheck.isLandingOf(it, offer.seller) }
                 ShoppingSettings.saveLanding(appContext, product.id, offer.seller, landing ?: "-")
-                if (landing != null && otherVersion(landing, name)) wrongLandings += offer.seller
+                if (landing != null && otherVersion(landing, name, product)) wrongLandings += offer.seller
                 else if (landing != null) landings[offer.seller] = landing
             }
         }
@@ -379,7 +379,7 @@ class Repository private constructor(context: Context) {
                 // A page for another country (Nintendo's UK store, in pounds) is no link: the shop is looked up anew.
                 .firstOrNull { it != null && ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) && !DuckDuckGo.isForeignSite(it) && ShopCheck.isShopsLink(it, offer.seller) }
                 ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
-            if (link != null && otherVersion(link, own.name.ifBlank { product.displayName })) {
+            if (link != null && otherVersion(link, own.name.ifBlank { product.displayName }, product)) {
                 wrongLinks += offer.seller
                 offer.seller to landing
             } else offer.seller to (link ?: landing)
@@ -464,7 +464,7 @@ class Repository private constructor(context: Context) {
         val tasks = allLinks.values.filterNotNull().distinct().map { link ->
             java.util.concurrent.Callable {
                 // A search or list page, or another product's page by its address: not read, the shop is left out.
-                if (otherVersion(link, name)) return@Callable Triple(link, ShopCheck.ELSEWHERE, ShopCheck.Status.CHECKED)
+                if (otherVersion(link, name, product)) return@Callable Triple(link, ShopCheck.ELSEWHERE, ShopCheck.Status.CHECKED)
                 shopPages[link]?.takeIf { System.currentTimeMillis() - it.first < SHOP_CHECK_MS }?.let { return@Callable Triple(link, it.second.first, it.second.second) }
                 if (siteOfLink(link) in browserSites) return@Callable Triple(link, null, ShopCheck.Status.BLOCKED)
                 var error: String? = null
@@ -540,7 +540,7 @@ class Repository private constructor(context: Context) {
                 ShoppingSettings.saveFoundLink(appContext, product.id, seller, link)
             } else {
                 ShoppingSettings.forgetFoundLink(appContext, product.id, seller)
-                if (page != null || otherVersion(link, name)) statuses[seller] = ShopCheck.Status.NOT_FOUND
+                if (page != null || otherVersion(link, name, product)) statuses[seller] = ShopCheck.Status.NOT_FOUND
                 wrongFinds += seller
             }
         }
@@ -551,7 +551,7 @@ class Repository private constructor(context: Context) {
             val link = allLinks[offer.seller] ?: return@mapNotNull null
             // Also when its price couldn't be read: it is the page of the price shown (only not another version).
             val page = seen[link]?.first
-            if (page?.otherColour == true || page?.otherProduct == true || otherVersion(link, name)) null else offer.seller to link
+            if (page?.otherColour == true || page?.otherProduct == true || otherVersion(link, name, product)) null else offer.seller to link
         }.toMap())
         ShoppingSettings.saveShopStatuses(appContext, product.id, statuses)
         // The Buy button's pages looked up before this check: the pages known now may be others.
@@ -571,8 +571,11 @@ class Repository private constructor(context: Context) {
             val page = link?.let { seen[it]?.first }
             // A page of this product: by its address and, when it was read, by what it says (not the pink Selphy at
             // Galaxus, which kept the app out but names "roze" in its address).
-            val goodLink = link != null && !otherVersion(link, name) && page?.otherColour != true && page?.otherProduct != true
-            !goodLink && !TrustedShops.same(offer.seller, ownHost) && landings[offer.seller] == null
+            val goodLink = link != null && !otherVersion(link, name, product) && page?.otherColour != true && page?.otherProduct != true
+            // vergelijk.be's own link counts as the shop's page (it takes you there in a browser, also where the app
+            // couldn't follow it: Fnac, Bol), unless it was seen to land on another version.
+            val viaVergelijk = clickLinks.any { TrustedShops.same(it.first, offer.seller) } && offer.seller !in wrongLandings
+            !goodLink && !viaVergelijk && !TrustedShops.same(offer.seller, ownHost) && landings[offer.seller] == null
         }.map { it.seller }.toSet()
         return offers.mapNotNull { offer ->
             if (offer.seller in foreign || offer.seller in noPage) return@mapNotNull null
@@ -691,11 +694,18 @@ class Repository private constructor(context: Context) {
      */
     private fun openable(link: String, product: Product): Boolean =
         (link.startsWith("https://") || link.startsWith("http://")) &&
-            ShopCheck.isProductPage(ShopCheck.direct(link)) && !otherVersion(link, product.name)
+            ShopCheck.isProductPage(ShopCheck.direct(link)) && !otherVersion(link, product.name, product)
 
-    /** A page that its address says is another product, a list, or another colour than [name]. */
-    private fun otherVersion(link: String, name: String): Boolean =
-        ShopCheck.isElsewhere(link, name) || Matching.titleFromLink(link)?.let { Matching.otherColour(it, name) } == true
+    /**
+     * A page that its address says is another product, a list, or another colour than [name]. Whether it is another
+     * product is told by the product's own short name: an address has only a few words, and next to vergelijk.be's
+     * long title ("TCL NXTPAPER 14 36,3 cm (14,3 inch), 2400 x 1600 pixels, 256 GB, 8 GB, Android 14, grijs")
+     * Amazon's "TCL-NXTPAPER-Octa-Core-RAM-uitbreiding-geheugen" counted as another product, and its € 360 page was
+     * passed over. The colour is told by the full name, which has it.
+     */
+    private fun otherVersion(link: String, name: String, product: Product): Boolean =
+        ShopCheck.isElsewhere(link, product.displayName.ifBlank { name }) ||
+            Matching.titleFromLink(link)?.let { Matching.otherColour(it, name) } == true
 
     /**
      * A shop that Shoparize listed for this product: where it can be bought is the shop's own product page when

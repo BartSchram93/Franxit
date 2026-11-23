@@ -145,8 +145,14 @@ object Matching {
     /** Whether [title] names an edition [wanted] doesn't ("Patchwork Express" for "Patchwork"). */
     internal fun otherEdition(title: String, wanted: String): Boolean {
         val want = EDITION.findAll(wanted).map { it.value.lowercase() }.toSet()
-        return EDITION.findAll(title).any { it.value.lowercase() !in want }
+        // "RAM-uitbreiding", "geheugenuitbreiding", "expandable storage": a device's memory, not an expansion of a game
+        // (Amazon's "TCL-NXTPAPER-Octa-Core-RAM-uitbreiding-geheugen" was passed over as another edition).
+        val memory = MEMORY.containsMatchIn(title)
+        return EDITION.findAll(title).any { it.value.lowercase() !in want && !(memory && it.value.lowercase() in EXPANSION) }
     }
+
+    private val MEMORY = Regex("""\b(ram|geheugen|opslag|storage|memory|micro ?sd|speicher|stockage|mémoire)\b""", RegexOption.IGNORE_CASE)
+    private val EXPANSION = setOf("uitbreiding", "expansion", "extension", "erweiterung")
 
     /** Colour words in Dutch, English and French, each to one colour. */
     private val COLOURS = mapOf(

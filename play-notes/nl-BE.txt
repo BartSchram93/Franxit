@@ -1,1 +1,2 @@
-• Een winkel wordt enkel getoond als de app er de productpagina van kan openen (niet in een andere kleur)
+• Winkels met een link van vergelijk.be worden weer getoond (Bol, Fnac)
+• Amazon toont weer de juiste pagina en prijs van de TCL NXTPAPER 14
