@@ -389,7 +389,8 @@ class Repository private constructor(context: Context) {
         // Shops that keep the app out (Fnac, Nintendo's store): their pages in a real browser, the cheapest shops
         // first, two at a time (a browser is heavy). What it reads counts like any page.
         val priceOfLink = offers.mapNotNull { offer -> allLinks[offer.seller]?.let { it to offer.price } }.toMap()
-        val browserReads = seen.filter { (_, value) -> value.second == ShopCheck.Status.BLOCKED }.keys
+        // Also pages whose price the app couldn't read: shops that only show it with their scripts, which a browser runs.
+        val browserReads = seen.filter { (_, value) -> value.second == ShopCheck.Status.BLOCKED || value.second == ShopCheck.Status.UNREADABLE }.keys
             .sortedBy { priceOfLink[it] ?: Double.MAX_VALUE }.take(browserBudget)
             .map { link ->
                 java.util.concurrent.Callable {
@@ -433,18 +434,19 @@ class Repository private constructor(context: Context) {
     /** Shops looked up on DuckDuckGo, by product and shop, with the day: once a day each. */
     private val lookedUp = java.util.concurrent.ConcurrentHashMap<String, String>()
     /**
-     * Shops looked up per product: all its unknown ones (up to 15) when you add or refresh that one product, a few
-     * when all products are checked at once (the daily check), so DuckDuckGo doesn't answer with a check page.
+     * Shops looked up per product: every one without a known page when you add or refresh that one product (every
+     * price has to be right), a few when all products are checked at once (the daily check, which has to stay within
+     * Android's time for background work); pages found are remembered, so each daily check adds a few more.
      */
-    private val LOOKUPS_ONE = 15
-    private val LOOKUPS_ALL = 3
+    private val LOOKUPS_ONE = Int.MAX_VALUE
+    private val LOOKUPS_ALL = 5
 
     /** Pages read in a browser per check, for shops that keep the app's own requests out. */
-    private val BROWSER_READS = 2
+    private val BROWSER_READS = 3
 
-    /** Searches and pages in the browser when one product is refreshed, and how long they may take. */
-    private val BROWSER_ONE = 6
-    private val BROWSER_WAIT_SECONDS = 60L
+    /** Searches and pages in the browser when one product is refreshed (all of them), and how long they may take. */
+    private val BROWSER_ONE = Int.MAX_VALUE
+    private val BROWSER_WAIT_SECONDS = 180L
 
     /** Browsers at the same time: two (each is a whole web page with its scripts). */
     private val browserReaders = java.util.concurrent.Executors.newFixedThreadPool(2)
