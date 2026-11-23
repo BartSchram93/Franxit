@@ -87,7 +87,7 @@ jobs:
           retention-days: 30
 
       - name: Publish release
-        if: steps.key.outputs.signed == 'true' && inputs.publish != false
+        if: steps.key.outputs.signed == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish)
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: 1.0.${{ env.BUILD }}
@@ -101,7 +101,7 @@ jobs:
       # PUBLIC_REPO_TOKEN, a token that can write to that repo). The page and the app's update
       # notice both read the latest release there.
       - name: Publish to the download page
-        if: steps.key.outputs.signed == 'true' && inputs.publish != false
+        if: steps.key.outputs.signed == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish)
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
           VERSION: 1.0.${{ env.BUILD }}
@@ -122,7 +122,7 @@ jobs:
       # Federation in the Google Cloud project.
       - name: Sign in to Google Play
         id: google
-        if: steps.key.outputs.signed == 'true' && inputs.publish != false
+        if: steps.key.outputs.signed == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish)
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/398699754135/locations/global/workloadIdentityPools/github/providers/franxit
@@ -133,7 +133,7 @@ jobs:
       # The bundle as a release on the closed test, with play-notes/<language>.txt as its notes, sent to Google
       # for review at once.
       - name: Upload to Google Play
-        if: steps.key.outputs.signed == 'true' && inputs.publish != false
+        if: steps.key.outputs.signed == 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish)
         env:
           TOKEN: ${{ steps.google.outputs.access_token }}
           TRACK: ${{ vars.PLAY_TRACK || 'alpha' }}
