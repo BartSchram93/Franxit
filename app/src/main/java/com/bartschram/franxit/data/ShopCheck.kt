@@ -29,7 +29,7 @@ internal object ShopCheck {
      */
     fun seen(page: Scraper.Result, name: String): Seen? {
         if (Matching.otherColour(page.name, name)) return Seen(null, null, otherColour = true)
-        if (Matching.isOtherProduct(page.name, name) || Matching.addsBundleOrAccessory(page.name, name)) return ELSEWHERE
+        if (Matching.isOtherProduct(page.name, name) || Matching.addsBundleOrAccessory(page.name, name) || Matching.otherEdition(page.name, name)) return ELSEWHERE
         if (page.offers.isEmpty()) return null
         val inStock = when {
             page.offers.all { it.inStock == false } -> false
@@ -84,7 +84,7 @@ internal object ShopCheck {
     fun isElsewhere(link: String, name: String): Boolean {
         val path = runCatching { java.net.URI(link).path }.getOrNull().orEmpty()
         if (LISTING_PATH.containsMatchIn(path) || LISTING_QUERY.containsMatchIn(link)) return true
-        return Matching.titleFromLink(link)?.let { Matching.isOtherProduct(it, name) || Matching.addsBundleOrAccessory(it, name) } == true
+        return Matching.titleFromLink(link)?.let { Matching.isOtherProduct(it, name) || Matching.addsBundleOrAccessory(it, name) || Matching.otherEdition(it, name) } == true
     }
 
     /**

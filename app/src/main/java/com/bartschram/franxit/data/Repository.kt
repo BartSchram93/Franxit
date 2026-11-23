@@ -342,7 +342,8 @@ class Repository private constructor(context: Context) {
         // A result whose address names another colour or product ("…-cp1500-blanc") is passed over for the next one.
         val fits = { url: String ->
             val words = Matching.titleFromLink(url)
-            words == null || (!Matching.otherColour(words, name) && !Matching.isOtherProduct(words, name))
+            words == null || (!Matching.otherColour(words, name) && !Matching.isOtherProduct(words, name) &&
+                !Matching.otherEdition(words, name) && !Matching.addsBundleOrAccessory(words, name))
         }
         // When DuckDuckGo blocks the app's searches: a few in a browser instead.
         // One product refreshed: more of its shops in the browser (and more time); all products at once: a few.

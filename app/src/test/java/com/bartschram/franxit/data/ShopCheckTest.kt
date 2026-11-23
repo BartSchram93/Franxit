@@ -107,4 +107,15 @@ class ShopCheckTest {
         assertTrue(ShopCheck.isShopsLink("https://store.nintendo.com/nl-be/zelda", "Nintendo"))
         assertTrue(ShopCheck.isShopsLink("https://www.kamera-express.be/product/1", "Kamera Express"))
     }
+
+    @Test
+    fun aBusinessOrMacVersionIsAnotherProduct() {
+        val mouse = "Logitech MX Master 4 Graphite"
+        // bol.com's page read was the "for Business" one: € 109,99 instead of € 99.
+        assertTrue(ShopCheck.isElsewhere("https://www.bol.com/be/nl/p/logitech-mx-master-4-for-business-muis-kantoor-rechtshandig-rf-draadloos-bluetooth-laser-8000-dpi/9300000236202365/", mouse))
+        assertFalse(ShopCheck.isElsewhere("https://www.bol.com/be/nl/p/logitech-mx-master-4-draadloze-muis-graphite/9300000236200000/", mouse))
+        assertTrue(ShopCheck.isElsewhere("https://www.coolblue.be/nl/product/1/logitech-mx-master-4-voor-mac.html", mouse))
+        // The Mac version itself, as before.
+        assertFalse(ShopCheck.isElsewhere("https://www.coolblue.be/nl/product/1/logitech-mx-master-4-voor-mac.html", "Logitech MX Master 4 voor Mac"))
+    }
 }

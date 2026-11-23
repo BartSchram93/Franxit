@@ -136,7 +136,9 @@ object Matching {
     /** Words that make another edition of a product: smaller, bigger, for children, an expansion. */
     private val EDITION = Regex(
         """\b(express|doodle|junior|kids|kinderversie|deluxe|uitbreiding|uitbreidingsset|expansion|extension|erweiterung|""" +
-            """reiseditie|reisversie|reisspel|travel edition|big box|jubileumeditie|anniversary edition|starter ?set)\b""",
+            """reiseditie|reisversie|reisspel|travel edition|big box|jubileumeditie|anniversary edition|starter ?set|""" +
+            // A model's business or Mac version is another product at another price (MX Master 4 for Business: € 109,99).
+            """for business|business|for mac|voor mac|pour mac)\b""",
         RegexOption.IGNORE_CASE,
     )
 
