@@ -145,7 +145,13 @@ jobs:
           EDIT=$(call -X POST "$API/edits" -H "Content-Type: application/json" -d '{}' | jq -r .id)
           CODE=$(call -X POST "https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/com.bartschram.franxit/edits/$EDIT/bundles?uploadType=media" \
             -H "Content-Type: application/octet-stream" --data-binary @app/build/outputs/bundle/playRelease/app-play-release.aab | jq -r .versionCode)
-          NOTES=$(for f in play-notes/*.txt; do jq -n --arg l "$(basename "$f" .txt)" --rawfile t "$f" '{language: $l, text: ($t | rtrimstr("\n"))}'; done | jq -s .)
+          # Only the languages the store listing has (Google refuses notes in any other), each with the notes in its
+          # language: play-notes/nl-BE.txt also for a listing in nl-NL.
+          LANGS=$(call "$API/edits/$EDIT/listings" | jq -r '.listings[]?.language')
+          echo "Store listing languages:" $LANGS
+          NOTES=$(for l in $LANGS; do f=play-notes/$l.txt; [ -f "$f" ] || f=$(ls play-notes/"${l%%-*}"*.txt 2>/dev/null | head -1)
+            [ -n "$f" ] || continue
+            jq -n --arg l "$l" --rawfile t "$f" '{language: $l, text: ($t | rtrimstr("\n"))}'; done | jq -s .)
           jq -n --arg track "$TRACK" --arg code "$CODE" --arg name "$VERSION" --argjson notes "$NOTES" \
             '{track: $track, releases: [{name: $name, versionCodes: [$code], status: "completed", releaseNotes: $notes}]}' > track.json
           call -X PUT "$API/edits/$EDIT/tracks/$TRACK" -H "Content-Type: application/json" --data @track.json > /dev/null
