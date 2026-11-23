@@ -130,8 +130,8 @@ jobs:
           token_format: access_token
           access_token_scopes: https://www.googleapis.com/auth/androidpublisher
 
-      # The bundle as a draft release on the closed test, with play-notes/<language>.txt as its notes: you send it
-      # for review in Play Console yourself.
+      # The bundle as a release on the closed test, with play-notes/<language>.txt as its notes, sent to Google
+      # for review at once.
       - name: Upload to Google Play
         if: steps.key.outputs.signed == 'true' && inputs.publish != false
         env:
@@ -147,7 +147,7 @@ jobs:
             -H "Content-Type: application/octet-stream" --data-binary @app/build/outputs/bundle/playRelease/app-play-release.aab | jq -r .versionCode)
           NOTES=$(for f in play-notes/*.txt; do jq -n --arg l "$(basename "$f" .txt)" --rawfile t "$f" '{language: $l, text: ($t | rtrimstr("\n"))}'; done | jq -s .)
           jq -n --arg track "$TRACK" --arg code "$CODE" --arg name "$VERSION" --argjson notes "$NOTES" \
-            '{track: $track, releases: [{name: $name, versionCodes: [$code], status: "draft", releaseNotes: $notes}]}' > track.json
+            '{track: $track, releases: [{name: $name, versionCodes: [$code], status: "completed", releaseNotes: $notes}]}' > track.json
           call -X PUT "$API/edits/$EDIT/tracks/$TRACK" -H "Content-Type: application/json" --data @track.json > /dev/null
           call -X POST "$API/edits/$EDIT:commit" > /dev/null
-          echo "Version $VERSION ($CODE) is a draft on the track $TRACK in Play Console."
+          echo "Version $VERSION ($CODE) is sent on the track $TRACK in Play Console."
