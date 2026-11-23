@@ -15,7 +15,7 @@ internal object ShopCheck {
      * [otherColour]: the page is of the same model in another colour (Galaxus's pink Selphy CP1500 for the black one),
      * so its listed price is no price of this product.
      */
-    data class Seen(val price: Double?, val inStock: Boolean?, val otherColour: Boolean = false, val otherProduct: Boolean = false)
+    data class Seen(val price: Double?, val inStock: Boolean?, val otherColour: Boolean = false, val otherProduct: Boolean = false, val shownPrices: Set<Double> = emptySet())
 
     /** The shop's link is no page of this product (a search, a list, another product): the shop is left out. */
     val ELSEWHERE = Seen(null, null, otherProduct = true)
@@ -37,7 +37,7 @@ internal object ShopCheck {
             else -> null
         }
         val price = (page.offers.filter { it.inStock != false }.ifEmpty { page.offers }).minOf { it.price }
-        return Seen(price, inStock)
+        return Seen(price, inStock, shownPrices = page.shownPrices)
     }
 
     /**
@@ -51,7 +51,10 @@ internal object ShopCheck {
         if (seen.otherColour || seen.otherProduct) return null
         var checked = offer
         seen.inStock?.let { checked = checked.copy(inStock = it) }
-        seen.price?.takeIf { it > 0 && it / offer.price in 0.5..1.5 }?.let { checked = checked.copy(price = it) }
+        // The page's data says more than the source, but the page shows the source's price too (Coolblue: € 908 in
+        // its data, 733,- on the page): what you pay is the price shown, the source's.
+        val shown = seen.shownPrices.any { kotlin.math.abs(it - offer.price) < 0.005 }
+        seen.price?.takeIf { it > 0 && it / offer.price in 0.5..1.5 && !(it > offer.price && shown) }?.let { checked = checked.copy(price = it) }
         return checked
     }
 

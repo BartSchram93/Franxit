@@ -1,2 +1,1 @@
-• Les boutiques avec un lien de vergelijk.be sont de nouveau affichées (Bol, Fnac)
-• Amazon affiche de nouveau la bonne page et le bon prix
+• Si une page affiche un prix plus bas que ses données produit, le prix affiché compte

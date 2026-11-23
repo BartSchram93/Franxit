@@ -1,2 +1,1 @@
-• Shops with a vergelijk.be link are shown again (Bol, Fnac)
-• Amazon shows the right page and price again
+• When a shop page shows a lower price than its product data, the shown price counts

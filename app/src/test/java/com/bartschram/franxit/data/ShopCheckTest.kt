@@ -138,4 +138,15 @@ class ShopCheckTest {
         // Fnac's book for a keyboard bench stays another product.
         org.junit.Assert.assertTrue(ShopCheck.isElsewhere("https://www.fr.fnac.be/a123/La-Legende-des-Quatres", "Hercules Keyboard Bench"))
     }
+
+    @Test
+    fun theShownPriceWinsOverDataThatLags() {
+        // Coolblue's Dreame Aqua 10 Roller: € 908 in its product data, 733,- on the page and from the source.
+        val html = """<script type="application/ld+json">{"@type":"Product","name":"Dreame Aqua 10 Roller White","offers":{"@type":"Offer","price":"908.00","priceCurrency":"EUR","availability":"https://schema.org/InStock"}}</script><strong class="sales-price">733,-</strong>"""
+        val page = com.bartschram.franxit.scrape.Scraper.fromPage(html, "https://www.coolblue.be/nl/product/973125/dreame-aqua-10-roller-white.html")
+        val seen = ShopCheck.seen(page, "Dreame Aqua 10 Roller White")
+        assertEquals(733.0, ShopCheck.apply(ShopOffer("Coolblue.be", 733.0), seen)!!.price, 0.001)
+        // Without the source's price on the page, the page's data counts.
+        assertEquals(908.0, ShopCheck.apply(ShopOffer("Coolblue.be", 699.0), seen)!!.price, 0.001)
+    }
 }

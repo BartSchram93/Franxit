@@ -22,7 +22,8 @@ object Scraper {
     data class Offer(val seller: String, val price: Double, val inStock: Boolean? = null, val link: String? = null)
 
     /** [brand]: the maker the page names ("999 Games"), when it does. */
-    data class Result(val name: String, val offers: List<Offer>, val image: String? = null, val brand: String? = null) {
+    /** [shownPrices]: the prices the page shows as text ("733,-"), next to the ones in its product data. */
+    data class Result(val name: String, val offers: List<Offer>, val image: String? = null, val brand: String? = null, val shownPrices: Set<Double> = emptySet()) {
         /** Cheapest offer you can actually buy, falling back to the cheapest one listed. */
         val cheapest: Offer
             get() = offers.filter { it.inStock != false }.minByOrNull { it.price } ?: offers.minBy { it.price }
@@ -85,7 +86,7 @@ object Scraper {
             if (AmazonPage.isSoldOut(html)) throw IOException("Not available at ${shop(url)} right now")
         }
         return try {
-            parse(html)
+            parse(html).copy(shownPrices = shownPrices(html))
         } catch (e: IOException) {
             // A check page instead of the product ("Just a moment…"): say the shop keeps apps out,
             // rather than that the page has no prices.
@@ -107,6 +108,18 @@ object Scraper {
     )
 
     internal fun isUnavailable(html: String): Boolean = UNAVAILABLE.containsMatchIn(html)
+
+    /** A price as a page shows it between tags: "733,-", "€ 733,00", "1.299,99". */
+    private val SHOWN_PRICE = Regex(""">\s*(?:€\s*)?(\d{1,3}(?:\.\d{3})+|\d{1,6})(?:,(\d{2})|,-)\s*(?:€\s*)?<""")
+
+    /**
+     * The prices a page shows as text. Its product data can lag behind what it shows: Coolblue's Dreame Aqua 10
+     * Roller said € 908 in its data while the page showed 733,-.
+     */
+    internal fun shownPrices(html: String): Set<Double> =
+        SHOWN_PRICE.findAll(html).mapNotNull { m ->
+            (m.groupValues[1].replace(".", "") + "." + m.groupValues[2].ifEmpty { "00" }).toDoubleOrNull()
+        }.filter { it > 0 }.toSet()
 
     private fun shop(url: String) = Shops.name(URL(url).host)
 

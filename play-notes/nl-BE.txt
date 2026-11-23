@@ -1,2 +1,1 @@
-• Winkels met een link van vergelijk.be worden weer getoond (Bol, Fnac)
-• Amazon toont weer de juiste pagina en prijs van de TCL NXTPAPER 14
+• Toont een winkelpagina een lagere prijs dan haar productgegevens, dan telt de getoonde prijs
