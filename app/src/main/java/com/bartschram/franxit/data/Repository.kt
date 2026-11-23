@@ -95,7 +95,7 @@ class Repository private constructor(context: Context) {
         db.products().firstOrNull { it.id == id }?.let {
             checkLock.withLock {
                 // vergelijk.be's shops are stored and shown first, then Google Shopping's are added.
-                runCatching { check(it) { _products.value = db.products() } }
+                runCatching { check(it, LOOKUPS_ONE) { _products.value = db.products() } }
             }
         }
         changed()
@@ -267,8 +267,8 @@ class Repository private constructor(context: Context) {
 
 
     /** Today's shops of [product] as their own pages show them now, stored again when that changed anything. */
-    private fun recheckShopPages(product: Product) {
-        val checked = checkShopPages(product, product.offers, Scraper.Result(product.name, emptyList()))
+    private fun recheckShopPages(product: Product, lookups: Int) {
+        val checked = checkShopPages(product, product.offers, Scraper.Result(product.name, emptyList()), lookups)
         if (checked == product.offers) return
         db.replaceOffers(product.id, checked)
         val cheapest = Offers.cheapest(checked) ?: return
@@ -289,7 +289,7 @@ class Repository private constructor(context: Context) {
      * Zelda Edition, sold out). The page the product was added from is already read ([own]). A page that can't be
      * read, or is of another product, changes nothing.
      */
-    private fun checkShopPages(product: Product, offers: List<ShopOffer>, own: Scraper.Result): List<ShopOffer> {
+    private fun checkShopPages(product: Product, offers: List<ShopOffer>, own: Scraper.Result, lookups: Int): List<ShopOffer> {
         val ownHost = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
         val links = offers.associate { offer ->
             // A link through Google (".../url?q=https://www.coolblue.be/...") is read at the shop's own address.
@@ -309,7 +309,7 @@ class Repository private constructor(context: Context) {
             .sortedBy { it.price }
             .map { offer -> offer.seller to GoogleShopping.siteOf(offer.seller) }
             .filter { (seller, _) -> lookedUp.put("${product.id}|$seller", today) != today }
-            .take(MAX_LOOKUPS_PER_CHECK)
+            .take(lookups)
         val searchName = SearchNames.withBrand(product.displayName, ShoppingSettings.brand(appContext, product.id))
         val found = toFind.map { (seller, site) ->
             java.util.concurrent.Callable {
@@ -349,7 +349,12 @@ class Repository private constructor(context: Context) {
 
     /** Shops looked up on DuckDuckGo, by product and shop, with the day: once a day each. */
     private val lookedUp = java.util.concurrent.ConcurrentHashMap<String, String>()
-    private val MAX_LOOKUPS_PER_CHECK = 5
+    /**
+     * Shops looked up per product: all its unknown ones (up to 15) when you add or refresh that one product, a few
+     * when all products are checked at once (the daily check), so DuckDuckGo doesn't answer with a check page.
+     */
+    private val LOOKUPS_ONE = 15
+    private val LOOKUPS_ALL = 3
 
     /** Only web addresses are ever opened: a link from a shop or from Google is not trusted with any other kind. */
     suspend fun shopLink(product: Product, seller: String? = null): String? {
@@ -489,20 +494,20 @@ class Repository private constructor(context: Context) {
 
     suspend fun checkOne(id: Long): Result<Unit> = withContext(Dispatchers.IO) {
         checkLock.withLock {
-            val result = runCatching { db.products().first { it.id == id }.let { check(it) { _products.value = db.products() } } }
+            val result = runCatching { db.products().first { it.id == id }.let { check(it, LOOKUPS_ONE) { _products.value = db.products() } } }
             changed()
             result.map { }
         }
     }
 
     /** Scrapes one product and stores today's cheapest price. Returns an [Alert] when worth notifying. */
-    private fun check(product: Product, onFirstResults: (() -> Unit)? = null): Alert? {
+    private fun check(product: Product, lookups: Int = LOOKUPS_ALL, onFirstResults: (() -> Unit)? = null): Alert? {
         val now = System.currentTimeMillis()
         val query = GoogleShopping.queryOf(product.url)
         // Google Shopping costs a search of your plan: at most once a day per product. The shops' own pages cost
         // none: a refresh reads them again (sold out since this morning at Coolblue).
         if (query != null && product.latest?.day == LocalDate.now() && product.lastError == null) {
-            recheckShopPages(product)
+            recheckShopPages(product, lookups)
             return null
         }
         val result = try {
@@ -567,7 +572,7 @@ class Repository private constructor(context: Context) {
         val extras = extraShops(named, query, ownCheapest, ownShops)
         val shoparize = shoparizeShops(named, query)
         // Each shop's own page, where its link is known: sold out there, or another price, as the shop says it.
-        val (offers, cheapest) = store(checkShopPages(named, combine(extras.offers, shoparize), result))
+        val (offers, cheapest) = store(checkShopPages(named, combine(extras.offers, shoparize), result, lookups))
         // The shops are in: show them now, before the site's price history is fetched.
         onFirstResults?.invoke()
         if (cheapest == null) return null
