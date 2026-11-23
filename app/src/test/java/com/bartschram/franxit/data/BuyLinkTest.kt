@@ -58,7 +58,7 @@ class BuyLinkTest {
         val clean = "https://www.pazzox.be/nl/apotheek/bestellen/prox-caps-180/"
         assertEquals(clean, BuyLink.fromShoparize(listed, "Pazzox.be", clean, "Primrose Prox 180 Capsules"))
         assertEquals(
-            "https://duckduckgo.com/?q=%5CPrimrose+Prox+180+Capsules+site%3Afarmaline.be",
+            "https://duckduckgo.com/?kl=be-nl&q=%5CPrimrose+Prox+180+Capsules+site%3Afarmaline.be",
             BuyLink.fromShoparize(listed, "Farmaline.be", null, "Primrose Prox 180 Capsules"),
         )
         // A shop Shoparize didn't list.
@@ -71,7 +71,7 @@ class BuyLinkTest {
         val multibazar = "https://www.multibazar.be/gladi-magnetische-tegels-100"
         assertNull(BuyLink.ownPage(multibazar, "Bol.com"))
         assertEquals(
-            "https://duckduckgo.com/?q=%5CGladi+magnetische+tegels+100+stuks+site%3Abol.com",
+            "https://duckduckgo.com/?kl=be-nl&q=%5CGladi+magnetische+tegels+100+stuks+site%3Abol.com",
             BuyLink.orSearch(null, "Bol.com", "Gladi magnetische tegels 100 stuks"),
         )
         assertEquals(multibazar, BuyLink.orSearch(multibazar, "Multibazar.be", "Gladi"))

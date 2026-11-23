@@ -10,7 +10,10 @@ import java.net.URLEncoder
  */
 object DuckDuckGo {
 
-    private const val BASE = "https://html.duckduckgo.com/html/?q="
+    /** Results for Belgium, in Dutch ("kl=be-nl"): Belgian shops' pages first, wherever the phone is. */
+    private const val REGION = "kl=be-nl"
+
+    private const val BASE = "https://html.duckduckgo.com/html/?$REGION&q="
 
     /** Until when DuckDuckGo's simple pages are taken as blocking the app (an hour after they did). */
     @Volatile
@@ -18,7 +21,7 @@ object DuckDuckGo {
     private const val BLOCKED_FOR_MS = 60 * 60 * 1000L
 
     /** DuckDuckGo's other simple results page, asked when the first answers with a check page. */
-    private const val LITE = "https://lite.duckduckgo.com/lite/?q="
+    private const val LITE = "https://lite.duckduckgo.com/lite/?$REGION&q="
 
     /** A result's link on the page (html: class "result__a", lite: "result-link"): DuckDuckGo's redirect, the address in "uddg". */
     private val RESULT = Regex("""<a\b[^>]*(?:result__a|result-link)[^>]*>""")
@@ -123,7 +126,7 @@ object DuckDuckGo {
             if (!lite.blocked || browser == null) return lite
             blockedUntil = System.currentTimeMillis() + BLOCKED_FOR_MS
         }
-        runCatching { browser("https://duckduckgo.com/?q=$q&ia=web", ::hasResults) }.getOrNull()
+        runCatching { browser("https://duckduckgo.com/?q=$q&ia=web&$REGION", ::hasResults) }.getOrNull()
             ?.let { return lookupInBrowserPage(it, fits, accept) }
         // DuckDuckGo shows no results even in a browser: Bing's results page, in the browser too.
         val bing = runCatching { browser("https://www.bing.com/search?q=$q&setlang=nl&cc=BE", ::hasBingResults) }.getOrNull()

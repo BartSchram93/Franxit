@@ -49,7 +49,7 @@ object GoogleShopping {
     /** A search for [query] on the site [domain] only, that opens its first result: that site's page for it. */
     fun siteSearchUrl(query: String, domain: String): String =
         // DuckDuckGo's "\\" sends you straight to the first result: the shop's page, not a list of results first.
-        "https://duckduckgo.com/?q=" + URLEncoder.encode("\\${query.trim()} site:${domain.trim().lowercase().removePrefix("www.")}", "UTF-8")
+        "https://duckduckgo.com/?kl=be-nl&q=" + URLEncoder.encode("\\${query.trim()} site:${domain.trim().lowercase().removePrefix("www.")}", "UTF-8")
 
     /** The search behind a Google Shopping product url; null for any other url. */
     fun queryOf(url: String): String? = url.takeIf { it.startsWith(SEARCH) }?.let { URLDecoder.decode(it.removePrefix(SEARCH), "UTF-8") }

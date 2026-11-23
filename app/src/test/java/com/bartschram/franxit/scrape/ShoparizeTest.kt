@@ -145,7 +145,7 @@ class ShoparizeTest {
     @Test
     fun aSmallShopGetsASearchLimitedToItsOwnSite() {
         assertEquals(
-            "https://duckduckgo.com/?q=%5CPrimrose+Prox+180+Capsules+site%3Apazzox.be",
+            "https://duckduckgo.com/?kl=be-nl&q=%5CPrimrose+Prox+180+Capsules+site%3Apazzox.be",
             Shoparize.shopSearchUrl("Primrose Prox 180 Capsules", "Pazzox.be"),
         )
     }
@@ -153,12 +153,12 @@ class ShoparizeTest {
     @Test
     fun aBigShopAlsoGetsASearchLimitedToItsOwnSite() {
         assertEquals(
-            "https://duckduckgo.com/?q=%5CSony+PlayStation+5+site%3Acoolblue.be",
+            "https://duckduckgo.com/?kl=be-nl&q=%5CSony+PlayStation+5+site%3Acoolblue.be",
             Shoparize.shopSearchUrl("Sony PlayStation 5", "Coolblue.be"),
         )
         // bol.com's partner links don't name the product page, and its own search missed the product.
         assertEquals(
-            "https://duckduckgo.com/?q=%5CMagnetische+Bouwstenen+Bus+Set+site%3Abol.com",
+            "https://duckduckgo.com/?kl=be-nl&q=%5CMagnetische+Bouwstenen+Bus+Set+site%3Abol.com",
             Shoparize.shopSearchUrl("Magnetische Bouwstenen Bus Set", "bol.com"),
         )
     }

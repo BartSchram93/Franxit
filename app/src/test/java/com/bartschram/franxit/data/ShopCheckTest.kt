@@ -37,7 +37,7 @@ class ShopCheckTest {
     @Test
     fun onlyAShopsProductPageIsRead() {
         assertTrue(ShopCheck.isProductPage("https://www.coolblue.be/nl/product/971234/nintendo-switch-2-zelda.html"))
-        assertFalse(ShopCheck.isProductPage("https://duckduckgo.com/?q=%5CZelda+site%3Afnac.be"))
+        assertFalse(ShopCheck.isProductPage("https://duckduckgo.com/?kl=be-nl&q=%5CZelda+site%3Afnac.be"))
         assertFalse(ShopCheck.isProductPage("https://www.google.be/search?q=Zelda+nintendo"))
         assertFalse(ShopCheck.isProductPage(null))
     }
