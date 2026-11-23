@@ -315,6 +315,9 @@ class Repository private constructor(context: Context) {
         val landings = java.util.concurrent.ConcurrentHashMap<String, String>()
         // Shops whose site is another country's (fotodevakman.nl): not shown, the app is for shopping in Belgium.
         val foreign = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+        // Shops whose vergelijk.be link lands on another version (Galaxus's pink Selphy for the black one): its
+        // offer there is that version's, so the shop is left out unless another source has its right page.
+        val wrongLandings = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
         val toFollow = mutableListOf<java.util.concurrent.Callable<Unit>>()
         for (offer in offers) {
             if (DuckDuckGo.isForeignSite("https://" + Shops.name(offer.seller).lowercase())) {
@@ -325,6 +328,7 @@ class Repository private constructor(context: Context) {
             if (known != null) {
                 // (One remembered before this rule: a landing on another country's site.)
                 if (known == FOREIGN || (known != "-" && DuckDuckGo.isForeignSite(known))) foreign += offer.seller
+                else if (known != "-" && otherVersion(known, name)) wrongLandings += offer.seller
                 else if (known != "-") landings[offer.seller] = known
                 continue
             }
@@ -338,7 +342,8 @@ class Repository private constructor(context: Context) {
                 }
                 val landing = end?.takeIf { ShopCheck.isLandingOf(it, offer.seller) }
                 ShoppingSettings.saveLanding(appContext, product.id, offer.seller, landing ?: "-")
-                if (landing != null) landings[offer.seller] = landing
+                if (landing != null && otherVersion(landing, name)) wrongLandings += offer.seller
+                else if (landing != null) landings[offer.seller] = landing
             }
         }
         if (toFollow.isNotEmpty()) runCatching { shopReaders.invokeAll(toFollow, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }
@@ -559,7 +564,7 @@ class Repository private constructor(context: Context) {
         val noPage = offers.filter { offer ->
             (allLinks[offer.seller] == null || offer.seller in wrongFinds) &&
                 !TrustedShops.same(offer.seller, ownHost) &&
-                clickLinks.none { TrustedShops.same(it.first, offer.seller) } &&
+                (clickLinks.none { TrustedShops.same(it.first, offer.seller) } || offer.seller in wrongLandings) &&
                 landings[offer.seller] == null
         }.map { it.seller }.toSet()
         return offers.mapNotNull { offer ->
@@ -673,10 +678,17 @@ class Repository private constructor(context: Context) {
         listOfNotNull(found, foundPage, googlePage).firstOrNull { openable(it, product) }
     }
 
-    /** A product page of the shop: not a search engine's page, not a search or list on the shop's site, not another product. */
+    /**
+     * A product page of the shop: not a search engine's page, not a search or list on the shop's site, not another
+     * product, and not another colour by its address ("…/canon-selphy-cp1500-roze-…" for the black one).
+     */
     private fun openable(link: String, product: Product): Boolean =
         (link.startsWith("https://") || link.startsWith("http://")) &&
-            ShopCheck.isProductPage(ShopCheck.direct(link)) && !ShopCheck.isElsewhere(link, product.name)
+            ShopCheck.isProductPage(ShopCheck.direct(link)) && !otherVersion(link, product.name)
+
+    /** A page that its address says is another product, a list, or another colour than [name]. */
+    private fun otherVersion(link: String, name: String): Boolean =
+        ShopCheck.isElsewhere(link, name) || Matching.titleFromLink(link)?.let { Matching.otherColour(it, name) } == true
 
     /**
      * A shop that Shoparize listed for this product: where it can be bought is the shop's own product page when

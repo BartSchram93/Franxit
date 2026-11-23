@@ -190,4 +190,11 @@ class MatchingTest {
         // A name without a colour: as before.
         assertTrue(Matching.isSameProduct("Duux Threesixty 2 Smart Elektrische Kachel Zwart", "Duux Threesixty 2 Smart Elektrische Kachel"))
     }
+
+    @Test
+    fun aGalaxusAddressNamesItsColour() {
+        // vergelijk.be's link for Galaxus landed on the pink Selphy for the black one.
+        val words = Matching.titleFromLink("https://www.galaxus.be/nl/s1/product/canon-selphy-cp1500-roze-thermische-overdracht-kleur-printer-38251390")!!
+        assertTrue(Matching.otherColour(words, "Canon Selphy CP1500 Zwart"))
+    }
 }
