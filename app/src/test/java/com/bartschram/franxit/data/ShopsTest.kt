@@ -1,6 +1,7 @@
 package com.bartschram.franxit.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ShopsTest {
@@ -38,5 +39,12 @@ class ShopsTest {
     fun aShopInSmallLettersGetsACapital() {
         assertEquals("Nintendo", Shops.name("nintendo"))
         assertEquals("eBay", Shops.name("eBay"))
+    }
+
+    @Test
+    fun amazonBeIsAmazonComBe() {
+        assertEquals("Amazon.com.be", Shops.name("Amazon.be"))
+        assertEquals("Amazon.com.be", Shops.name("amazon.be"))
+        assertTrue(TrustedShops.same("Amazon.be", "Amazon.com.be"))
     }
 }

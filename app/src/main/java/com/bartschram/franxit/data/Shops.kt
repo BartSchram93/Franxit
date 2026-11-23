@@ -12,6 +12,8 @@ object Shops {
         "bol" to "Bol.com",
         "bol." to "Bol.com",
         "amazon" to "Amazon.com.be",
+        // There is no amazon.be: Belgium's Amazon is amazon.com.be, whatever a source calls it.
+        "amazon.be" to "Amazon.com.be",
         "mediamarkt" to "MediaMarkt.be",
         "fnac" to "Fnac.be",
         "cameranu" to "Cameranu.be",
