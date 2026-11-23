@@ -575,12 +575,12 @@ class Repository private constructor(context: Context) {
     /** Shops looked up on DuckDuckGo, by product and shop, with the day: once a day each. */
     private val lookedUp = java.util.concurrent.ConcurrentHashMap<String, String>()
     /**
-     * Shops looked up per product: every one without a known page when you add or refresh that one product (every
-     * price has to be right), a few when all products are checked at once (the daily check, which has to stay within
-     * Android's time for background work); pages found are remembered, so each daily check adds a few more.
+     * Shops looked up per product: every one without a known page, always (a shop without a product page isn't
+     * shown, so none may wait for a later check). [LOOKUPS_ONE] (one product refreshed) also gives the browser more
+     * pages and time than [LOOKUPS_ALL] (the nightly check and all products at once).
      */
     private val LOOKUPS_ONE = Int.MAX_VALUE
-    private val LOOKUPS_ALL = 5
+    private val LOOKUPS_ALL = Int.MAX_VALUE - 1
 
     /** What's remembered for a shop whose vergelijk.be link lands on another country's site. */
     private val FOREIGN = "foreign"
