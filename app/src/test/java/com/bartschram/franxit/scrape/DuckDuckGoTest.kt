@@ -105,4 +105,18 @@ class DuckDuckGoTest {
             DuckDuckGo.belgian("https://www.bol.com/nl/nl/p/canon-selphy-cp1500-zwart/9300000113711298/"))
         assertEquals(black, DuckDuckGo.belgian(black))
     }
+
+    @Test
+    fun anotherCountrysSiteIsNoBelgianShopsPage() {
+        // "Amazon.be" was found on amazon.nl, a search page at that.
+        assertTrue(DuckDuckGo.isForeignSite("https://www.amazon.nl/canon-selphy-cp1500/s?k=canon+selphy+cp1500"))
+        assertTrue(DuckDuckGo.isForeignSite("https://www.fotodevakman.nl/canon-selphy-cp1500"))
+        assertFalse(DuckDuckGo.isForeignSite("https://www.amazon.com.be/dp/B0BF6T86WD"))
+        assertFalse(DuckDuckGo.isForeignSite("https://www.bol.com/be/nl/p/x/1/"))
+        assertEquals("amazon.com.be", GoogleShopping.siteOf("Amazon.be"))
+        assertEquals("amazon.com.be", GoogleShopping.siteOf("Amazon"))
+        val page = result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.amazon.nl%2Fdp%2FB0&amp;rut=a") +
+            result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.amazon.com.be%2Fdp%2FB0&amp;rut=b")
+        assertEquals("https://www.amazon.com.be/dp/B0", DuckDuckGo.firstResult(page) { it.startsWith("amazon") })
+    }
 }

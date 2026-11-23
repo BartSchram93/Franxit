@@ -44,6 +44,15 @@ object DuckDuckGo {
     /** A path for another country than Belgium: "/en-gb/…", "/de-de/…", "/nl_NL/…" (and not "/nl-be/", "/fr-be/"). */
     private val COUNTRY = Regex("""^/([a-z]{2})[-_]([a-z]{2})(/|$)""", RegexOption.IGNORE_CASE)
 
+    /** Site endings of other countries: amazon.nl, fotodevakman.nl, amazon.de … for a Belgian shopper. */
+    private val FOREIGN_ENDINGS = listOf(".nl", ".de", ".fr", ".co.uk", ".uk", ".it", ".es", ".at", ".ch", ".pl", ".lu", ".se", ".dk")
+
+    /** Whether [url] is on another country's site (amazon.nl): found by a search, it is no Belgian shop's page. */
+    fun isForeignSite(url: String): Boolean {
+        val host = url.substringAfter("//").substringBefore('/').substringBefore('?').lowercase()
+        return FOREIGN_ENDINGS.any { host.endsWith(it) }
+    }
+
     /** Whether [url] is a shop's page for another country (Nintendo's UK store for a Belgian shopper). */
     fun isOtherCountry(url: String): Boolean {
         val path = runCatching { java.net.URI(url).path }.getOrNull().orEmpty()
@@ -69,7 +78,7 @@ object DuckDuckGo {
                 ?: href.takeIf { it.startsWith("https://") && "duckduckgo.com" !in it }
             // A page for another country is passed over: the next result may be Belgium's.
             // Another country, or (by its address) another colour or product: the next result may be the one.
-            target?.takeIf { url -> !isOtherCountry(url) && accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) && fits(url) }
+            target?.takeIf { url -> !isOtherCountry(url) && !isForeignSite(url) && accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) && fits(url) }
         }.firstOrNull()
 
     /**
@@ -107,7 +116,7 @@ object DuckDuckGo {
     internal fun lookupInBrowserPage(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): Lookup {
         lookup(html, fits, accept).page?.let { return Lookup(it) }
         val page = ANY_LINK.findAll(html).map { it.groupValues[1].replace("&amp;", "&") }
-            .filter { url -> val host = url.substringAfter("//").substringBefore('/'); "duckduckgo.com" !in host && "bing." !in host && "microsoft." !in host && !isOtherCountry(url) }
+            .filter { url -> val host = url.substringAfter("//").substringBefore('/'); "duckduckgo.com" !in host && "bing." !in host && "microsoft." !in host && !isOtherCountry(url) && !isForeignSite(url) }
             .firstOrNull { url -> accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) && fits(url) }
         return Lookup(page)
     }

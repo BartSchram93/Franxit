@@ -24,6 +24,8 @@ object GoogleShopping {
         "krefel" to "krefel.be", "krëfel" to "krefel.be",
         // Brand stores Google Shopping names without a site.
         "nintendo" to "store.nintendo.com",
+        // Amazon for Belgium ("Amazon", "Amazon.be"): amazon.com.be.
+        "amazon" to "amazon.com.be",
     )
 
     /** The site of a shop: a big shop's or brand store's, or the shop's own name when that is a site ("Bax-shop.be"). */

@@ -74,7 +74,7 @@ internal object ShopCheck {
 
     /** Paths and parameters of a shop's search or list pages ("fr.fnac.be/se77634/…", "/zoeken?q=…"). */
     private val LISTING_PATH = Regex("""/(search|zoeken|zoek|recherche|rechercher|catalogsearch|s|se\d+|ia\d+|c\d+|categor(y|ie|ies)|collections?)(/|$)""", RegexOption.IGNORE_CASE)
-    private val LISTING_QUERY = Regex("""[?&](q|query|search|searchtext|keyword|keywords|text|Search)=""")
+    private val LISTING_QUERY = Regex("""[?&](q|k|query|search|searchtext|keyword|keywords|text|Search)=""")
 
     /**
      * Whether the shop's [link] is clearly no page of the product called [name]: a search or list page (Fnac's

@@ -340,7 +340,7 @@ class Repository private constructor(context: Context) {
                 .map(ShopCheck::direct)
                 .map { it?.let(DuckDuckGo::belgian) }
                 // A page for another country (Nintendo's UK store, in pounds) is no link: the shop is looked up anew.
-                .firstOrNull { it != null && ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) && ShopCheck.isShopsLink(it, offer.seller) }
+                .firstOrNull { it != null && ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) && !DuckDuckGo.isForeignSite(it) && ShopCheck.isShopsLink(it, offer.seller) }
                 ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
             if (link != null && ShopCheck.isElsewhere(link, own.name.ifBlank { product.displayName })) {
                 wrongLinks += offer.seller
@@ -358,7 +358,7 @@ class Repository private constructor(context: Context) {
         val remembered = offers.filter { links[it.seller] == null && !TrustedShops.same(it.seller, ownHost) }
             .mapNotNull { offer ->
                 val link = ShoppingSettings.foundLink(appContext, product.id, offer.seller) ?: return@mapNotNull null
-                if (DuckDuckGo.isOtherCountry(link) || !ShopCheck.isShopsLink(link, offer.seller)) {
+                if (DuckDuckGo.isOtherCountry(link) || DuckDuckGo.isForeignSite(link) || !ShopCheck.isShopsLink(link, offer.seller)) {
                     ShoppingSettings.forgetFoundLink(appContext, product.id, offer.seller)
                     null
                 } else offer.seller to link
@@ -373,10 +373,12 @@ class Repository private constructor(context: Context) {
         val colour = Matching.colourWords(name).filter { it !in product.displayName.lowercase() }.joinToString(" ")
         val searchName = (SearchNames.withBrand(product.displayName, ShoppingSettings.brand(appContext, product.id)) + " " + colour).trim()
         // A result whose address names another colour or product ("…-cp1500-blanc") is passed over for the next one.
-        val fits = { url: String ->
-            val words = Matching.titleFromLink(url)
-            words == null || (!Matching.otherColour(words, name) && !Matching.isOtherProduct(words, name) &&
-                !Matching.otherEdition(words, name) && !Matching.addsBundleOrAccessory(words, name))
+        val fits = fits@{ url: String ->
+            // A search or list page ("…/s?k=…") is no product's page.
+            if (ShopCheck.isElsewhere(url, name)) return@fits false
+            val words = Matching.titleFromLink(url) ?: return@fits true
+            !Matching.otherColour(words, name) && !Matching.isOtherProduct(words, name) &&
+                !Matching.otherEdition(words, name) && !Matching.addsBundleOrAccessory(words, name)
         }
         // When DuckDuckGo blocks the app's searches: a few in a browser instead.
         // One product refreshed: more of its shops in the browser (and more time); all products at once: a few.
