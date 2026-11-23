@@ -68,12 +68,28 @@ jobs:
 
       # The bundle for Google Play: the same app without Aptabase. Uploaded to Play Console at the end (as a draft
       # on the closed test), and kept on this run's page (Artifacts) too.
+      # Google Play knows the app by its own upload key, not the APK's: signed with that one when its secrets are
+      # there (FRANXIT_PLAY_KEYSTORE_BASE64, FRANXIT_PLAY_KEYSTORE_PASSWORD, FRANXIT_PLAY_KEY_ALIAS), else with the APK's.
+      - name: Restore Play upload key
+        id: playkey
+        if: steps.key.outputs.signed == 'true'
+        env:
+          PLAY_KEYSTORE_BASE64: ${{ secrets.FRANXIT_PLAY_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$PLAY_KEYSTORE_BASE64" ]; then
+            echo "$PLAY_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/play.jks"
+            echo "own=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No Play upload key (FRANXIT_PLAY_KEYSTORE_BASE64): the bundle is signed with the APK's key."
+            echo "own=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Play bundle
         if: steps.key.outputs.signed == 'true'
         env:
-          FRANXIT_KEYSTORE: ${{ runner.temp }}/release.jks
-          FRANXIT_KEYSTORE_PASSWORD: ${{ secrets.FRANXIT_KEYSTORE_PASSWORD }}
-          FRANXIT_KEY_ALIAS: franxit
+          FRANXIT_KEYSTORE: ${{ steps.playkey.outputs.own == 'true' && format('{0}/play.jks', runner.temp) || format('{0}/release.jks', runner.temp) }}
+          FRANXIT_KEYSTORE_PASSWORD: ${{ steps.playkey.outputs.own == 'true' && secrets.FRANXIT_PLAY_KEYSTORE_PASSWORD || secrets.FRANXIT_KEYSTORE_PASSWORD }}
+          FRANXIT_KEY_ALIAS: ${{ steps.playkey.outputs.own == 'true' && secrets.FRANXIT_PLAY_KEY_ALIAS || 'franxit' }}
           FRANXIT_BUILD: ${{ env.BUILD }}
           APP_TOKEN: ${{ secrets.APP_TOKEN }}
         run: ./gradlew bundlePlayRelease --console=plain
