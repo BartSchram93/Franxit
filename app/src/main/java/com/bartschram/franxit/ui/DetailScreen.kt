@@ -231,8 +231,11 @@ fun DetailScreen(
                     } else if (!openingShop) {
                         openingShop = true
                         scope.launch {
-                            uri.openUri(shopLink(best?.seller?.takeIf { bestPercent != null }) ?: product.url)
-                            openingShop = false
+                            try {
+                                uri.openUri(shopLink(best?.seller?.takeIf { bestPercent != null }) ?: product.url)
+                            } finally {
+                                openingShop = false
+                            }
                         }
                     }
                 },
@@ -506,8 +509,11 @@ private fun ShopsToday(
                 ) {
                     opening = offer.seller
                     scope.launch {
-                        uri.openUri(shopLink(offer.seller) ?: product.url)
-                        opening = null
+                        try {
+                            uri.openUri(shopLink(offer.seller) ?: product.url)
+                        } finally {
+                            opening = null
+                        }
                     }
                 }
                 .padding(vertical = 12.dp),
