@@ -265,6 +265,16 @@ class Repository private constructor(context: Context) {
     }
 
 
+    /** Today's shops of [product] as their own pages show them now, stored again when that changed anything. */
+    private fun recheckShopPages(product: Product) {
+        val checked = checkShopPages(product, product.offers, Scraper.Result(product.name, emptyList()))
+        if (checked == product.offers) return
+        db.replaceOffers(product.id, checked)
+        val cheapest = Offers.cheapest(checked) ?: return
+        val now = System.currentTimeMillis()
+        db.savePrice(product.id, PricePoint(LocalDate.now(), cheapest.price, cheapest.seller, checked.size, now, cheapest.inStock))
+    }
+
     /** Shop pages read at the same time; a check waits at most [SHOP_CHECK_SECONDS] for all of them. */
     private val shopReaders = java.util.concurrent.Executors.newFixedThreadPool(4)
     private val SHOP_CHECK_SECONDS = 25L
@@ -281,7 +291,9 @@ class Repository private constructor(context: Context) {
     private fun checkShopPages(product: Product, offers: List<ShopOffer>, own: Scraper.Result): List<ShopOffer> {
         val ownHost = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
         val links = offers.associate { offer ->
+            // A link through Google (".../url?q=https://www.coolblue.be/...") is read at the shop's own address.
             val link = listOf(ShoppingSettings.link(appContext, product.id, offer.seller), ShoppingSettings.shoparizeLink(appContext, product.id, offer.seller))
+                .map(ShopCheck::direct)
                 .firstOrNull(ShopCheck::isProductPage)
                 ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
             offer.seller to link
@@ -456,8 +468,12 @@ class Repository private constructor(context: Context) {
     private fun check(product: Product, onFirstResults: (() -> Unit)? = null): Alert? {
         val now = System.currentTimeMillis()
         val query = GoogleShopping.queryOf(product.url)
-        // Google Shopping costs a search of your plan: at most once a day per product.
-        if (query != null && product.latest?.day == LocalDate.now() && product.lastError == null) return null
+        // Google Shopping costs a search of your plan: at most once a day per product. The shops' own pages cost
+        // none: a refresh reads them again (sold out since this morning at Coolblue).
+        if (query != null && product.latest?.day == LocalDate.now() && product.lastError == null) {
+            recheckShopPages(product)
+            return null
+        }
         val result = try {
             if (query == null) Scraper.fetch(product.url) else searchGoogleShopping(product.id, query)
         } catch (e: Exception) {

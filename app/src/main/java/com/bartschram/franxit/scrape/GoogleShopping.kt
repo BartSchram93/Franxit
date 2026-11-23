@@ -22,6 +22,8 @@ object GoogleShopping {
     private val BIG_SHOPS = listOf(
         "bol" to "bol.com", "coolblue" to "coolblue.be", "fnac" to "fnac.be", "mediamarkt" to "mediamarkt.be",
         "krefel" to "krefel.be", "krëfel" to "krefel.be",
+        // Brand stores Google Shopping names without a site.
+        "nintendo" to "nintendo.com",
     )
 
     /**

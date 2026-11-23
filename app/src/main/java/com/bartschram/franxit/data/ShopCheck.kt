@@ -44,6 +44,23 @@ internal object ShopCheck {
         return checked
     }
 
+    /**
+     * The shop's own address in a link through Google ("https://www.google.com/url?q=https://www.coolblue.be/…"), as
+     * Google Shopping gives many: the shop's page is read, not Google's. Other links as they are.
+     */
+    fun direct(link: String?): String? {
+        if (link == null) return null
+        val host = link.substringAfter("//").substringBefore('/').lowercase()
+        if (!host.contains("google.")) return link
+        val query = link.substringAfter('?', "")
+        val target = query.split('&').firstNotNullOfOrNull { part ->
+            val (key, value) = part.substringBefore('=') to part.substringAfter('=', "")
+            if (key in setOf("q", "url", "adurl")) runCatching { java.net.URLDecoder.decode(value, "UTF-8") }.getOrNull() else null
+        }
+        return target?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
+            ?.takeIf { !it.substringAfter("//").substringBefore('/').contains("google.") } ?: link
+    }
+
     /** A link that is a shop's product page, not a search that leads to one. */
     fun isProductPage(link: String?): Boolean =
         link != null && (link.startsWith("https://") || link.startsWith("http://")) &&

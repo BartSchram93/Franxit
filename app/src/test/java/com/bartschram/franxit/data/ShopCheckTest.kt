@@ -40,4 +40,17 @@ class ShopCheckTest {
         assertFalse(ShopCheck.isProductPage("https://www.google.be/search?q=Zelda+nintendo"))
         assertFalse(ShopCheck.isProductPage(null))
     }
+
+    @Test
+    fun aLinkThroughGoogleIsReadAtTheShop() {
+        assertEquals(
+            "https://www.coolblue.be/nl/product/971234/zelda.html",
+            ShopCheck.direct("https://www.google.com/url?sa=t&q=https%3A%2F%2Fwww.coolblue.be%2Fnl%2Fproduct%2F971234%2Fzelda.html&ved=x"),
+        )
+        assertEquals("https://www.fnac.be/a123", ShopCheck.direct("https://www.fnac.be/a123"))
+        // Without the shop's address in it, it stays (and isn't read).
+        val aclk = "https://www.google.com/aclk?sa=l&ai=abc"
+        assertEquals(aclk, ShopCheck.direct(aclk))
+        assertFalse(ShopCheck.isProductPage(ShopCheck.direct(aclk)))
+    }
 }
