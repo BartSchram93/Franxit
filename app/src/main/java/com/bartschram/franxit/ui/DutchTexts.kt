@@ -234,10 +234,4 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Google Shopping had a problem, tried again at the next check" to "Google Shopping had een probleem, de volgende controle probeert opnieuw",
     "Google Shopping couldn't be reached" to "Google Shopping was niet bereikbaar",
     "Not found on comparison sites · checked once a day" to "Niet gevonden op vergelijkingssites · één keer per dag gecontroleerd",
-    "Checked at the shop" to "Gecontroleerd bij de winkel",
-    "Not checked: the shop doesn't let the app in" to "Niet gecontroleerd: de winkel laat de app niet toe",
-    "Not checked: the shop's page can't be read" to "Niet gecontroleerd: de pagina van de winkel is niet leesbaar",
-    "Not checked: product page not found" to "Niet gecontroleerd: productpagina niet gevonden",
-    "Not checked: search for the page blocked" to "Niet gecontroleerd: zoeken naar de pagina geblokkeerd",
-    "Stock not confirmed at %s" to "Voorraad bij %s niet bevestigd",
 )

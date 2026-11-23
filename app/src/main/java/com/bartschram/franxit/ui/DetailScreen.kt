@@ -195,16 +195,6 @@ fun DetailScreen(
                     Spacer(Modifier.height(4.dp))
                     Text("Out of stock", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                // The price is of a shop that couldn't be checked, while one that was is sold out: this one may be too.
-                val unconfirmed = remember(product) {
-                    val head = shopStatus(latest.seller)
-                    head != null && head != com.bartschram.franxit.data.ShopCheck.Status.CHECKED && latest.inStock != false &&
-                        product.offers.any { it.inStock == false && shopStatus(it.seller) == com.bartschram.franxit.data.ShopCheck.Status.CHECKED }
-                }
-                if (unconfirmed) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(t("Stock not confirmed at %s", Shops.name(latest.seller)), style = MaterialTheme.typography.bodyMedium, color = Warning)
-                }
                 product.targetPrice?.let {
                     Spacer(Modifier.height(4.dp))
                     TargetLine(it, latest.price, muted = !product.notify)
@@ -505,11 +495,6 @@ private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopSta
                 if (offer.inStock == false) {
                     Text("Out of stock", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                // How the price was checked: at the shop itself, or why not.
-                val status = remember(product, offer.seller) { shopStatus(offer.seller) }
-                statusText(status)?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
             }
             if (opening == offer.seller) {
                 LoadingDots(dotSize = 5.dp)
@@ -640,12 +625,3 @@ internal fun SearchingWords(first: String = "Searching…") {
     androidx.compose.material3.Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-/** The line under a shop for how its price was checked (ShopCheck.Status); null when there's nothing to say. */
-private fun statusText(status: String?): String? = when (status) {
-    com.bartschram.franxit.data.ShopCheck.Status.CHECKED -> t("Checked at the shop")
-    com.bartschram.franxit.data.ShopCheck.Status.BLOCKED -> t("Not checked: the shop doesn't let the app in")
-    com.bartschram.franxit.data.ShopCheck.Status.UNREADABLE -> t("Not checked: the shop's page can't be read")
-    com.bartschram.franxit.data.ShopCheck.Status.NOT_FOUND -> t("Not checked: product page not found")
-    com.bartschram.franxit.data.ShopCheck.Status.SEARCH_BLOCKED -> t("Not checked: search for the page blocked")
-    else -> null
-}

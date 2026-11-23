@@ -234,10 +234,4 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Google Shopping had a problem, tried again at the next check" to "Google Shopping a eu un problème, la prochaine vérification réessaie",
     "Google Shopping couldn't be reached" to "Google Shopping était injoignable",
     "Not found on comparison sites · checked once a day" to "Introuvable sur les comparateurs · vérifié une fois par jour",
-    "Checked at the shop" to "Vérifié chez le magasin",
-    "Not checked: the shop doesn't let the app in" to "Pas vérifié : le magasin n'accepte pas l'appli",
-    "Not checked: the shop's page can't be read" to "Pas vérifié : la page du magasin est illisible",
-    "Not checked: product page not found" to "Pas vérifié : page du produit introuvable",
-    "Not checked: search for the page blocked" to "Pas vérifié : recherche de la page bloquée",
-    "Stock not confirmed at %s" to "Stock chez %s non confirmé",
 )
