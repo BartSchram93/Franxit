@@ -48,18 +48,6 @@ object GoogleShopping {
             ?: ("https://www.google.be/search?q=" + URLEncoder.encode("${query.trim()} ${shop.trim()}", "UTF-8"))
     }
 
-    /**
-     * [url], a search that opens its first result ([siteSearchUrl]), as a Google search that lists the results
-     * instead; null for any other link. For a shop where DuckDuckGo found no page: its "first result" is then a page
-     * with only an ad (Artencraft.be), where Google's list can still have the shop's page.
-     */
-    fun listedSearchUrl(url: String): String? {
-        val prefix = "https://duckduckgo.com/?kl=be-nl&q="
-        if (!url.startsWith(prefix)) return null
-        val query = runCatching { java.net.URLDecoder.decode(url.removePrefix(prefix), "UTF-8") }.getOrNull() ?: return null
-        return "https://www.google.be/search?q=" + URLEncoder.encode(query.removePrefix("\\").trim(), "UTF-8")
-    }
-
     /** A search for [query] on the site [domain] only, that opens its first result: that site's page for it. */
     fun siteSearchUrl(query: String, domain: String): String =
         // DuckDuckGo's "\\" sends you straight to the first result: the shop's page, not a list of results first.

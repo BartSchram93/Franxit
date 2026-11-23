@@ -342,6 +342,21 @@ class Repository private constructor(context: Context) {
             }
         }
         if (toFollow.isNotEmpty()) runCatching { shopReaders.invokeAll(toFollow, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }
+        // Google Shopping's shops: their own page asked for now (one search each, kept for a day by the search
+        // service), so that it is read like any page and the Buy button opens it at once. One that Google gives no
+        // product page for is looked up below.
+        val resolving = offers.filter { landings[it.seller] == null && it.seller !in foreign && ShoppingSettings.foundLink(appContext, product.id, it.seller) == null }
+            .mapNotNull { offer ->
+                val token = ShoppingSettings.link(appContext, product.id, offer.seller)
+                    ?.takeIf { it.startsWith(GoogleShopping.TOKEN) }?.removePrefix(GoogleShopping.TOKEN) ?: return@mapNotNull null
+                java.util.concurrent.Callable {
+                    runCatching { GoogleShopping.storeLink(token, offer.seller) { a, b -> TrustedShops.same(a, b) } }.getOrNull()
+                        ?.takeIf { ShopCheck.isProductPage(ShopCheck.direct(it)) }
+                        ?.let { ShoppingSettings.saveLink(appContext, product.id, offer.seller, it) }
+                    Unit
+                }
+            }
+        if (resolving.isNotEmpty()) runCatching { shopReaders.invokeAll(resolving, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }
         // Shops whose only link (from Google or Shoparize) is clearly another product (a bundle at Coolblue): looked
         // up instead; left out when their right page isn't found, as their price is that other product's.
         val wrongLinks = mutableSetOf<String>()
@@ -517,12 +532,26 @@ class Repository private constructor(context: Context) {
             }
         }
         ShoppingSettings.saveShopStatuses(appContext, product.id, statuses)
+        // The Buy button's pages looked up before this check: the pages known now may be others.
+        links.keys.removeIf { it.startsWith("${product.id}|") }
         // Shops the product's own page lists (vergelijk.be's bol.com): their price is that page's, so a link from another
         // source that turns out to be another version (another colour, another product) says nothing about it.
         // (For a Google Shopping product its own offers are Google's: a page of another version leaves that shop out.)
         val ownSellers = if (GoogleShopping.queryOf(product.url) != null) emptyList() else own.offers.map { it.seller }
+        // Shops whose product page the app can't open: no page from any source, and none found when it looked today
+        // (Artencraft.be, where the Buy button opened a search with only an ad). Not shown: a shop is only listed when
+        // tapping it opens the product. Kept: the page the product was added from, vergelijk.be's shops (its own
+        // link takes you to the shop's page), and shops not looked up yet or whose search was blocked.
+        val noPage = offers.filter { offer ->
+            (allLinks[offer.seller] == null || offer.seller in wrongFinds) &&
+                !TrustedShops.same(offer.seller, ownHost) &&
+                clickLinks.none { TrustedShops.same(it.first, offer.seller) } &&
+                lookedUp["${product.id}|${offer.seller}"] == today
+        }.map { it.seller }.toSet()
+            // Never every shop: a product with no price at all says less than one shop to look up yourself.
+            .takeIf { gone -> offers.any { it.seller !in gone && it.seller !in foreign } }.orEmpty()
         return offers.mapNotNull { offer ->
-            if (offer.seller in foreign) return@mapNotNull null
+            if (offer.seller in foreign || offer.seller in noPage) return@mapNotNull null
             var page = if (offer.seller in wrongFinds) null else allLinks[offer.seller]?.let { seen[it]?.first }
             // Its source's link was another product, and its right page wasn't found: the price is that product's.
             if (page == null && offer.seller in wrongLinks && (allLinks[offer.seller] == null || offer.seller in wrongFinds)) page = ShopCheck.ELSEWHERE
@@ -567,12 +596,6 @@ class Repository private constructor(context: Context) {
                 if (shop != null && ShopCheck.isProductPage(found) && ShopCheck.isElsewhere(found, product.name)) {
                     BuyLink.orSearch(null, shop, buyName(product))
                 } else found
-            }
-            // DuckDuckGo found no page of this shop at the check: its "first result" would be a page with only an ad.
-            ?.let { found ->
-                val shop = BuyLink.shop(seller, product.offers)
-                val notFound = shop != null && ShoppingSettings.shopStatus(appContext, product.id, shop) == ShopCheck.Status.NOT_FOUND
-                if (notFound) GoogleShopping.listedSearchUrl(found) ?: found else found
             }
         if (link != null) links[key] = System.currentTimeMillis() to link
         return link
@@ -660,25 +683,6 @@ class Repository private constructor(context: Context) {
         }.getOrNull() ?: return fallback
         ShoppingSettings.saveLink(appContext, product.id, shop, link)
         return link
-    }
-
-    /**
-     * Google Shopping's page of each shop shown, looked up right after a check (one search per shop, kept by the
-     * search service for a day) instead of on a tap: asking Google on a tap could keep the Buy button loading for a
-     * minute or two. Shops whose page the app found and read itself need none: that page is opened.
-     */
-    private fun prepareStoreLinks(productId: Long, offers: List<ShopOffer>) {
-        background.launch {
-            for (shop in offers.map { it.seller }.distinct()) {
-                if (ShoppingSettings.foundLink(appContext, productId, shop) != null) continue
-                val token = ShoppingSettings.link(appContext, productId, shop)
-                    ?.takeIf { it.startsWith(GoogleShopping.TOKEN) }?.removePrefix(GoogleShopping.TOKEN) ?: continue
-                val link = runCatching { GoogleShopping.storeLink(token, shop) { a, b -> TrustedShops.same(a, b) } }.getOrNull() ?: continue
-                ShoppingSettings.saveLink(appContext, productId, shop, link)
-                // A tap before this was ready may have kept another page for the button.
-                links.keys.removeIf { it.startsWith("$productId|") }
-            }
-        }
     }
 
     /** What a shared product is, shown before you decide to track it: its name, photo and lowest price. */
@@ -811,7 +815,6 @@ class Repository private constructor(context: Context) {
         val shoparize = shoparizeShops(named, query)
         // Each shop's own page, where its link is known: sold out there, or another price, as the shop says it.
         val (offers, cheapest) = store(checkShopPages(named, combine(extras.offers, shoparize), result, lookups))
-        prepareStoreLinks(product.id, offers)
         // The shops are in: show them now, before the site's price history is fetched.
         onFirstResults?.invoke()
         if (cheapest == null) return null

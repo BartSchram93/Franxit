@@ -1,2 +1,2 @@
 • De Koop-knop noemt dezelfde winkel als die bovenaan de lijst, ook bij gelijke prijzen
-• Vindt de app geen pagina van een winkel, dan toont de knop zoekresultaten in plaats van een lege pagina
+• Winkels waarvan de app geen productpagina kan openen, worden niet meer getoond

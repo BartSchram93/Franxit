@@ -1,2 +1,2 @@
 • Le bouton Acheter indique la même boutique qu'en tête de liste, même à prix égal
-• Si l'app ne trouve pas la page d'une boutique, le bouton affiche des résultats de recherche au lieu d'une page vide
+• Les boutiques dont l'app ne peut pas ouvrir la page du produit ne sont plus affichées
