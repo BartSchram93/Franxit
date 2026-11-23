@@ -1,2 +1,3 @@
-• De Koop-knop opent de winkelpagina waarvan de prijs gelezen werd, of waar vergelijk.be naartoe leidt
+• De Koop-knop opent enkel nog productpagina's, nooit een zoekpagina
+• Winkels waarvan de app geen productpagina kent, worden niet getoond
 • Prijzen op Amazon worden beter gelezen

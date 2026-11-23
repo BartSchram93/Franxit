@@ -1,2 +1,3 @@
-• The Buy button opens the page the price was read from, or where vergelijk.be leads
+• The Buy button only opens product pages, never a search
+• Shops whose product page the app doesn't know are not shown
 • Prices on Amazon are read better

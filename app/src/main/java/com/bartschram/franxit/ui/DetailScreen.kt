@@ -233,7 +233,8 @@ fun DetailScreen(
                         openingShop = true
                         scope.launch {
                             try {
-                                uri.openUri(shopLink(best?.seller?.takeIf { bestPercent != null }) ?: product.url)
+                                // Only a product page: the shop's, else vergelijk.be's own page of the product; never a search.
+                                (shopLink(best?.seller?.takeIf { bestPercent != null }) ?: product.url.takeIf { com.bartschram.franxit.scrape.GoogleShopping.queryOf(it) == null })?.let(uri::openUri)
                             } finally {
                                 openingShop = false
                             }
@@ -514,7 +515,7 @@ private fun ShopsToday(
                     opening = offer.seller
                     scope.launch {
                         try {
-                            uri.openUri(shopLink(offer.seller) ?: product.url)
+                            (shopLink(offer.seller) ?: product.url.takeIf { com.bartschram.franxit.scrape.GoogleShopping.queryOf(it) == null })?.let(uri::openUri)
                         } finally {
                             opening = null
                         }

@@ -554,14 +554,14 @@ class Repository private constructor(context: Context) {
         // (Artencraft.be, where the Buy button opened a search with only an ad). Not shown: a shop is only listed when
         // tapping it opens the product. Kept: the page the product was added from, vergelijk.be's shops (its own
         // link takes you to the shop's page), and shops not looked up yet or whose search was blocked.
+        // Not even when its lookup was blocked or is still to come: only shops whose product page can be opened are
+        // listed (a search instead of the product is never shown).
         val noPage = offers.filter { offer ->
             (allLinks[offer.seller] == null || offer.seller in wrongFinds) &&
                 !TrustedShops.same(offer.seller, ownHost) &&
                 clickLinks.none { TrustedShops.same(it.first, offer.seller) } &&
-                lookedUp["${product.id}|${offer.seller}"] == today
+                landings[offer.seller] == null
         }.map { it.seller }.toSet()
-            // Never every shop: a product with no price at all says less than one shop to look up yourself.
-            .takeIf { gone -> offers.any { it.seller !in gone && it.seller !in foreign } }.orEmpty()
         return offers.mapNotNull { offer ->
             if (offer.seller in foreign || offer.seller in noPage) return@mapNotNull null
             var page = if (offer.seller in wrongFinds) null else allLinks[offer.seller]?.let { seen[it]?.first }
@@ -600,15 +600,9 @@ class Repository private constructor(context: Context) {
         // By the shop the button names: after a check the cheapest can be another shop.
         val key = "${product.id}|${BuyLink.shop(seller, product.offers).orEmpty()}"
         links[key]?.takeIf { System.currentTimeMillis() - it.first < LINK_MS }?.let { return it.second }
-        val link = shopLinkUnchecked(product, seller)?.takeIf { it.startsWith("https://") || it.startsWith("http://") }
-            // A shop's search or list page, or another product's page ("fr.fnac.be/se77634/La-Legende-des-Quatres"
-            // for a keyboard bench): a search for the product on the shop's site instead.
-            ?.let { found ->
-                val shop = BuyLink.shop(seller, product.offers)
-                if (shop != null && ShopCheck.isProductPage(found) && ShopCheck.isElsewhere(found, product.name)) {
-                    BuyLink.orSearch(null, shop, buyName(product))
-                } else found
-            }
+        // Only ever a product page: never a search (DuckDuckGo, Google, the shop's own), a list, or another product's
+        // page. Null when there is none: then nothing of that shop is opened.
+        val link = shopLinkUnchecked(product, seller)?.takeIf { openable(it, product) }
         if (link != null) links[key] = System.currentTimeMillis() to link
         return link
     }
@@ -676,12 +670,13 @@ class Repository private constructor(context: Context) {
             else -> runCatching { BuyLink.fromPage(buyPage(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
                 ?: shop?.let { shoparizeShopLink(product, it) }
         }
-        found?.takeIf { ShopCheck.isProductPage(it) }
-            ?: foundPage
-            ?: found
-            ?: googlePage
-            ?: BuyLink.orSearch(null, shop, buyName(product))
+        listOfNotNull(found, foundPage, googlePage).firstOrNull { openable(it, product) }
     }
+
+    /** A product page of the shop: not a search engine's page, not a search or list on the shop's site, not another product. */
+    private fun openable(link: String, product: Product): Boolean =
+        (link.startsWith("https://") || link.startsWith("http://")) &&
+            ShopCheck.isProductPage(ShopCheck.direct(link)) && !ShopCheck.isElsewhere(link, product.name)
 
     /**
      * A shop that Shoparize listed for this product: where it can be bought is the shop's own product page when

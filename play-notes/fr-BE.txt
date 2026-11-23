@@ -1,2 +1,3 @@
-• Le bouton Acheter ouvre la page dont le prix a été lu, ou celle où mène vergelijk.be
+• Le bouton Acheter n'ouvre plus que des pages de produit, jamais une recherche
+• Les boutiques dont l'app ne connaît pas la page du produit ne sont pas affichées
 • Les prix sur Amazon sont mieux lus
