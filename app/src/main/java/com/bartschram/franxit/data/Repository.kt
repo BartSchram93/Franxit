@@ -336,13 +336,21 @@ class Repository private constructor(context: Context) {
         val browserBudget = if (single) BROWSER_ONE else BROWSER_READS
         val waitSeconds = if (single) BROWSER_WAIT_SECONDS else SHOP_CHECK_SECONDS
         val browserSearches = java.util.concurrent.atomic.AtomicInteger(browserBudget)
-        val browser = { url: String -> if (browserSearches.getAndDecrement() > 0) BrowserPages.html(appContext, url, DuckDuckGo::hasResults) else null }
+        val browser = { url: String, ready: (String) -> Boolean -> if (browserSearches.getAndDecrement() > 0) BrowserPages.html(appContext, url, ready) else null }
+        // What happened to each shop, shown when you hold it down: to find out why a price wasn't checked.
+        val notes = java.util.concurrent.ConcurrentHashMap<String, String>()
         val found = toFind.map { (seller, site) ->
             java.util.concurrent.Callable {
                 val lookup = runCatching { if (site != null) DuckDuckGo.productPage(searchName, site, browser) else DuckDuckGo.shopPage(searchName, seller, browser) }
                     .getOrElse { DuckDuckGo.Lookup(null, blocked = true) }
                 // Not a page that its address says is another product.
                 val page = lookup.page?.takeIf { url -> !Matching.isOtherProduct(Matching.titleFromLink(url).orEmpty(), name) }
+                notes[seller] = when {
+                    page != null -> "Found: $page"
+                    lookup.page != null -> "Found another product: ${lookup.page}"
+                    lookup.blocked -> "Search blocked (DuckDuckGo, browser, Bing)"
+                    else -> "No page found on " + (site ?: "the shop's site")
+                }
                 if (page == null) statuses[seller] = if (lookup.blocked) ShopCheck.Status.SEARCH_BLOCKED else ShopCheck.Status.NOT_FOUND
                 if (!lookup.blocked) lookedUp["${product.id}|$seller"] = today
                 seller to page
@@ -411,6 +419,20 @@ class Repository private constructor(context: Context) {
                 }
         }
         offers.forEach { offer -> allLinks[offer.seller]?.let { seen[it] }?.let { statuses[offer.seller] = it.second } }
+        offers.forEach { offer ->
+            val link = allLinks[offer.seller] ?: return@forEach
+            val read = seen[link]
+            val what = when {
+                read == null -> "not read in time"
+                read.first?.otherColour == true -> "another colour"
+                read.first?.otherProduct == true -> "another product or a list"
+                read.first != null -> "price ${read.first?.price ?: "-"}, in stock ${read.first?.inStock ?: "?"}"
+                read.second == ShopCheck.Status.BLOCKED -> "the shop keeps the app out"
+                else -> "no price readable"
+            }
+            notes[offer.seller] = (notes[offer.seller]?.let { "$it\n" } ?: "") + "Read $link: $what"
+        }
+        ShoppingSettings.saveShopNotes(appContext, product.id, notes)
         // A page the app found itself: kept when it is this product, else forgotten, and then it says nothing about
         // the shop (which stays, with the price its source gave): it may just be the wrong page of that shop.
         val wrongFinds = mutableSetOf<String>()

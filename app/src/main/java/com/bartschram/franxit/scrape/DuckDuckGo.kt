@@ -70,7 +70,7 @@ object DuckDuckGo {
     }
 
     /** The product page of [query] at the shop called [shop] (no site known): the first result on that shop's site. */
-    fun shopPage(query: String, shop: String, browser: ((String) -> String?)? = null): Lookup =
+    fun shopPage(query: String, shop: String, browser: ((String, (String) -> Boolean) -> String?)? = null): Lookup =
         search("${query.trim()} ${shop.trim()}", { isShopsSite(it, shop) }, browser)
 
     /**
@@ -94,7 +94,7 @@ object DuckDuckGo {
     internal fun lookupInBrowserPage(html: String, accept: (String) -> Boolean): Lookup {
         lookup(html, accept).page?.let { return Lookup(it) }
         val page = ANY_LINK.findAll(html).map { it.groupValues[1].replace("&amp;", "&") }
-            .filter { "duckduckgo.com" !in it.substringAfter("//").substringBefore('/') && !isOtherCountry(it) }
+            .filter { url -> val host = url.substringAfter("//").substringBefore('/'); "duckduckgo.com" !in host && "bing." !in host && "microsoft." !in host && !isOtherCountry(url) }
             .firstOrNull { url -> accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) }
         return Lookup(page)
     }
@@ -103,7 +103,7 @@ object DuckDuckGo {
      * [words] searched on the simple results page, on the other one when the first gave a check page, and then in a
      * [browser] (DuckDuckGo blocks an app's searches after a few, a browser's much less): the page's HTML, or null.
      */
-    private fun search(words: String, accept: (String) -> Boolean, browser: ((String) -> String?)?): Lookup {
+    private fun search(words: String, accept: (String) -> Boolean, browser: ((String, (String) -> Boolean) -> String?)?): Lookup {
         val q = URLEncoder.encode(words.trim(), "UTF-8")
         // Blocked a moment ago: straight to the browser, without two searches that would be blocked again.
         if (browser == null || System.currentTimeMillis() >= blockedUntil) {
@@ -113,12 +113,19 @@ object DuckDuckGo {
             if (!lite.blocked || browser == null) return lite
             blockedUntil = System.currentTimeMillis() + BLOCKED_FOR_MS
         }
-        val html = runCatching { browser("https://duckduckgo.com/?q=$q&ia=web") }.getOrNull() ?: return Lookup(null, blocked = true)
-        return lookupInBrowserPage(html, accept)
+        runCatching { browser("https://duckduckgo.com/?q=$q&ia=web", ::hasResults) }.getOrNull()
+            ?.let { return lookupInBrowserPage(it, accept) }
+        // DuckDuckGo shows no results even in a browser: Bing's results page, in the browser too.
+        val bing = runCatching { browser("https://www.bing.com/search?q=$q&setlang=nl&cc=BE", ::hasBingResults) }.getOrNull()
+            ?: return Lookup(null, blocked = true)
+        return lookupInBrowserPage(bing, accept)
     }
 
+    /** Whether Bing's results page shows its results (or that there are none) yet. */
+    fun hasBingResults(html: String): Boolean = "b_algo" in html || "b_no" in html
+
     /** The product page of [query] on [site], as DuckDuckGo finds it first. */
-    fun productPage(query: String, site: String, browser: ((String) -> String?)? = null): Lookup {
+    fun productPage(query: String, site: String, browser: ((String, (String) -> Boolean) -> String?)? = null): Lookup {
         val wanted = site.lowercase().removePrefix("www.")
         return search("${query.trim()} site:$site", { host -> host == wanted || host.endsWith(".$wanted") }, browser)
     }

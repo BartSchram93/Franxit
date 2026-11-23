@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -117,6 +118,8 @@ fun DetailScreen(
     shopLink: suspend (seller: String?) -> String?,
     /** How a shop's price was checked (ShopCheck.Status), shown under it; null when not known. */
     shopStatus: (seller: String) -> String? = { null },
+    /** What happened to a shop at the last check, for finding out why its price wasn't checked (held down). */
+    shopNote: (seller: String) -> String? = { null },
     /** "Also search Google Shopping": null when it doesn't apply (no key, or a Google Shopping product). */
     googleAuto: Boolean = false,
     photoChoice: Photos.Choice = Photos.Choice.SITE,
@@ -296,7 +299,7 @@ fun DetailScreen(
                 }
             }
 
-            ShopsToday(product, discounts, shopStatus) { seller -> shopLink(seller) }
+            ShopsToday(product, discounts, shopStatus, shopNote) { seller -> shopLink(seller) }
             // Few shops: more are searched for by themselves; the customer only sees the usual searching words.
             // Or a product still being looked up for the first time: nothing to show yet but the words.
             if (refreshing && (googleAuto || product.latest == null)) {
@@ -452,7 +455,24 @@ private fun filter(history: List<PricePoint>, span: Span): List<PricePoint> {
  * at that shop (through a fresh vergelijk.be link), so you can pick where to buy yourself.
  */
 @Composable
-private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopStatus: (String) -> String?, shopLink: suspend (String) -> String?) {
+@OptIn(ExperimentalFoundationApi::class)
+private fun ShopsToday(
+    product: Product,
+    discounts: Map<String, Double>,
+    shopStatus: (String) -> String?,
+    shopNote: (String) -> String?,
+    shopLink: suspend (String) -> String?,
+) {
+    // Held down: what happened to that shop at the last check.
+    var note by remember { mutableStateOf<Pair<String, String>?>(null) }
+    note?.let { (shop, text) ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { note = null },
+            title = { androidx.compose.material3.Text(shop) },
+            text = { androidx.compose.material3.Text(text, style = MaterialTheme.typography.bodySmall) },
+            confirmButton = { TextButton(onClick = { note = null }) { androidx.compose.material3.Text("OK") } },
+        )
+    }
     // Cheapest for you first: with a shop discount that can differ from the shops' own order.
     val offers = remember(product.offers, discounts) {
         mergeSameShop(product.offers).sortedWith(compareBy({ it.inStock == false }, { Discounts.yourPrice(it, discounts) }))
@@ -480,7 +500,10 @@ private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopSta
         Row(
             Modifier
                 .fillMaxWidth()
-                .clickable(enabled = opening == null) {
+                .combinedClickable(
+                    enabled = opening == null,
+                    onLongClick = { note = Shops.name(offer.seller) to (shopNote(offer.seller) ?: "Not checked at the shop yet.") },
+                ) {
                     opening = offer.seller
                     scope.launch {
                         uri.openUri(shopLink(offer.seller) ?: product.url)

@@ -116,6 +116,17 @@ object ShoppingSettings {
         if (site !in sites) prefs(context).edit { putStringSet("browser_sites", sites + site) }
     }
 
+    /** What happened to each shop at the last check (found pages, what they said): shown when it is held down. */
+    fun saveShopNotes(context: Context, productId: Long, notes: Map<String, String>) {
+        if (notes.isEmpty()) return
+        val all = prefs(context).getString("shop_notes_$productId", null)?.let(::JSONObject) ?: JSONObject()
+        notes.forEach { (shop, note) -> all.put(TrustedShops.key(shop), note) }
+        prefs(context).edit { putString("shop_notes_$productId", all.toString()) }
+    }
+
+    fun shopNote(context: Context, productId: Long, shop: String): String? =
+        prefs(context).getString("shop_notes_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)).takeIf(String::isNotBlank) }
+
     /** How each shop's price of a product was checked (ShopCheck.Status), by shop: the last word for each. */
     fun saveShopStatuses(context: Context, productId: Long, statuses: Map<String, String>) {
         if (statuses.isEmpty()) return
