@@ -1,1 +1,2 @@
-• De Koop-knop opent de winkelpagina waarvan de prijs gelezen werd
+• De Koop-knop opent de winkelpagina waarvan de prijs gelezen werd, of waar vergelijk.be naartoe leidt
+• Prijzen op Amazon worden beter gelezen

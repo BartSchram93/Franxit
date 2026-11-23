@@ -1,1 +1,2 @@
-• The Buy button opens the shop page the price was read from
+• The Buy button opens the page the price was read from, or where vergelijk.be leads
+• Prices on Amazon are read better

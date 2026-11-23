@@ -38,4 +38,13 @@ class AmazonPageTest {
         assertEquals(1119.0, AmazonPage.euros("EUR 1.119,00")!!, 0.001)
         assertEquals(119.0, AmazonPage.euros("119,00 €")!!, 0.001)
     }
+
+    @Test
+    fun thePhoneLayoutsPrice() {
+        // A phone's page: the price in whole and fraction, in the phone's price block.
+        val html = """<div id="corePriceDisplay_mobile_feature_div"><span class="a-price"><span class="a-price-symbol">€</span><span class="a-price-whole">360<span class="a-price-decimal">,</span></span><span class="a-price-fraction">00</span></span></div>"""
+        assertEquals(360.0, AmazonPage.parse(html)!!.offers.single().price, 0.001)
+        val big = """<div id="apex_mobile"><span class="a-price-whole">1.119<span class="a-price-decimal">,</span></span><span class="a-price-fraction">99</span></div>"""
+        assertEquals(1119.99, AmazonPage.parse(big)!!.offers.single().price, 0.001)
+    }
 }

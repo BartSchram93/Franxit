@@ -648,6 +648,11 @@ class Repository private constructor(context: Context) {
         shop?.let { ShoppingSettings.checkedLink(appContext, product.id, it) }
             ?.takeIf { !ShoppingSettings.isWrongLink(appContext, product.id, it) }
             ?.let { return@withContext it }
+        // Where vergelijk.be's own link for this shop landed (Amazon.com.be's tablet page): the shop's page for its price,
+        // even when the app couldn't read the price there.
+        shop?.let { ShoppingSettings.landing(appContext, product.id, it) }
+            ?.takeIf { it.startsWith("http") && !DuckDuckGo.isForeignSite(it) && !ShoppingSettings.isWrongLink(appContext, product.id, it) }
+            ?.let { return@withContext it }
         // Google's page for the shop (a search on its site when Google gave none).
         val googlePage = shop?.let { ShoppingSettings.link(appContext, product.id, it) }?.let { link ->
             if (link.startsWith(GoogleShopping.TOKEN)) {

@@ -9,7 +9,12 @@ object AmazonPage {
 
     private val TWISTER = Regex("""id=["']twister-plus-price-data-price["'][^>]*value=["']([0-9.]+)["']""")
     private val PRICE_AMOUNT = Regex(""""priceAmount"\s*:\s*([0-9]+(?:\.[0-9]+)?)""")
-    private val CORE_PRICE = Regex("""id=["'](?:corePrice_feature_div|corePriceDisplay_desktop_feature_div|corePrice_desktop)["'][\s\S]{0,3000}?class=["']a-offscreen["']>\s*([^<]{1,40})<""")
+    // The price block of the product shown, on the desktop and the phone layout (a phone got the phone's:
+    // "no price readable" on the TCL NXTPAPER 14 at € 360).
+    private const val PRICE_BLOCKS = "corePrice_feature_div|corePriceDisplay_desktop_feature_div|corePrice_desktop|" +
+        "corePriceDisplay_mobile_feature_div|corePrice_mobile_feature_div|apex_desktop|apex_mobile|apex_offerDisplay_mobile"
+    private val CORE_PRICE = Regex("""id=["'](?:$PRICE_BLOCKS)["'][\s\S]{0,3000}?class=["']a-offscreen["']>\s*([^<]{1,40})<""")
+    private val WHOLE_PRICE = Regex("""id=["'](?:$PRICE_BLOCKS)["'][\s\S]{0,3000}?class=["']a-price-whole["']>\s*([0-9][0-9.,]*)[\s\S]{0,200}?class=["']a-price-fraction["']>\s*([0-9]{2})""")
     private val AVAILABILITY = Regex("""id=["']availability["'][^>]*>([\s\S]{0,600}?)</div>""")
     private val UNAVAILABLE = Regex("""currently unavailable|momenteel niet (?:verkrijgbaar|beschikbaar)|actuellement indisponible|niet op voorraad|out of stock""", RegexOption.IGNORE_CASE)
 
@@ -19,6 +24,7 @@ object AmazonPage {
     fun parse(html: String): Scraper.Result? {
         val price = TWISTER.find(html)?.groupValues?.get(1)?.toDoubleOrNull()
             ?: CORE_PRICE.find(html)?.groupValues?.get(1)?.let(::euros)
+            ?: WHOLE_PRICE.find(html)?.let { m -> euros(m.groupValues[1].trimEnd('.', ',') + "," + m.groupValues[2]) }
             ?: PRICE_AMOUNT.find(html)?.groupValues?.get(1)?.toDoubleOrNull()
         val availability = AVAILABILITY.find(html)?.groupValues?.get(1)?.replace(Regex("<[^>]+>"), " ")?.trim().orEmpty()
         val inStock = when {

@@ -1,1 +1,2 @@
-• Le bouton Acheter ouvre la page de la boutique dont le prix a été lu
+• Le bouton Acheter ouvre la page dont le prix a été lu, ou celle où mène vergelijk.be
+• Les prix sur Amazon sont mieux lus
