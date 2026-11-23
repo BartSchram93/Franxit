@@ -180,10 +180,10 @@ class MatchingTest {
     }
 
     @Test
-    fun aNameWithAColourWantsATitleWithIt() {
+    fun aNameWithAColourKeepsOutTitlesOfAnother() {
         val black = "Duux Threesixty 2 Smart Elektrische Kachel Zwart"
-        // The gray one, by a title without its colour.
-        assertFalse(Matching.isSameProduct("Duux Threesixty 2 Smart Elektrische Kachel", black))
+        // Another colour is out; a title without one still counts (the shop's page tells its colour).
+        assertTrue(Matching.isSameProduct("Duux Threesixty 2 Smart Elektrische Kachel", black))
         assertFalse(Matching.isSameProduct("Duux Threesixty 2 Smart Heater Gray", black))
         assertTrue(Matching.isSameProduct("Duux Threesixty 2 Smart Elektrische Kachel - Zwart", black))
         assertTrue(Matching.isSameProduct("Duux Threesixty 2 Smart Elektrische Kachel Black", black))

@@ -120,9 +120,7 @@ object Matching {
         if (!wantCodes.all { it in haveCompact }) return false
         // The same product in another colour (a black watch for the silver one) is not this product.
         if (otherColour(title, wanted)) return false
-        // A name with a colour ("… - Zwart"): a title without one can be any colour (the Duux Threesixty 2 "Smart
-        // Heater" was the gray one, vergelijk.be's black one is only at bol.com). Every price has to be right.
-        if (colours(wanted).isNotEmpty() && colours(title).isEmpty()) return false
+        // A title without a colour still counts (shops often leave it out): the shop's own page is checked for it.
         // Another edition of it ("Patchwork Express", "Patchwork Doodle", an expansion) is another product at
         // another price: €20.99 at Fnac for "Patchwork" was one.
         if (otherEdition(title, wanted)) return false
