@@ -533,7 +533,7 @@ class Repository private constructor(context: Context) {
         }
         ShoppingSettings.saveShopStatuses(appContext, product.id, statuses)
         // The Buy button's pages looked up before this check: the pages known now may be others.
-        links.keys.removeIf { it.startsWith("${product.id}|") }
+        this.links.keys.removeIf { it.startsWith("${product.id}|") }
         // Shops the product's own page lists (vergelijk.be's bol.com): their price is that page's, so a link from another
         // source that turns out to be another version (another colour, another product) says nothing about it.
         // (For a Google Shopping product its own offers are Google's: a page of another version leaves that shop out.)
