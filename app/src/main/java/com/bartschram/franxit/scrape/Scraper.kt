@@ -76,6 +76,11 @@ object Scraper {
 
     /** The product on the page [html] of [url] (read here, or in a browser): its offers, or why there are none. */
     fun fromPage(html: String, url: String): Result {
+        // Amazon's pages have no product data: their price and stock are read from the places Amazon puts them.
+        if (AmazonPage.isAmazon(url)) {
+            AmazonPage.parse(html)?.let { return it }
+            if (AmazonPage.isSoldOut(html)) throw IOException("Not available at ${shop(url)} right now")
+        }
         return try {
             parse(html)
         } catch (e: IOException) {
