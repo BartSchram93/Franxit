@@ -141,7 +141,14 @@ jobs:
         run: |
           set -euo pipefail
           API=https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.bartschram.franxit
-          call() { curl -sS --fail-with-body -H "Authorization: Bearer $TOKEN" "$@"; }
+          # Google's own words when it refuses (no rights yet in Play Console, a language it doesn't know, ...).
+          call() {
+            local out code
+            out=$(curl -sS -w '\n%{http_code}' -H "Authorization: Bearer $TOKEN" "$@")
+            code=${out##*$'\n'}; out=${out%$'\n'*}
+            if [ "$code" -ge 400 ]; then echo "::error::Google Play $code: $(jq -r '.error.message? // .' <<< "$out" 2>/dev/null || echo "$out")" >&2; return 1; fi
+            printf '%s' "$out"
+          }
           EDIT=$(call -X POST "$API/edits" -H "Content-Type: application/json" -d '{}' | jq -r .id)
           CODE=$(call -X POST "https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/com.bartschram.franxit/edits/$EDIT/bundles?uploadType=media" \
             -H "Content-Type: application/octet-stream" --data-binary @app/build/outputs/bundle/playRelease/app-play-release.aab | jq -r .versionCode)
