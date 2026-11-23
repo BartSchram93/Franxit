@@ -1,7 +1,9 @@
 package com.bartschram.franxit.scrape
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DuckDuckGoTest {
@@ -35,5 +37,20 @@ class DuckDuckGoTest {
         assertEquals("fnac.be", GoogleShopping.siteOf("Fnac.be"))
         assertEquals("bax-shop.be", GoogleShopping.siteOf("Bax-shop.be"))
         assertNull(GoogleShopping.siteOf("Hiloro Digital"))
+    }
+
+    @Test
+    fun aShopKnownByItsNameIsFoundOnItsOwnSite() {
+        assertTrue(DuckDuckGo.isShopsSite("kamera-express.be", "Kamera Express"))
+        assertTrue(DuckDuckGo.isShopsSite("www.fotodevakman.be", "Fotodevakman"))
+        assertTrue(DuckDuckGo.isShopsSite("shop.cameranu.be", "Cameranu"))
+        assertFalse(DuckDuckGo.isShopsSite("bol.com", "Kamera Express"))
+        assertFalse(DuckDuckGo.isShopsSite("amazon.com.be", "Art & Craft"))
+        val page = result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.bol.com%2Fbe%2Fnl%2Fp%2Fselphy&amp;rut=a") +
+            result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.kamera-express.be%2Fproduct%2F12422729%2Fcanon-selphy-cp1500-black&amp;rut=b")
+        assertEquals(
+            "https://www.kamera-express.be/product/12422729/canon-selphy-cp1500-black",
+            DuckDuckGo.firstResult(page) { DuckDuckGo.isShopsSite(it, "Kamera Express") },
+        )
     }
 }

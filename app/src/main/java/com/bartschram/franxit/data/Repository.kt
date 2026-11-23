@@ -300,17 +300,20 @@ class Repository private constructor(context: Context) {
             offer.seller to link
         }
         val name = own.name.ifBlank { product.displayName }
-        // A shop listed without a page but with a known site (Nintendo's store): looked up on DuckDuckGo, at most a
-        // few per check and once a day per shop; a page that is this product is remembered for the Buy button.
+        // A shop listed without a page of its own (Nintendo's store from Google, Kamera Express from vergelijk.be,
+        // whose links are clicks it counts): looked up on DuckDuckGo, on its site when known, else by its name,
+        // the cheapest first, at most a few per check and once a day per shop. A page that is this product is
+        // remembered: read from then on, and opened by the Buy button.
         val today = LocalDate.now().toString()
         val toFind = offers.filter { links[it.seller] == null && !TrustedShops.same(it.seller, ownHost) }
-            .mapNotNull { offer -> GoogleShopping.siteOf(offer.seller)?.let { offer.seller to it } }
+            .sortedBy { it.price }
+            .map { offer -> offer.seller to GoogleShopping.siteOf(offer.seller) }
             .filter { (seller, _) -> lookedUp.put("${product.id}|$seller", today) != today }
             .take(MAX_LOOKUPS_PER_CHECK)
         val searchName = SearchNames.withBrand(product.displayName, ShoppingSettings.brand(appContext, product.id))
         val found = toFind.map { (seller, site) ->
             java.util.concurrent.Callable {
-                val page = runCatching { DuckDuckGo.productPage(searchName, site) }.getOrNull()
+                val page = runCatching { if (site != null) DuckDuckGo.productPage(searchName, site) else DuckDuckGo.shopPage(searchName, seller) }.getOrNull()
                     // Not a page that its address says is another product.
                     ?.takeIf { url -> !Matching.isOtherProduct(Matching.titleFromLink(url).orEmpty(), name) }
                 seller to page
@@ -346,7 +349,7 @@ class Repository private constructor(context: Context) {
 
     /** Shops looked up on DuckDuckGo, by product and shop, with the day: once a day each. */
     private val lookedUp = java.util.concurrent.ConcurrentHashMap<String, String>()
-    private val MAX_LOOKUPS_PER_CHECK = 3
+    private val MAX_LOOKUPS_PER_CHECK = 5
 
     /** Only web addresses are ever opened: a link from a shop or from Google is not trusted with any other kind. */
     suspend fun shopLink(product: Product, seller: String? = null): String? {
