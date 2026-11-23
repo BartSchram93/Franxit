@@ -21,6 +21,7 @@ class ScraperErrorsTest {
         assertEquals("Vtechnl.com didn't answer in time", Scraper.explain(SocketTimeoutException("timeout"), vtech))
         assertEquals("No internet connection, or Vtechnl.com can't be reached", Scraper.explain(UnknownHostException("www.vtechnl.com"), vtech))
         assertEquals("Vtechnl.com had a problem, tried again at the next check", Scraper.explain(IOException("HTTP 503"), vtech))
+        assertEquals("Connection to Vtechnl.com lost", Scraper.explain(java.net.SocketException("Software caused connection abort"), vtech))
         // The app's own messages pass unchanged.
         assertEquals("Vtechnl.com only allows browsers", Scraper.explain(IOException("Vtechnl.com only allows browsers"), vtech))
     }

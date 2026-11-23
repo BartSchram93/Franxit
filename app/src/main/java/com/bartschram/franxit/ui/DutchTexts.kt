@@ -233,4 +233,6 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Google Shopping had a problem, tried again at the next check" to "Google Shopping had een probleem, de volgende controle probeert opnieuw",
     "Google Shopping couldn't be reached" to "Google Shopping was niet bereikbaar",
     "Not found on comparison sites · checked once a day" to "Niet gevonden op vergelijkingssites · één keer per dag gecontroleerd",
+    "Connection lost, tried again at the next check" to "Verbinding verbroken, de volgende controle probeert opnieuw",
+    "Connection to %s lost" to "Verbinding met %s verbroken",
 )

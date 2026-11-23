@@ -51,6 +51,9 @@ object Scraper {
             e is SocketTimeoutException -> "$shop didn't answer in time"
             e is UnknownHostException -> "No internet connection, or $shop can't be reached"
             e is SSLException -> "Couldn't connect securely to $shop"
+            // "Software caused connection abort": the connection dropped (another network, the app in the background).
+            e is java.net.SocketException && e !is java.net.ConnectException -> "Connection to $shop lost"
+            e is java.net.ConnectException -> "No internet connection, or $shop can't be reached"
             // Sent round in circles: a shop that only lets browsers in (it wants cookies or scripts the app lacks).
             e is ProtocolException || message.startsWith("Too many") -> "$shop only allows browsers"
             Regex("""HTTP 5\d\d""").matches(message) -> "$shop had a problem, tried again at the next check"

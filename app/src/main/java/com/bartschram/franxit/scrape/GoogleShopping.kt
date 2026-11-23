@@ -136,6 +136,10 @@ object GoogleShopping {
                 return Scraper.download(PROXY + path, "application/json", token, SEARCH_TIMEOUT_MS)
             } catch (e: java.net.SocketTimeoutException) {
                 last = e
+            } catch (e: java.net.SocketException) {
+                // The connection dropped on the way (the phone changed networks, the app went to the background):
+                // asked once more.
+                last = e
             } catch (e: IOException) {
                 throw IOException(explain(e), e)
             }
@@ -145,11 +149,13 @@ object GoogleShopping {
 
     const val TOO_SLOW = "Google Shopping didn't answer in time, tried again at the next check"
     const val NO_CONNECTION = "No internet connection, tried again at the next check"
+    const val CONNECTION_LOST = "Connection lost, tried again at the next check"
 
     /** A failed request to the search service in words ("timeout" was all a check said). */
     internal fun explain(e: IOException): String = when {
         e is java.net.SocketTimeoutException -> TOO_SLOW
         e is java.net.UnknownHostException || e is java.net.ConnectException -> NO_CONNECTION
+        e is java.net.SocketException -> CONNECTION_LOST
         e.message == "HTTP 401" -> BAD_KEY
         e.message == "HTTP 429" -> NO_SEARCHES_LEFT
         e.message.orEmpty().matches(Regex("""HTTP 5\d\d""")) -> "Google Shopping had a problem, tried again at the next check"

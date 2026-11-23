@@ -105,4 +105,5 @@ private val SHOP_MESSAGES = listOf(
     "Not available at %s right now",
     "%s's page shows no price the app can read",
     "%s couldn't be read",
+    "Connection to %s lost",
 )
