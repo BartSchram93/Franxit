@@ -303,7 +303,7 @@ class Repository private constructor(context: Context) {
             val link = listOf(ShoppingSettings.link(appContext, product.id, offer.seller), ShoppingSettings.shoparizeLink(appContext, product.id, offer.seller))
                 .map(ShopCheck::direct)
                 // A page for another country (Nintendo's UK store, in pounds) is no link: the shop is looked up anew.
-                .firstOrNull { ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) }
+                .firstOrNull { it != null && ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) }
                 ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
             offer.seller to link
         }
