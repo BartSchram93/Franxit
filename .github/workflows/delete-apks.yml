@@ -1,0 +1,34 @@
+# One-off: removes every GitHub Release (each held an APK) from this repo and from franxit-download, tags included.
+# The app is only distributed through Google Play now. Runs once when this file is pushed; then it is deleted.
+name: Delete APKs
+
+on:
+  push:
+    branches: [claude/zealous-franklin-t9kp32]
+    paths: [.github/workflows/delete-apks.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - name: This repo's releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for tag in $(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --json tagName --jq '.[].tagName'); do
+            echo "Deleting $tag"
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          done
+
+      - name: The download page's releases
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::warning::No PUBLIC_REPO_TOKEN: the download page's releases stay."; exit 0; fi
+          for tag in $(gh release list --repo BartSchram93/franxit-download --limit 1000 --json tagName --jq '.[].tagName'); do
+            echo "Deleting $tag"
+            gh release delete "$tag" --repo BartSchram93/franxit-download --cleanup-tag --yes
+          done
