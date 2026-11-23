@@ -12,6 +12,11 @@ object DuckDuckGo {
 
     private const val BASE = "https://html.duckduckgo.com/html/?q="
 
+    /** Until when DuckDuckGo's simple pages are taken as blocking the app (an hour after they did). */
+    @Volatile
+    private var blockedUntil = 0L
+    private const val BLOCKED_FOR_MS = 60 * 60 * 1000L
+
     /** DuckDuckGo's other simple results page, asked when the first answers with a check page. */
     private const val LITE = "https://lite.duckduckgo.com/lite/?q="
 
@@ -89,10 +94,14 @@ object DuckDuckGo {
      */
     private fun search(words: String, accept: (String) -> Boolean, browser: ((String) -> String?)?): Lookup {
         val q = URLEncoder.encode(words.trim(), "UTF-8")
-        val first = runCatching { lookup(Scraper.download(BASE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
-        if (!first.blocked) return first
-        val lite = runCatching { lookup(Scraper.download(LITE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
-        if (!lite.blocked || browser == null) return lite
+        // Blocked a moment ago: straight to the browser, without two searches that would be blocked again.
+        if (browser == null || System.currentTimeMillis() >= blockedUntil) {
+            val first = runCatching { lookup(Scraper.download(BASE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
+            if (!first.blocked) return first
+            val lite = runCatching { lookup(Scraper.download(LITE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
+            if (!lite.blocked || browser == null) return lite
+            blockedUntil = System.currentTimeMillis() + BLOCKED_FOR_MS
+        }
         val html = runCatching { browser("https://duckduckgo.com/?q=$q&ia=web") }.getOrNull() ?: return Lookup(null, blocked = true)
         return lookupInBrowserPage(html, accept)
     }

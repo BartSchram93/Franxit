@@ -344,11 +344,15 @@ class Repository private constructor(context: Context) {
         val foundLinks = remembered + found
         val allLinks = links + foundLinks
         // What each page said, by link, with its status.
+        // Sites only a browser could read before: straight to the browser, without a request that is kept out anyway.
+        val browserSites = ShoppingSettings.browserSites(appContext)
+        fun siteOfLink(link: String) = runCatching { URI(link).host.removePrefix("www.") }.getOrDefault("")
         val tasks = allLinks.values.filterNotNull().distinct().map { link ->
             java.util.concurrent.Callable {
                 // A search or list page, or another product's page by its address: not read, the shop is left out.
                 if (ShopCheck.isElsewhere(link, name)) return@Callable Triple(link, ShopCheck.ELSEWHERE, ShopCheck.Status.CHECKED)
                 shopPages[link]?.takeIf { System.currentTimeMillis() - it.first < SHOP_CHECK_MS }?.let { return@Callable Triple(link, it.second.first, it.second.second) }
+                if (siteOfLink(link) in browserSites) return@Callable Triple(link, null, ShopCheck.Status.BLOCKED)
                 var error: String? = null
                 val seen = try {
                     ShopCheck.seen(Scraper.fetch(link), name)
@@ -378,6 +382,7 @@ class Repository private constructor(context: Context) {
             } ?: return@forEach
             seen[link] = page to ShopCheck.Status.CHECKED
             shopPages[link] = System.currentTimeMillis() to (page to ShopCheck.Status.CHECKED)
+            ShoppingSettings.addBrowserSite(appContext, siteOfLink(link))
         }
         offers.forEach { offer -> allLinks[offer.seller]?.let { seen[it] }?.let { statuses[offer.seller] = it.second } }
         // A page the app found itself: kept when it is this product, else forgotten, and then it says nothing about

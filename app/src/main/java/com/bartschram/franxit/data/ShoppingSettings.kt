@@ -108,6 +108,14 @@ object ShoppingSettings {
     fun foundLink(context: Context, productId: Long, shop: String): String? =
         prefs(context).getString("found_links_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)).takeIf(String::isNotBlank) }
 
+    /** Shop sites whose pages only a browser can read (they keep the app's own requests out): read there at once. */
+    fun browserSites(context: Context): Set<String> = prefs(context).getStringSet("browser_sites", emptySet()).orEmpty()
+
+    fun addBrowserSite(context: Context, site: String) {
+        val sites = browserSites(context)
+        if (site !in sites) prefs(context).edit { putStringSet("browser_sites", sites + site) }
+    }
+
     /** How each shop's price of a product was checked (ShopCheck.Status), by shop: the last word for each. */
     fun saveShopStatuses(context: Context, productId: Long, statuses: Map<String, String>) {
         if (statuses.isEmpty()) return
