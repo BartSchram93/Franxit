@@ -204,5 +204,7 @@ class MatchingTest {
         assertTrue(Matching.isOtherProduct("Dreame Aqua 10 Roller White", wanted))
         assertFalse(Matching.isOtherProduct("Dreame Aqua10 Ultra Roller Complete robotstofzuiger wit", wanted.replace("Aqua 10", "Aqua10")))
         assertTrue(Matching.isOtherProduct("Apple iPhone 15 Pro 128 GB", "Apple iPhone 15 128 GB"))
+        // "Complete" is the Belgian name of the same Ultra: not another model.
+        assertFalse(Matching.otherTier("Dreame Aqua10 Ultra Roller", wanted))
     }
 }

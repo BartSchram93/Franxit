@@ -232,9 +232,10 @@ object Matching {
 
     /**
      * Words that make a sibling model of the same line: "Dreame Aqua 10 Ultra Roller Complete" is not the "Aqua 10
-     * Roller" (€ 649 against € 899 at Vanden Borre), an "iPhone 15 Pro" not an "iPhone 15".
+     * Roller" (€ 649 against € 899 at Vanden Borre), an "iPhone 15 Pro" not an "iPhone 15". ("Complete" is no such
+     * word: it is how Belgium names the Aqua10 Ultra Roller.)
      */
-    private val TIERS = setOf("ultra", "pro", "max", "plus", "mini", "lite", "complete")
+    private val TIERS = setOf("ultra", "pro", "max", "plus", "mini", "lite")
 
     /** True when one names a tier word ([TIERS]) the other doesn't have. */
     internal fun otherTier(title: String, wanted: String): Boolean {
