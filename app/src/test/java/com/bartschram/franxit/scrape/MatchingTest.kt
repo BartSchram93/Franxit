@@ -178,4 +178,16 @@ class MatchingTest {
         assertFalse(Matching.isOtherProduct("", zelda))
         assertNull(Matching.titleFromLink("https://www.bol.com/be/nl/p/9300000238157452/"))
     }
+
+    @Test
+    fun aNameWithAColourWantsATitleWithIt() {
+        val black = "Duux Threesixty 2 Smart Elektrische Kachel Zwart"
+        // The gray one, by a title without its colour.
+        assertFalse(Matching.isSameProduct("Duux Threesixty 2 Smart Elektrische Kachel", black))
+        assertFalse(Matching.isSameProduct("Duux Threesixty 2 Smart Heater Gray", black))
+        assertTrue(Matching.isSameProduct("Duux Threesixty 2 Smart Elektrische Kachel - Zwart", black))
+        assertTrue(Matching.isSameProduct("Duux Threesixty 2 Smart Elektrische Kachel Black", black))
+        // A name without a colour: as before.
+        assertTrue(Matching.isSameProduct("Duux Threesixty 2 Smart Elektrische Kachel Zwart", "Duux Threesixty 2 Smart Elektrische Kachel"))
+    }
 }

@@ -284,7 +284,8 @@ object GoogleShopping {
             val link = storeUrl(s.optString("link")) ?: return@mapNotNull null
             val title = s.optString("title")
             // Google groups colours and variants of one model together: the shop's own title tells them apart.
-            if (title.isNotBlank() && Matching.isOtherVariant(title, query)) return@mapNotNull null
+            // Without a title, the words in the shop page's address ("…-grijs") tell a colour too.
+            if (Matching.isOtherVariant(title.ifBlank { Matching.titleFromLink(link).orEmpty() }, query)) return@mapNotNull null
             // Google also groups related products under one: a shop's title (or, without one, its page's address)
             // that is clearly another product is left out.
             if (Matching.isOtherProduct(title.ifBlank { Matching.titleFromLink(link).orEmpty() }, query)) return@mapNotNull null
