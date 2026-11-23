@@ -2,6 +2,7 @@ package com.bartschram.franxit.data
 
 import android.content.Context
 import androidx.core.content.edit
+import com.bartschram.franxit.scrape.DuckDuckGo
 import com.bartschram.franxit.scrape.GoogleShopping
 import com.bartschram.franxit.scrape.Matching
 import com.bartschram.franxit.scrape.Scraper
@@ -299,7 +300,30 @@ class Repository private constructor(context: Context) {
             offer.seller to link
         }
         val name = own.name.ifBlank { product.displayName }
-        val tasks = links.values.filterNotNull().distinct().map { link ->
+        // A shop listed without a page but with a known site (Nintendo's store): looked up on DuckDuckGo, at most a
+        // few per check and once a day per shop; a page that is this product is remembered for the Buy button.
+        val today = LocalDate.now().toString()
+        val toFind = offers.filter { links[it.seller] == null && !TrustedShops.same(it.seller, ownHost) }
+            .mapNotNull { offer -> GoogleShopping.siteOf(offer.seller)?.let { offer.seller to it } }
+            .filter { (seller, _) -> lookedUp.put("${product.id}|$seller", today) != today }
+            .take(MAX_LOOKUPS_PER_CHECK)
+        val searchName = SearchNames.withBrand(product.displayName, ShoppingSettings.brand(appContext, product.id))
+        val found = toFind.map { (seller, site) ->
+            java.util.concurrent.Callable {
+                val page = runCatching { DuckDuckGo.productPage(searchName, site) }.getOrNull()
+                    // Not a page that its address says is another product.
+                    ?.takeIf { url -> !Matching.isOtherProduct(Matching.titleFromLink(url).orEmpty(), name) }
+                seller to page
+            }
+        }.let { lookups ->
+            if (lookups.isEmpty()) emptyList<java.util.concurrent.Future<Pair<String, String?>>>()
+            else runCatching { shopReaders.invokeAll(lookups, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
+        }
+            .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
+            .mapNotNull { (seller, page) -> page?.let { seller to it } }.toMap()
+        found.forEach { (seller, page) -> ShoppingSettings.saveLink(appContext, product.id, seller, page) }
+        val allLinks = links + found
+        val tasks = allLinks.values.filterNotNull().distinct().map { link ->
             java.util.concurrent.Callable {
                 shopPages[link]?.takeIf { System.currentTimeMillis() - it.first < SHOP_CHECK_MS }?.let { return@Callable link to it.second }
                 val seen = try {
@@ -317,8 +341,12 @@ class Repository private constructor(context: Context) {
         if (tasks.isEmpty()) return offers
         val seen = runCatching { shopReaders.invokeAll(tasks, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
             .mapNotNull { future -> runCatching { future.get() }.getOrNull() }.toMap()
-        return offers.map { offer -> ShopCheck.apply(offer, links[offer.seller]?.let { seen[it] }) }
+        return offers.map { offer -> ShopCheck.apply(offer, allLinks[offer.seller]?.let { seen[it] }) }
     }
+
+    /** Shops looked up on DuckDuckGo, by product and shop, with the day: once a day each. */
+    private val lookedUp = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val MAX_LOOKUPS_PER_CHECK = 3
 
     /** Only web addresses are ever opened: a link from a shop or from Google is not trusted with any other kind. */
     suspend fun shopLink(product: Product, seller: String? = null): String? {

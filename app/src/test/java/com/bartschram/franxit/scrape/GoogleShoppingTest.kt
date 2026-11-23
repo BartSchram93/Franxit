@@ -620,7 +620,7 @@ class GoogleShoppingTest {
         // A shop known only by its name: a plain search, not Google Shopping's list of shops again.
         assertEquals("https://www.google.be/search?q=TCL+Nxtpaper+14+Dreamland", GoogleShopping.fallbackUrl("TCL Nxtpaper 14", "Dreamland"))
         // Nintendo's own store: a search on its site that opens the first result.
-        assertEquals("https://duckduckgo.com/?q=%5CZelda+Edition+site%3Anintendo.com", GoogleShopping.fallbackUrl("Zelda Edition", "nintendo"))
+        assertEquals("https://duckduckgo.com/?q=%5CZelda+Edition+site%3Astore.nintendo.com", GoogleShopping.fallbackUrl("Zelda Edition", "nintendo"))
     }
 
     @Test

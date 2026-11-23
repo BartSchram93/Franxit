@@ -23,8 +23,15 @@ object GoogleShopping {
         "bol" to "bol.com", "coolblue" to "coolblue.be", "fnac" to "fnac.be", "mediamarkt" to "mediamarkt.be",
         "krefel" to "krefel.be", "krëfel" to "krefel.be",
         // Brand stores Google Shopping names without a site.
-        "nintendo" to "nintendo.com",
+        "nintendo" to "store.nintendo.com",
     )
+
+    /** The site of a shop: a big shop's or brand store's, or the shop's own name when that is a site ("Bax-shop.be"). */
+    fun siteOf(shop: String): String? {
+        val s = shop.trim().lowercase()
+        return BIG_SHOPS.firstOrNull { (name, _) -> s == name || s.startsWith("$name.") || s.startsWith("$name ") }?.second
+            ?: s.removePrefix("www.").takeIf { Regex("""[a-z0-9-]+(\.[a-z0-9-]+)+""").matches(it) }
+    }
 
     /**
      * Where to send you when the shop's own page isn't known: for a shop with a known site, a search limited to it
@@ -32,13 +39,10 @@ object GoogleShopping {
      * Not the shop's own search: bol.com's finds nothing for a long product name, not even the product itself.
      */
     fun fallbackUrl(query: String, shop: String): String {
-        val s = shop.trim().lowercase()
-        val domain = BIG_SHOPS.firstOrNull { (name, _) -> s == name || s.startsWith("$name.") || s.startsWith("$name ") }?.second
-        // A shop known only by its name ("nintendo"): a plain Google search for the product at that shop, whose first
-        // result is its page. Not Google Shopping's search, which lists other shops again.
-        // A shop with its site as name ("Bax-shop.be"): a search on that site.
-        val site = domain ?: s.removePrefix("www.").takeIf { Regex("""[a-z0-9-]+(\.[a-z0-9-]+)+""").matches(it) }
-        return site?.let { siteSearchUrl(query, it) }
+        // A shop with a known site (a big shop, Nintendo's store, "Bax-shop.be"): a search on that site. A shop known
+        // only by its name: a plain Google search for the product at that shop, whose first result is its page; not
+        // Google Shopping's search, which lists other shops again.
+        return siteOf(shop)?.let { siteSearchUrl(query, it) }
             ?: ("https://www.google.be/search?q=" + URLEncoder.encode("${query.trim()} ${shop.trim()}", "UTF-8"))
     }
 
