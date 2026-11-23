@@ -118,4 +118,12 @@ class OffersTest {
         val own = listOf(ShopOffer("Amazon Marketplace", 54.29, true))
         assertEquals(own, Offers.withoutOutliers(own, listOf(ShopOffer("Plein.be", 5.2))))
     }
+
+    @Test
+    fun atTheSamePriceTheButtonNamesTheShopAtTheTopOfTheList() {
+        // What a tester saw: "Buy at Vandenborre.be" with Bol.com first in the list, all three at € 99,00.
+        val offers = listOf(ShopOffer("vandenborre.be", 99.0), ShopOffer("Coolblue.be", 99.0), ShopOffer("Bol.com", 99.0), ShopOffer("Fnac.be", 99.99))
+        assertEquals("Bol.com", Offers.cheapest(offers)?.seller)
+        assertEquals("Bol.com", offers.sortedWith(Offers.order { it.price }).first().seller)
+    }
 }

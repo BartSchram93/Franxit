@@ -11,8 +11,15 @@ object Offers {
 
     /** Like [cheapest], by any price measure (e.g. what you pay after your discounts). */
     fun best(offers: List<ShopOffer>, price: (ShopOffer) -> Double): ShopOffer? =
-        offers.filter { it.inStock != false }.minByOrNull(price)
-            ?: offers.minByOrNull(price)
+        offers.filter { it.inStock != false }.minWithOrNull(order(price))
+            ?: offers.minWithOrNull(order(price))
+
+    /**
+     * Shops by [price], and at the same price by name: the Buy button names the shop at the top of the list
+     * (it said Vandenborre.be with Bol.com, Coolblue.be and Vandenborre.be all at € 99,00, and Bol.com first).
+     */
+    fun order(price: (ShopOffer) -> Double): Comparator<ShopOffer> =
+        compareBy<ShopOffer>(price).thenBy { Shops.name(it.seller).lowercase() }
 
     /**
      * The shops to show: every shop vergelijk.be (or the page you added) gives stays, and the [extra] sources
