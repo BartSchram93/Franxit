@@ -17,6 +17,8 @@ on:
 
 permissions:
   contents: write
+  # To prove to Google that a run is this repository's (Workload Identity Federation): no key is stored anywhere.
+  id-token: write
 
 concurrency:
   group: release
@@ -64,8 +66,8 @@ jobs:
           chmod +x gradlew
           ./gradlew testWebDebugUnitTest assembleWebRelease --console=plain
 
-      # The bundle for Google Play: the same app without Aptabase. Not published; download it from this
-      # run's page (Artifacts) and upload it in Play Console.
+      # The bundle for Google Play: the same app without Aptabase. Uploaded to Play Console at the end (as a draft
+      # on the closed test), and kept on this run's page (Artifacts) too.
       - name: Play bundle
         if: steps.key.outputs.signed == 'true'
         env:
@@ -114,3 +116,38 @@ jobs:
           [ -n "$NOTES" ] || NOTES="Small improvements."
           gh release create "v$VERSION" franxit.apk --repo BartSchram93/franxit-download \
             --title "Franxit $VERSION" --notes "$NOTES"
+
+      # Google Play: signed in as the service account franxit-upload through GitHub's own proof that this run is
+      # BartSchram93/Franxit's (no key or secret). Only Google's access rules let it in: see Workload Identity
+      # Federation in the Google Cloud project.
+      - name: Sign in to Google Play
+        id: google
+        if: steps.key.outputs.signed == 'true' && inputs.publish != false
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/398699754135/locations/global/workloadIdentityPools/github/providers/franxit
+          service_account: franxit-upload@project-0fb84039-09ad-4327-811.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+
+      # The bundle as a draft release on the closed test, with play-notes/<language>.txt as its notes: you send it
+      # for review in Play Console yourself.
+      - name: Upload to Google Play
+        if: steps.key.outputs.signed == 'true' && inputs.publish != false
+        env:
+          TOKEN: ${{ steps.google.outputs.access_token }}
+          TRACK: ${{ vars.PLAY_TRACK || 'alpha' }}
+          VERSION: 1.0.${{ env.BUILD }}
+        run: |
+          set -euo pipefail
+          API=https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.bartschram.franxit
+          call() { curl -sS --fail-with-body -H "Authorization: Bearer $TOKEN" "$@"; }
+          EDIT=$(call -X POST "$API/edits" -H "Content-Type: application/json" -d '{}' | jq -r .id)
+          CODE=$(call -X POST "https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/com.bartschram.franxit/edits/$EDIT/bundles?uploadType=media" \
+            -H "Content-Type: application/octet-stream" --data-binary @app/build/outputs/bundle/playRelease/app-play-release.aab | jq -r .versionCode)
+          NOTES=$(for f in play-notes/*.txt; do jq -n --arg l "$(basename "$f" .txt)" --rawfile t "$f" '{language: $l, text: ($t | rtrimstr("\n"))}'; done | jq -s .)
+          jq -n --arg track "$TRACK" --arg code "$CODE" --arg name "$VERSION" --argjson notes "$NOTES" \
+            '{track: $track, releases: [{name: $name, versionCodes: [$code], status: "draft", releaseNotes: $notes}]}' > track.json
+          call -X PUT "$API/edits/$EDIT/tracks/$TRACK" -H "Content-Type: application/json" --data @track.json > /dev/null
+          call -X POST "$API/edits/$EDIT:commit" > /dev/null
+          echo "Version $VERSION ($CODE) is a draft on the track $TRACK in Play Console."
