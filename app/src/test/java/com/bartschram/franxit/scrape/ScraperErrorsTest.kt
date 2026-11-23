@@ -28,8 +28,11 @@ class ScraperErrorsTest {
     @Test
     fun aSoldOutPageIsToldApartFromOneTheAppCantRead() {
         assertTrue(Scraper.isUnavailable("""<script type="application/ld+json">{"availability":"https://schema.org/OutOfStock"}</script>"""))
-        assertTrue(Scraper.isUnavailable("<div>Niet leverbaar</div>"))
+        assertTrue(Scraper.isUnavailable("""<link itemprop="availability" href="https://schema.org/OutOfStock">"""))
         assertFalse(Scraper.isUnavailable("<div>Op voorraad, morgen in huis</div>"))
+        // Words on the page aren't enough: Amazon's black Selphy page says "Currently unavailable" of the pink one.
+        assertFalse(Scraper.isUnavailable("<div>Pink: Currently unavailable</div><div>Black: In stock</div>"))
+        assertFalse(Scraper.isUnavailable("<div>Niet leverbaar</div>"))
     }
 
     @Test

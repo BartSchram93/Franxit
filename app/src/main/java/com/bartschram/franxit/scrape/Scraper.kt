@@ -88,17 +88,17 @@ object Scraper {
         }
     }
 
-    private val UNAVAILABLE = listOf(
-        "schema.org/outofstock", "schema.org/soldout", "schema.org/discontinued", "\"outofstock\"", "\"soldout\"",
-        "niet leverbaar", "niet meer leverbaar", "tijdelijk uitverkocht", "uitverkocht", "niet op voorraad",
-        "épuisé", "indisponible", "rupture de stock", "out of stock", "sold out", "currently unavailable",
+    /**
+     * A page whose product data says it can't be bought now (schema.org's "OutOfStock", "SoldOut", "Discontinued").
+     * Only the data, not words on the page: a page also names other versions ("Currently unavailable" for the pink
+     * Selphy on Amazon's page of the black one), and those words said nothing of this product.
+     */
+    private val UNAVAILABLE = Regex(
+        """"availability"\s*:\s*"(?:https?://schema\.org/)?(?:OutOfStock|SoldOut|Discontinued)"|itemprop=["']availability["'][^>]*(?:OutOfStock|SoldOut|Discontinued)""",
+        RegexOption.IGNORE_CASE,
     )
 
-    /** A product page that says the product can't be bought now. */
-    internal fun isUnavailable(html: String): Boolean {
-        val lower = html.lowercase()
-        return UNAVAILABLE.any { it in lower }
-    }
+    internal fun isUnavailable(html: String): Boolean = UNAVAILABLE.containsMatchIn(html)
 
     private fun shop(url: String) = Shops.name(URL(url).host)
 
