@@ -408,8 +408,14 @@ class Repository private constructor(context: Context) {
                     .getOrElse { DuckDuckGo.Lookup(null, blocked = true) }
                 // Not a page that its address says is another product.
                 val page = lookup.page?.takeIf { url -> !Matching.isOtherProduct(Matching.titleFromLink(url).orEmpty(), name) }
+                // Found only on another country's site (fotodevakman.nl): a shop of that country, not shown.
+                if (page == null && lookup.foreign != null) {
+                    ShoppingSettings.saveLanding(appContext, product.id, seller, FOREIGN)
+                    foreign += seller
+                }
                 notes[seller] = when {
                     page != null -> "Found: $page"
+                    lookup.foreign != null -> "Only on another country's site: ${lookup.foreign}"
                     lookup.page != null -> "Found another product: ${lookup.page}"
                     lookup.blocked -> "Search blocked (DuckDuckGo, browser, Bing)"
                     else -> "No page found on " + (site ?: "the shop's site")

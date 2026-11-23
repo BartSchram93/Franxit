@@ -119,4 +119,15 @@ class DuckDuckGoTest {
             result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.amazon.com.be%2Fdp%2FB0&amp;rut=b")
         assertEquals("https://www.amazon.com.be/dp/B0", DuckDuckGo.firstResult(page) { it.startsWith("amazon") })
     }
+
+    @Test
+    fun aShopFoundOnlyOnAnotherCountrysSiteIsThatCountrys() {
+        val page = result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.fotodevakman.nl%2Fcanon-selphy-cp1500-black&amp;rut=a")
+        val found = DuckDuckGo.lookup(page) { DuckDuckGo.isShopsSite(it, "Fotodevakman") }
+        assertNull(found.page)
+        assertEquals("https://www.fotodevakman.nl/canon-selphy-cp1500-black", found.foreign)
+        // With a Belgian page too, that one counts.
+        val both = page + result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.kamera-express.be%2Fp%2F1&amp;rut=b")
+        assertEquals("https://www.kamera-express.be/p/1", DuckDuckGo.lookup(both) { DuckDuckGo.isShopsSite(it, "Kamera Express") }.page)
+    }
 }

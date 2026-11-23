@@ -28,7 +28,7 @@ object DuckDuckGo {
     private val HREF = Regex("""\bhref=["']([^"']+)["']""")
 
     /** What a search gave: the shop's [page], nothing ([page] null), or a check page instead of results ([blocked]). */
-    data class Lookup(val page: String?, val blocked: Boolean = false)
+    data class Lookup(val page: String?, val blocked: Boolean = false, val foreign: String? = null)
 
     fun searchUrl(query: String, site: String) = BASE + URLEncoder.encode("${query.trim()} site:$site", "UTF-8")
 
@@ -46,6 +46,15 @@ object DuckDuckGo {
 
     /** Site endings of other countries: amazon.nl, fotodevakman.nl, amazon.de … for a Belgian shopper. */
     private val FOREIGN_ENDINGS = listOf(".nl", ".de", ".fr", ".co.uk", ".uk", ".it", ".es", ".at", ".ch", ".pl", ".lu", ".se", ".dk")
+
+    /** The first result on a site the shop's name fits, but of another country ("fotodevakman.nl" for "Fotodevakman"). */
+    private fun foreignResult(html: String, accept: (String) -> Boolean): String? =
+        (RESULT.findAll(html).mapNotNull { match ->
+            val href = HREF.find(match.value)?.groupValues?.get(1)?.replace("&amp;", "&") ?: return@mapNotNull null
+            Regex("""[?&]uddg=([^&]+)""").find(href)?.groupValues?.get(1)?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrNull() }
+                ?: href.takeIf { it.startsWith("https://") && "duckduckgo.com" !in it }
+        } + ANY_LINK.findAll(html).map { it.groupValues[1].replace("&amp;", "&") })
+            .firstOrNull { url -> isForeignSite(url) && accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) }
 
     /** Whether [url] is on another country's site (amazon.nl): found by a search, it is no Belgian shop's page. */
     fun isForeignSite(url: String): Boolean {
@@ -101,6 +110,8 @@ object DuckDuckGo {
      */
     internal fun lookup(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): Lookup {
         firstResult(html, fits, accept)?.let { return Lookup(it) }
+        // Only on another country's site (fotodevakman.nl): the shop is that country's.
+        foreignResult(html, accept)?.let { return Lookup(null, foreign = it) }
         val isResults = RESULT.containsMatchIn(html) || Regex("""no-results|No results|Geen resultaten""", RegexOption.IGNORE_CASE).containsMatchIn(html)
         return Lookup(null, blocked = !isResults)
     }
@@ -114,7 +125,7 @@ object DuckDuckGo {
 
     /** The full results page, read in a browser (its links point straight at the sites). */
     internal fun lookupInBrowserPage(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): Lookup {
-        lookup(html, fits, accept).page?.let { return Lookup(it) }
+        lookup(html, fits, accept).let { if (it.page != null || it.foreign != null) return it }
         val page = ANY_LINK.findAll(html).map { it.groupValues[1].replace("&amp;", "&") }
             .filter { url -> val host = url.substringAfter("//").substringBefore('/'); "duckduckgo.com" !in host && "bing." !in host && "microsoft." !in host && !isOtherCountry(url) && !isForeignSite(url) }
             .firstOrNull { url -> accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) && fits(url) }
