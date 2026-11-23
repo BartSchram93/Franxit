@@ -60,9 +60,10 @@ object Scraper {
         }
     }
 
-    fun fetch(url: String): Result {
+    /** [readTimeoutMs]: how long to wait for the page; shorter when many shops' pages are read for one check. */
+    fun fetch(url: String, readTimeoutMs: Int = 30_000): Result {
         val (html, finalUrl) = try {
-            downloadPage(url, "text/html,application/xhtml+xml")
+            downloadPage(url, "text/html,application/xhtml+xml", readTimeoutMs = readTimeoutMs)
         } catch (e: IOException) {
             throw if (e.message == "HTTP 404" || e.message == "HTTP 410") IOException(goneMessage(url)) else IOException(explain(e, url), e)
         }
@@ -121,6 +122,28 @@ object Scraper {
         val a = page(asked) ?: return false
         val b = page(got) ?: return false
         return a != b
+    }
+
+    /** A page that sends you on with a meta refresh or a script ("location.href = '…'"): where it sends you. */
+    internal fun forwardIn(html: String): String? {
+        val meta = Regex("""<meta[^>]+http-equiv=["']?refresh["']?[^>]+content=["'][^"']*url=([^"'>\s]+)""", RegexOption.IGNORE_CASE).find(html)
+        val script = Regex("""(?:window\.)?location(?:\.href)?\s*=\s*["'](https?://[^"']+)["']""").find(html)
+        return (meta ?: script)?.groupValues?.get(1)?.replace("&amp;", "&")?.takeIf { it.startsWith("http") }
+    }
+
+    /**
+     * Where a link ends up: its redirects followed, and a page that forwards you on (a meta refresh, a script) once
+     * more. For a comparison site's "go to the shop" link, the shop's page you land on.
+     */
+    fun finalUrl(url: String): String {
+        var (html, current) = downloadPage(url, "text/html,application/xhtml+xml")
+        repeat(2) {
+            val next = forwardIn(html)?.takeIf { it != current } ?: return current
+            val page = downloadPage(next, "text/html,application/xhtml+xml")
+            html = page.first
+            current = page.second
+        }
+        return current
     }
 
     internal fun download(url: String, accept: String, headers: Map<String, String> = emptyMap(), readTimeoutMs: Int = 30_000): String =

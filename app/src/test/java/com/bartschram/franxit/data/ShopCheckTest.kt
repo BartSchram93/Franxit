@@ -118,4 +118,15 @@ class ShopCheckTest {
         // The Mac version itself, as before.
         assertFalse(ShopCheck.isElsewhere("https://www.coolblue.be/nl/product/1/logitech-mx-master-4-voor-mac.html", "Logitech MX Master 4 voor Mac"))
     }
+
+    @Test
+    fun whereAComparisonSitesLinkLandsIsTheShopsPage() {
+        assertTrue(ShopCheck.isLandingOf("https://www.bol.com/be/nl/p/logitech-mx-master-4-graphite/9300000236200000/?bltgh=x", "Bol.com"))
+        assertTrue(ShopCheck.isLandingOf("https://www.kamera-express.be/product/12422729/canon-selphy-cp1500-black", "Kamera Express"))
+        // Not the shop's page: an affiliate network's, a home page, a search, another country.
+        assertFalse(ShopCheck.isLandingOf("https://www.awin1.com/cread.php?awinmid=1", "Bol.com"))
+        assertFalse(ShopCheck.isLandingOf("https://www.bol.com/", "Bol.com"))
+        assertFalse(ShopCheck.isLandingOf("https://www.bol.com/be/nl/s/?searchtext=mx+master", "Bol.com"))
+        assertFalse(ShopCheck.isLandingOf("https://www.bol.com/nl/nl/p/logitech-mx-master-4/9300000236200000/", "Bol.com"))
+    }
 }

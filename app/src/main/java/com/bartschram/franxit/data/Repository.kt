@@ -277,7 +277,7 @@ class Repository private constructor(context: Context) {
     }
 
     /** Shop pages read at the same time; a check waits at most [SHOP_CHECK_SECONDS] for all of them. */
-    private val shopReaders = java.util.concurrent.Executors.newFixedThreadPool(4)
+    private val shopReaders = java.util.concurrent.Executors.newFixedThreadPool(8)
     private val SHOP_CHECK_SECONDS = 25L
     /** What a shop's page said, by its link, with when: read again after [SHOP_CHECK_MS]. */
     private val shopPages = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, Pair<ShopCheck.Seen?, String>>>()
@@ -298,11 +298,33 @@ class Repository private constructor(context: Context) {
         ShoppingSettings.cleanFoundLinksOnce(appContext, product.id, fromGoogle.toSet())
         // How each shop was checked, shown under it (ShopCheck.Status); shops not checked this time keep their last word.
         val statuses = java.util.concurrent.ConcurrentHashMap<String, String>()
+        // vergelijk.be's own link for each of its shops, followed once per shop and product (it counts as a click there):
+        // the page you land on when you tap the shop, read from then on. Exactly the page of the price you'd pay.
+        val clickLinks = own.offers.mapNotNull { o -> o.link?.takeIf { "vergelijk.be/clickout" in it }?.let { o.seller to it } }
+        val landings = java.util.concurrent.ConcurrentHashMap<String, String>()
+        val toFollow = mutableListOf<java.util.concurrent.Callable<Unit>>()
+        for (offer in offers) {
+            val known = ShoppingSettings.landing(appContext, product.id, offer.seller)
+            if (known != null) {
+                if (known != "-") landings[offer.seller] = known
+                continue
+            }
+            val click = clickLinks.firstOrNull { TrustedShops.same(it.first, offer.seller) }?.second ?: continue
+            toFollow += java.util.concurrent.Callable {
+                val end = runCatching { DuckDuckGo.belgian(Scraper.finalUrl(click)) }.getOrNull()
+                val landing = end?.takeIf { ShopCheck.isLandingOf(it, offer.seller) }
+                ShoppingSettings.saveLanding(appContext, product.id, offer.seller, landing ?: "-")
+                if (landing != null) landings[offer.seller] = landing
+            }
+        }
+        if (toFollow.isNotEmpty()) runCatching { shopReaders.invokeAll(toFollow, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }
         // Shops whose only link (from Google or Shoparize) is clearly another product (a bundle at Coolblue): looked
         // up instead; left out when their right page isn't found, as their price is that other product's.
         val wrongLinks = mutableSetOf<String>()
         val links = offers.associate { offer ->
             // A link through Google (".../url?q=https://www.coolblue.be/...") is read at the shop's own address.
+            // The page vergelijk.be's link lands on first: it is the shop's page for the price listed.
+            landings[offer.seller]?.let { return@associate offer.seller to it }
             val link = listOf(ShoppingSettings.link(appContext, product.id, offer.seller), ShoppingSettings.shoparizeLink(appContext, product.id, offer.seller))
                 .map(ShopCheck::direct)
                 .map { it?.let(DuckDuckGo::belgian) }
@@ -391,7 +413,8 @@ class Repository private constructor(context: Context) {
                 if (siteOfLink(link) in browserSites) return@Callable Triple(link, null, ShopCheck.Status.BLOCKED)
                 var error: String? = null
                 val seen = try {
-                    ShopCheck.seen(Scraper.fetch(link), name)
+                    // A shop that takes long is given up on sooner: many pages are read for one check.
+                    ShopCheck.seen(Scraper.fetch(link, readTimeoutMs = 12_000), name)
                 } catch (e: IOException) {
                     error = e.message
                     // "Not available at … right now": the page says sold out without a price.

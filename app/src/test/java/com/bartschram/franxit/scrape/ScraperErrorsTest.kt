@@ -43,4 +43,11 @@ class ScraperErrorsTest {
         Scraper.keepCookies(jar, "vtechnl.com", listOf("session=def"))
         assertEquals("session=def; consent=yes", Scraper.cookieHeader(jar, "www.vtechnl.com"))
     }
+
+    @Test
+    fun aPageThatForwardsYouOn() {
+        assertEquals("https://www.bol.com/be/nl/p/x/1/", Scraper.forwardIn("""<meta http-equiv="refresh" content="0;url=https://www.bol.com/be/nl/p/x/1/">"""))
+        assertEquals("https://www.coolblue.be/nl/product/1.html", Scraper.forwardIn("""<script>window.location.href = 'https://www.coolblue.be/nl/product/1.html';</script>"""))
+        assertNull(Scraper.forwardIn("<html><body>Product</body></html>"))
+    }
 }

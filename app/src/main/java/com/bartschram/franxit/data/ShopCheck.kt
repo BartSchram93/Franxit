@@ -115,6 +115,20 @@ internal object ShopCheck {
         else -> Status.UNREADABLE
     }
 
+    /**
+     * Whether [url], where a comparison site's link for [shop] ended, is that shop's product page: on its site (by its
+     * site, or its name: "kamera-express.be" for "Kamera Express"), for Belgium, not a search or a list.
+     */
+    fun isLandingOf(url: String, shop: String): Boolean {
+        if (!isProductPage(url) || com.bartschram.franxit.scrape.DuckDuckGo.isOtherCountry(url)) return false
+        val host = url.substringAfter("//").substringBefore('/').substringBefore('?').lowercase().removePrefix("www.")
+        val onSite = if (com.bartschram.franxit.scrape.GoogleShopping.siteOf(shop) != null) isShopsLink(url, shop)
+            else com.bartschram.franxit.scrape.DuckDuckGo.isShopsSite(host, shop)
+        if (!onSite) return false
+        val path = runCatching { java.net.URI(url).path }.getOrNull().orEmpty()
+        return path.trim('/').isNotEmpty() && !LISTING_PATH.containsMatchIn(path)
+    }
+
     /** A link that is a shop's product page, not a search that leads to one. */
     fun isProductPage(link: String?): Boolean =
         link != null && (link.startsWith("https://") || link.startsWith("http://")) &&

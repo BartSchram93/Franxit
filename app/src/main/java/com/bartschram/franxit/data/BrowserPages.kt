@@ -19,10 +19,10 @@ import java.util.concurrent.TimeUnit
 internal object BrowserPages {
 
     /** How long a page may take in all, its checks included. */
-    private const val WAIT_MS = 20_000L
+    private const val WAIT_MS = 15_000L
 
     /** After the page has loaded: a moment for its scripts (a check page passes, then loads the product). */
-    private const val SETTLE_MS = 2_500L
+    private const val SETTLE_MS = 1_500L
 
     /**
      * The page's HTML once loaded and [ready] (by default: past any check page); null when it didn't get there in
@@ -41,7 +41,7 @@ internal object BrowserPages {
             web.evaluateJavascript("document.documentElement.outerHTML") { value ->
                 val html = runCatching { JSONTokener(value).nextValue() as? String }.getOrNull().orEmpty()
                 // Still a check page: wait for it to pass, a few times.
-                if ((html.isEmpty() || !ready(html)) && ++tries < 4) {
+                if ((html.isEmpty() || !ready(html)) && ++tries < 6) {
                     main.postDelayed(grab, SETTLE_MS)
                 } else {
                     result = html.takeIf { it.isNotEmpty() && ready(it) }

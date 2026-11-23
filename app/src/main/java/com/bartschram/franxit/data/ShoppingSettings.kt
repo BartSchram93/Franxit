@@ -108,6 +108,19 @@ object ShoppingSettings {
     fun foundLink(context: Context, productId: Long, shop: String): String? =
         prefs(context).getString("found_links_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)).takeIf(String::isNotBlank) }
 
+    /**
+     * Where vergelijk.be's link for a shop's offer of a product ended: the shop's page you land on when you tap it,
+     * followed once per shop and product (each time counts as a click for vergelijk.be). "-" when it didn't end on
+     * the shop's page: not followed again. Null: not followed yet.
+     */
+    fun landing(context: Context, productId: Long, shop: String): String? =
+        prefs(context).getString("landings_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)).takeIf(String::isNotBlank) }
+
+    fun saveLanding(context: Context, productId: Long, shop: String, landing: String) {
+        val all = prefs(context).getString("landings_$productId", null)?.let(::JSONObject) ?: JSONObject()
+        prefs(context).edit { putString("landings_$productId", all.put(TrustedShops.key(shop), landing).toString()) }
+    }
+
     /** Shop sites whose pages only a browser can read (they keep the app's own requests out): read there at once. */
     fun browserSites(context: Context): Set<String> = prefs(context).getStringSet("browser_sites", emptySet()).orEmpty()
 
