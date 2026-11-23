@@ -99,16 +99,20 @@ vergelijk.be history and search. If anything breaks, it opens (or comments on) a
 use the app: it is the text of the public release, shown in the app's update banner and notification.
 Change it before a release people should notice.
 
-Every push to `main` runs `.github/workflows/release.yml`: it runs the tests, builds an APK signed
-with the release key, and publishes it as a GitHub Release `v1.0.<run number>`.
-On the phone, [Obtainium](https://github.com/ImranR98/Obtainium) watches this repo's releases
-and installs updates.
+Every push to `main` runs `.github/workflows/release.yml`: it runs the tests, builds an APK and a Play
+bundle signed with the release key, publishes the APK as a GitHub Release `v1.0.<run number - 41>` and on
+the download page, and sends the bundle to Google Play's closed test (track `alpha`, or the repository
+variable `PLAY_TRACK`) with the notes in `play-notes/<language>.txt`.
 
-The release key (a keystore file) lives outside the repo, in the repo's Actions secrets
-`FRANXIT_KEYSTORE_BASE64` and `FRANXIT_KEYSTORE_PASSWORD` (key alias `franxit`). Without those secrets
-the workflow still runs the tests and builds, but publishes nothing; add them and run the workflow again.
-**Keep a copy of the keystore file and its password somewhere safe**: without that key, Android won't
-accept updates over the installed app.
+The release key is Google Play's upload key, one keystore for the APK and the bundle. It lives outside the
+repo, in the repo's Actions secrets `FRANXIT_KEYSTORE_BASE64` (the keystore, base64),
+`FRANXIT_PLAY_KEYSTORE_PASSWORD` and `FRANXIT_PLAY_KEY_ALIAS`. Without the keystore the workflow still runs
+the tests and builds, but publishes nothing. **Keep a copy of the keystore file and its password somewhere
+safe.**
+
+Google Play is reached without a key: the workflow signs in as the service account `franxit-upload` through
+GitHub's own proof (Workload Identity Federation in the Google Cloud project), and that account may release to
+testing tracks in Play Console.
 
 ## Notes
 
