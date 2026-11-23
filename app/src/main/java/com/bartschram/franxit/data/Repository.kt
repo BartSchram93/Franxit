@@ -313,16 +313,29 @@ class Repository private constructor(context: Context) {
         // the page you land on when you tap the shop, read from then on. Exactly the page of the price you'd pay.
         val clickLinks = own.offers.mapNotNull { o -> o.link?.takeIf { "vergelijk.be/clickout" in it }?.let { o.seller to it } }
         val landings = java.util.concurrent.ConcurrentHashMap<String, String>()
+        // Shops whose site is another country's (fotodevakman.nl): not shown, the app is for shopping in Belgium.
+        val foreign = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
         val toFollow = mutableListOf<java.util.concurrent.Callable<Unit>>()
         for (offer in offers) {
+            if (DuckDuckGo.isForeignSite("https://" + Shops.name(offer.seller).lowercase())) {
+                foreign += offer.seller
+                continue
+            }
             val known = ShoppingSettings.landing(appContext, product.id, offer.seller)
             if (known != null) {
-                if (known != "-") landings[offer.seller] = known
+                // (One remembered before this rule: a landing on another country's site.)
+                if (known == FOREIGN || (known != "-" && DuckDuckGo.isForeignSite(known))) foreign += offer.seller
+                else if (known != "-") landings[offer.seller] = known
                 continue
             }
             val click = clickLinks.firstOrNull { TrustedShops.same(it.first, offer.seller) }?.second ?: continue
             toFollow += java.util.concurrent.Callable {
                 val end = runCatching { DuckDuckGo.belgian(Scraper.finalUrl(click)) }.getOrNull()
+                if (end != null && DuckDuckGo.isForeignSite(end) && ShopCheck.isProductPage(end)) {
+                    ShoppingSettings.saveLanding(appContext, product.id, offer.seller, FOREIGN)
+                    foreign += offer.seller
+                    return@Callable
+                }
                 val landing = end?.takeIf { ShopCheck.isLandingOf(it, offer.seller) }
                 ShoppingSettings.saveLanding(appContext, product.id, offer.seller, landing ?: "-")
                 if (landing != null) landings[offer.seller] = landing
@@ -503,6 +516,7 @@ class Repository private constructor(context: Context) {
         // (For a Google Shopping product its own offers are Google's: a page of another version leaves that shop out.)
         val ownSellers = if (GoogleShopping.queryOf(product.url) != null) emptyList() else own.offers.map { it.seller }
         return offers.mapNotNull { offer ->
+            if (offer.seller in foreign) return@mapNotNull null
             var page = if (offer.seller in wrongFinds) null else allLinks[offer.seller]?.let { seen[it]?.first }
             // Its source's link was another product, and its right page wasn't found: the price is that product's.
             if (page == null && offer.seller in wrongLinks && (allLinks[offer.seller] == null || offer.seller in wrongFinds)) page = ShopCheck.ELSEWHERE
@@ -520,6 +534,9 @@ class Repository private constructor(context: Context) {
      */
     private val LOOKUPS_ONE = Int.MAX_VALUE
     private val LOOKUPS_ALL = 5
+
+    /** What's remembered for a shop whose vergelijk.be link lands on another country's site. */
+    private val FOREIGN = "foreign"
 
     /** Pages read in a browser per check, for shops that keep the app's own requests out. */
     private val BROWSER_READS = 3
