@@ -1,2 +1,2 @@
-• Verkoopt Amazon een product niet zelf, dan telt de goedkoopste andere verkoper op Amazon
+• Elke winkel opent de pagina van de prijs die je ziet (bv. Amazon: de tablet, niet de bundel)
 • Een winkel die naar een andere kleur leidt, wordt niet meer getoond

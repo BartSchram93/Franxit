@@ -367,8 +367,12 @@ class Repository private constructor(context: Context) {
         val wrongLinks = mutableSetOf<String>()
         val links = offers.associate { offer ->
             // A link through Google (".../url?q=https://www.coolblue.be/...") is read at the shop's own address.
-            // The page vergelijk.be's link lands on first: it is the shop's page for the price listed.
-            landings[offer.seller]?.let { return@associate offer.seller to it }
+            // The page of the source whose price is shown: vergelijk.be's landing when its price is the one listed,
+            // else Google's or Shoparize's page. Amazon.com.be at € 360 was Google's (the tablet, B0DB1NG88R), while
+            // vergelijk.be's link landed on the tablet with flipcase and pen (B0DFWQN7SV), at another price.
+            val landing = landings[offer.seller]
+            val ownPrice = own.offers.filter { TrustedShops.same(it.seller, offer.seller) }.minOfOrNull { it.price }
+            if (landing != null && ownPrice != null && kotlin.math.abs(ownPrice - offer.price) < 0.01) return@associate offer.seller to landing
             val link = listOf(ShoppingSettings.link(appContext, product.id, offer.seller), ShoppingSettings.shoparizeLink(appContext, product.id, offer.seller))
                 .map(ShopCheck::direct)
                 .map { it?.let(DuckDuckGo::belgian) }
@@ -377,8 +381,8 @@ class Repository private constructor(context: Context) {
                 ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
             if (link != null && ShopCheck.isElsewhere(link, own.name.ifBlank { product.displayName })) {
                 wrongLinks += offer.seller
-                offer.seller to null
-            } else offer.seller to link
+                offer.seller to landing
+            } else offer.seller to (link ?: landing)
         }
         // The page the product was added from is read already.
         offers.filter { TrustedShops.same(it.seller, ownHost) }.forEach { statuses[it.seller] = ShopCheck.Status.CHECKED }
@@ -545,8 +549,9 @@ class Repository private constructor(context: Context) {
         ShoppingSettings.saveCheckedLinks(appContext, product.id, offers.mapNotNull { offer ->
             if (offer.seller in wrongFinds) return@mapNotNull null
             val link = allLinks[offer.seller] ?: return@mapNotNull null
-            val page = seen[link]?.first ?: return@mapNotNull null
-            if (page.otherColour || page.otherProduct || ShopCheck.isElsewhere(link, name)) null else offer.seller to link
+            // Also when its price couldn't be read: it is the page of the price shown (only not another version).
+            val page = seen[link]?.first
+            if (page?.otherColour == true || page?.otherProduct == true || otherVersion(link, name)) null else offer.seller to link
         }.toMap())
         ShoppingSettings.saveShopStatuses(appContext, product.id, statuses)
         // The Buy button's pages looked up before this check: the pages known now may be others.
@@ -647,8 +652,8 @@ class Repository private constructor(context: Context) {
         shop?.let { ShoppingSettings.checkedLink(appContext, product.id, it) }
             ?.takeIf { !ShoppingSettings.isWrongLink(appContext, product.id, it) }
             ?.let { return@withContext it }
-        // Where vergelijk.be's own link for this shop landed (Amazon.com.be's tablet page): the shop's page for its price,
-        // even when the app couldn't read the price there.
+        // Where vergelijk.be's own link for this shop landed, for a shop the last check had no page of (a product
+        // checked before this rule).
         shop?.let { ShoppingSettings.landing(appContext, product.id, it) }
             ?.takeIf { it.startsWith("http") && !DuckDuckGo.isForeignSite(it) && !ShoppingSettings.isWrongLink(appContext, product.id, it) }
             ?.let { return@withContext it }
