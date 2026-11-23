@@ -96,8 +96,6 @@ import com.bartschram.franxit.ui.theme.ChartLine
 import com.bartschram.franxit.ui.theme.PriceDown
 import com.bartschram.franxit.ui.theme.PriceUp
 import com.bartschram.franxit.ui.theme.Warning
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 
 enum class SortOrder(val label: String) {
     ADDED("Date added"),
@@ -123,11 +121,9 @@ fun ListScreen(
     products: List<Product>,
     refreshing: Boolean,
     progress: Pair<Int, Int>?,
-    checkTime: LocalTime,
     onRefresh: () -> Unit,
     onOpen: (Product) -> Unit,
     onAdd: () -> Unit,
-    onChangeTime: () -> Unit,
     sort: SortOrder,
     onSort: (SortOrder) -> Unit,
     alertsOnly: Boolean,
@@ -246,10 +242,6 @@ fun ListScreen(
                                 DropdownMenuItem(
                                     text = { Text("My discounts") },
                                     onClick = { menuOpen = false; onDiscounts() },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(t("Price check at %s", checkTime.format(DateTimeFormatter.ofPattern("HH:mm")))) },
-                                    onClick = { menuOpen = false; onChangeTime() },
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Language") },

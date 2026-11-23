@@ -1,7 +1,6 @@
 package com.bartschram.franxit
 
 import android.Manifest
-import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -59,9 +58,7 @@ import com.bartschram.franxit.ui.checkedLabel
 import com.bartschram.franxit.ui.theme.FranxitTheme
 import androidx.glance.appwidget.updateAll
 import com.bartschram.franxit.widget.PriceListWidget
-import com.bartschram.franxit.work.Scheduler
 import kotlinx.coroutines.launch
-import java.time.LocalTime
 
 class MainActivity : ComponentActivity() {
 
@@ -121,7 +118,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     // A link shared from the browser opens the search with it, to find it on vergelijk.be.
     var searchStart by rememberSaveable { mutableStateOf("") }
     var searching by rememberSaveable { mutableStateOf(false) }
-    var checkTime by remember { mutableStateOf(Scheduler.time(context)) }
     val prefs = remember { context.getSharedPreferences("app", Context.MODE_PRIVATE) }
     var sort by remember {
         mutableStateOf(runCatching { SortOrder.valueOf(prefs.getString("sort", null)!!) }.getOrDefault(SortOrder.ADDED))
@@ -270,7 +266,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             products = products,
             refreshing = refreshing,
             progress = progress,
-            checkTime = checkTime,
             onRefresh = {
                 scope.launch {
                     refreshing = true
@@ -316,13 +311,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             onShowTips = { showTips = true },
             onDelete = { product -> repo.deleteAfterUndoTime(product.id) },
             onUndoDelete = { product -> repo.undoDelete(product.id) },
-            onChangeTime = {
-                TimePickerDialog(context, { _, h, m ->
-                    val time = LocalTime.of(h, m)
-                    Scheduler.setTime(context, time)
-                    checkTime = time
-                }, checkTime.hour, checkTime.minute, true).show()
-            },
         )
     }
 

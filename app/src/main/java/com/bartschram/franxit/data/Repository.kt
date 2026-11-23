@@ -90,6 +90,8 @@ class Repository private constructor(context: Context) {
         // Until the first check names the product: the shop's address, or a plain label for a comparison page.
         val placeholder = if (host.endsWith("vergelijk.be")) "New product" else host
         val id = db.insertProduct(url, name?.trim()?.takeIf { it.isNotEmpty() } ?: placeholder)
+        // Its own nightly check, at a moment of its own between 2 and 6.
+        Scheduler.schedule(appContext, id)
         reload()
         onCreated(id)
         db.products().firstOrNull { it.id == id }?.let {
@@ -132,7 +134,16 @@ class Repository private constructor(context: Context) {
         _removing.update { it - id }
     }
 
+    /** Whether a product is still tracked (a nightly check of a deleted one stops). */
+    suspend fun exists(id: Long): Boolean = withContext(Dispatchers.IO) { db.products().any { it.id == id } }
+
+    /** Every product's own nightly check, on app start (see Scheduler). */
+    fun scheduleChecks() {
+        Thread { runCatching { Scheduler.ensureScheduled(appContext, db.products().map { it.id }) } }.start()
+    }
+
     suspend fun delete(id: Long) = withContext(Dispatchers.IO) {
+        Scheduler.cancel(appContext, id)
         db.deleteProduct(id)
         Images.file(appContext, id).delete()
         changed()
