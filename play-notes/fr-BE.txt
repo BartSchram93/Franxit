@@ -1,2 +1,1 @@
-• Le bouton Acheter indique la même boutique qu'en tête de liste, même à prix égal
-• Les boutiques dont l'app ne peut pas ouvrir la page du produit ne sont plus affichées
+• Le bouton Acheter ouvre d'abord la vraie page du produit (aussi via vergelijk.be) avant de chercher

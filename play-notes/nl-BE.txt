@@ -1,2 +1,1 @@
-• De Koop-knop noemt dezelfde winkel als die bovenaan de lijst, ook bij gelijke prijzen
-• Winkels waarvan de app geen productpagina kan openen, worden niet meer getoond
+• De Koop-knop opent eerst de echte productpagina (ook via vergelijk.be) voor hij zoekt

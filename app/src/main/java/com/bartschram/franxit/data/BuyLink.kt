@@ -39,8 +39,14 @@ internal object BuyLink {
         val title = shoparizeTitle?.trim().orEmpty()
         if (title.isEmpty() || title.length > 80) return name
         val words = { s: String -> s.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.toSet() }
-        // Only a title that is the same product in more words: all of the name's words in it.
-        return if (words(title).containsAll(words(name)) && words(title).size > words(name).size) title else name
+        // Only a title that is the same product in a few more words (a brand, a publisher): all of the name's words
+        // in it, at most two more, and no accessory or other edition. "EtuiTab - Szkło Hartowane - TCL NXTPAPER 14",
+        // a screen protector, made the Buy button search Amazon for that.
+        val extra = words(title) - words(name)
+        val same = words(title).containsAll(words(name)) && extra.size in 1..2 &&
+            !com.bartschram.franxit.scrape.Matching.addsBundleOrAccessory(title, name) &&
+            !com.bartschram.franxit.scrape.Matching.otherEdition(title, name)
+        return if (same) title else name
     }
 
     /**

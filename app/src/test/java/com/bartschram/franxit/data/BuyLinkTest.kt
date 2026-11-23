@@ -86,5 +86,8 @@ class BuyLinkTest {
         assertEquals("Patchwork", BuyLink.searchName("Patchwork", "Carcassonne"))
         assertEquals("Patchwork", BuyLink.searchName("Patchwork", "patchwork"))
         assertEquals("Patchwork", BuyLink.searchName("Patchwork", null))
+        // A screen protector on Shoparize, with all of the tablet's name in it.
+        assertEquals("TCL NXTPAPER 14", BuyLink.searchName("TCL NXTPAPER 14", "EtuiTab - Szkło Hartowane - TCL NXTPAPER 14"))
+        assertEquals("TCL NXTPAPER 14", BuyLink.searchName("TCL NXTPAPER 14", "TCL NXTPAPER 14 hoes"))
     }
 }

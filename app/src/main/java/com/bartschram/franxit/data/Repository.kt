@@ -632,27 +632,32 @@ class Repository private constructor(context: Context) {
         val shop = BuyLink.shop(seller, product.offers)
         // A page the app found itself and read as this product: when no source gives the shop's product page.
         val foundPage = shop?.let { ShoppingSettings.foundLink(appContext, product.id, it) }?.takeIf { !DuckDuckGo.isOtherCountry(it) }
-        shop?.let { ShoppingSettings.link(appContext, product.id, it) }?.let { link ->
-            val page = if (link.startsWith(GoogleShopping.TOKEN)) {
+        // Google's page for the shop (a search on its site when Google gave none).
+        val googlePage = shop?.let { ShoppingSettings.link(appContext, product.id, it) }?.let { link ->
+            if (link.startsWith(GoogleShopping.TOKEN)) {
                 // A page the app found and read as this product: opened at once, no search spent or waited for.
                 if (foundPage != null) return@withContext foundPage
                 lookUpStoreLink(product, shop, link.removePrefix(GoogleShopping.TOKEN))
             } else link
-            // Google's link when it is the shop's page; a search only when nothing better is known.
-            if (ShopCheck.isProductPage(ShopCheck.direct(page)) || foundPage == null) return@withContext page
         }
-        if (GoogleShopping.queryOf(product.url) != null) return@withContext shop?.let { shoparizeShopLink(product, it) } ?: foundPage
-        // A shop's own page you added (fitshop.be), with Google Shopping's shops next to it.
+        if (googlePage != null && ShopCheck.isProductPage(ShopCheck.direct(googlePage))) return@withContext googlePage
+        // In order: a product page from vergelijk.be (its own link for the shop) or Shoparize, a page the app found,
+        // and only then a search. Amazon.com.be opened a search where vergelijk.be's link was right.
         val host = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
-        // Another shop than that page's ("Buy at Bol.com" on a Multibazar page): through Shoparize, never that page.
-        val found = if ("vergelijk.be" !in host) {
-            BuyLink.ownPage(product.url, shop) ?: shop?.let { shoparizeShopLink(product, it) }
-        } else {
+        val found = when {
+            GoogleShopping.queryOf(product.url) != null -> shop?.let { shoparizeShopLink(product, it) }
+            // A shop's own page you added (fitshop.be), with Google Shopping's shops next to it. Another shop than
+            // that page's ("Buy at Bol.com" on a Multibazar page): through Shoparize, never that page.
+            "vergelijk.be" !in host -> BuyLink.ownPage(product.url, shop) ?: shop?.let { shoparizeShopLink(product, it) }
             // The button's shop on vergelijk.be's page, else through Shoparize (see BuyLink, where the cases are tested).
-            runCatching { BuyLink.fromPage(buyPage(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
+            else -> runCatching { BuyLink.fromPage(buyPage(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
                 ?: shop?.let { shoparizeShopLink(product, it) }
         }
-        BuyLink.orSearch(found ?: foundPage, shop, buyName(product))
+        found?.takeIf { ShopCheck.isProductPage(it) }
+            ?: foundPage
+            ?: found
+            ?: googlePage
+            ?: BuyLink.orSearch(null, shop, buyName(product))
     }
 
     /**
