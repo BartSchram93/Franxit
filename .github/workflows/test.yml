@@ -28,8 +28,8 @@ jobs:
           chmod +x gradlew
           ./gradlew testWebDebugUnitTest --console=plain
 
-      # Both builds must compile and package on their own (unsigned here): the APK and the Play bundle.
-      - name: Build the APK and the Play bundle
+      # The Play bundle must compile and package (unsigned here). No APK is built any more.
+      - name: Build the Play bundle
         run: |
-          ./gradlew assembleWebRelease bundlePlayRelease --console=plain
-          ls -l app/build/outputs/apk/web/release/ app/build/outputs/bundle/playRelease/
+          ./gradlew bundlePlayRelease --console=plain
+          ls -l app/build/outputs/bundle/playRelease/

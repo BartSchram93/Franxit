@@ -99,12 +99,12 @@ vergelijk.be history and search. If anything breaks, it opens (or comments on) a
 use the app: it is the text of the public release, shown in the app's update banner and notification.
 Change it before a release people should notice.
 
-Every push to `main` runs `.github/workflows/release.yml`: it runs the tests, builds an APK and a Play
-bundle signed with the release key, publishes the APK as a GitHub Release `v1.0.<run number - 41>` and on
-the download page, and sends the bundle to Google Play's closed test (track `alpha`, or the repository
-variable `PLAY_TRACK`) with the notes in `play-notes/<language>.txt`.
+Every push to `main` runs `.github/workflows/release.yml`: it runs the tests, builds the Play bundle signed
+with the release key and sends it to Google Play's closed test (track `alpha`, or the repository variable
+`PLAY_TRACK`) with the notes in `play-notes/<language>.txt`. **No APKs are built or published any more**: the
+app is only distributed through Google Play (no GitHub Releases, no download page updates).
 
-The release key is Google Play's upload key, one keystore for the APK and the bundle. It lives outside the
+The release key is Google Play's upload key. It lives outside the
 repo, in the repo's Actions secrets `FRANXIT_KEYSTORE_BASE64` (the keystore, base64),
 `FRANXIT_PLAY_KEYSTORE_PASSWORD` and `FRANXIT_PLAY_KEY_ALIAS`. Without the keystore the workflow still runs
 the tests and builds, but publishes nothing. **Keep a copy of the keystore file and its password somewhere
