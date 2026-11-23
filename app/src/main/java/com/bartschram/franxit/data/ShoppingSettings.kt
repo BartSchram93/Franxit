@@ -70,6 +70,44 @@ object ShoppingSettings {
 
     fun brand(context: Context, productId: Long): String? = prefs(context).getString("brand_$productId", null)?.takeIf { it.isNotBlank() }
 
+    /**
+     * A shop's product page the app found itself (on DuckDuckGo) and read as this product: kept apart from the
+     * links the sources give, so the Buy button only takes it when there's no better one (vergelijk.be's own link
+     * for 123inkt.be went to the product, a found one once to a list of ink for that printer).
+     */
+    fun saveFoundLink(context: Context, productId: Long, shop: String, link: String) {
+        val all = prefs(context).getString("found_links_$productId", null)?.let(::JSONObject) ?: JSONObject()
+        prefs(context).edit { putString("found_links_$productId", all.put(TrustedShops.key(shop), link).toString()) }
+    }
+
+    /**
+     * Once per product: the links of shops Google Shopping didn't give ([fromGoogle]) are dropped. The version before
+     * kept the pages it found itself among them, and one was a list of ink instead of 123inkt.be's printer; they are
+     * kept apart since, and only once read as the product.
+     */
+    fun cleanFoundLinksOnce(context: Context, productId: Long, fromGoogle: Set<String>) {
+        val p = prefs(context)
+        if (p.getBoolean("links_cleaned_$productId", false)) return
+        val all = p.getString("links_$productId", null)?.let(::JSONObject)
+        if (all != null) {
+            val keep = fromGoogle.map { TrustedShops.key(it) }.toSet()
+            all.keys().asSequence().toList().filter { TrustedShops.key(it) !in keep }.forEach { all.remove(it) }
+        }
+        p.edit {
+            if (all != null) putString("links_$productId", all.toString())
+            putBoolean("links_cleaned_$productId", true)
+        }
+    }
+
+    fun forgetFoundLink(context: Context, productId: Long, shop: String) {
+        val all = prefs(context).getString("found_links_$productId", null)?.let(::JSONObject) ?: return
+        all.remove(TrustedShops.key(shop))
+        prefs(context).edit { putString("found_links_$productId", all.toString()) }
+    }
+
+    fun foundLink(context: Context, productId: Long, shop: String): String? =
+        prefs(context).getString("found_links_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)).takeIf(String::isNotBlank) }
+
     /** How each shop's price of a product was checked (ShopCheck.Status), by shop: the last word for each. */
     fun saveShopStatuses(context: Context, productId: Long, statuses: Map<String, String>) {
         if (statuses.isEmpty()) return

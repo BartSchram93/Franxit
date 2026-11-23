@@ -292,6 +292,10 @@ class Repository private constructor(context: Context) {
     private fun checkShopPages(product: Product, offers: List<ShopOffer>, own: Scraper.Result, lookups: Int): List<ShopOffer> {
         val ownHost = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
         val name = own.name.ifBlank { product.displayName }
+        // Links the version before found itself and kept as if Google gave them: dropped once (a list of ink at 123inkt.be).
+        val fromGoogle = if (GoogleShopping.queryOf(product.url) != null) offers.map { it.seller }
+            else ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty().map { it.seller }
+        ShoppingSettings.cleanFoundLinksOnce(appContext, product.id, fromGoogle.toSet())
         // How each shop was checked, shown under it (ShopCheck.Status); shops not checked this time keep their last word.
         val statuses = java.util.concurrent.ConcurrentHashMap<String, String>()
         val links = offers.associate { offer ->
@@ -309,7 +313,10 @@ class Repository private constructor(context: Context) {
         // the cheapest first, at most [lookups] per check and once a day per shop. A page that is this product is
         // remembered: read from then on, and opened by the Buy button.
         val today = LocalDate.now().toString()
-        val toFind = offers.filter { links[it.seller] == null && !TrustedShops.same(it.seller, ownHost) }
+        // Pages found earlier (and read as this product then): read again, as long as they stay this product.
+        val remembered = offers.filter { links[it.seller] == null && !TrustedShops.same(it.seller, ownHost) }
+            .mapNotNull { offer -> ShoppingSettings.foundLink(appContext, product.id, offer.seller)?.let { offer.seller to it } }.toMap()
+        val toFind = offers.filter { links[it.seller] == null && it.seller !in remembered && !TrustedShops.same(it.seller, ownHost) }
             .sortedBy { it.price }
             .map { offer -> offer.seller to GoogleShopping.siteOf(offer.seller) }
             .filter { (seller, _) -> lookedUp.put("${product.id}|$seller", today) != today }
@@ -330,8 +337,9 @@ class Repository private constructor(context: Context) {
         }
             .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
             .mapNotNull { (seller, page) -> page?.let { seller to it } }.toMap()
-        found.forEach { (seller, page) -> ShoppingSettings.saveLink(appContext, product.id, seller, page) }
-        val allLinks = links + found
+        // Found pages are only kept once read as this product (below): 123inkt's first find was a list of ink.
+        val foundLinks = remembered + found
+        val allLinks = links + foundLinks
         // What each page said, by link, with its status.
         val tasks = allLinks.values.filterNotNull().distinct().map { link ->
             java.util.concurrent.Callable {
@@ -359,8 +367,24 @@ class Repository private constructor(context: Context) {
                 .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
                 .associate { (link, page, status) -> link to (page to status) }
         offers.forEach { offer -> allLinks[offer.seller]?.let { seen[it] }?.let { statuses[offer.seller] = it.second } }
+        // A page the app found itself: kept when it is this product, else forgotten, and then it says nothing about
+        // the shop (which stays, with the price its source gave): it may just be the wrong page of that shop.
+        val wrongFinds = mutableSetOf<String>()
+        foundLinks.forEach { (seller, link) ->
+            val page = seen[link]?.first
+            if (page != null && !page.otherColour && !page.otherProduct) {
+                ShoppingSettings.saveFoundLink(appContext, product.id, seller, link)
+            } else {
+                ShoppingSettings.forgetFoundLink(appContext, product.id, seller)
+                if (page != null || ShopCheck.isElsewhere(link, name)) statuses[seller] = ShopCheck.Status.NOT_FOUND
+                wrongFinds += seller
+            }
+        }
         ShoppingSettings.saveShopStatuses(appContext, product.id, statuses)
-        return offers.mapNotNull { offer -> ShopCheck.apply(offer, allLinks[offer.seller]?.let { seen[it]?.first }) }
+        return offers.mapNotNull { offer ->
+            val page = if (offer.seller in wrongFinds) null else allLinks[offer.seller]?.let { seen[it]?.first }
+            ShopCheck.apply(offer, page)
+        }
     }
 
     /** Shops looked up on DuckDuckGo, by product and shop, with the day: once a day each. */
@@ -419,11 +443,14 @@ class Repository private constructor(context: Context) {
     private suspend fun shopLinkUnchecked(product: Product, seller: String? = null): String? = withContext(Dispatchers.IO) {
         // A shop found through Google Shopping: its page from the last search (a new search would cost one).
         val shop = BuyLink.shop(seller, product.offers)
+        // A page the app found itself and read as this product: when no source gives the shop's product page.
+        val foundPage = shop?.let { ShoppingSettings.foundLink(appContext, product.id, it) }
         shop?.let { ShoppingSettings.link(appContext, product.id, it) }?.let { link ->
-            if (!link.startsWith(GoogleShopping.TOKEN)) return@withContext link
-            return@withContext lookUpStoreLink(product, shop, link.removePrefix(GoogleShopping.TOKEN))
+            val page = if (link.startsWith(GoogleShopping.TOKEN)) lookUpStoreLink(product, shop, link.removePrefix(GoogleShopping.TOKEN)) else link
+            // Google's link when it is the shop's page; a search only when nothing better is known.
+            if (ShopCheck.isProductPage(ShopCheck.direct(page)) || foundPage == null) return@withContext page
         }
-        if (GoogleShopping.queryOf(product.url) != null) return@withContext shop?.let { shoparizeShopLink(product, it) }
+        if (GoogleShopping.queryOf(product.url) != null) return@withContext shop?.let { shoparizeShopLink(product, it) } ?: foundPage
         // A shop's own page you added (fitshop.be), with Google Shopping's shops next to it.
         val host = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
         // Another shop than that page's ("Buy at Bol.com" on a Multibazar page): through Shoparize, never that page.
@@ -434,7 +461,7 @@ class Repository private constructor(context: Context) {
             runCatching { BuyLink.fromPage(buyPage(product.url), shop) { shoparizeShopLink(product, it) } }.getOrNull()
                 ?: shop?.let { shoparizeShopLink(product, it) }
         }
-        BuyLink.orSearch(found, shop, buyName(product))
+        BuyLink.orSearch(found ?: foundPage, shop, buyName(product))
     }
 
     /**
