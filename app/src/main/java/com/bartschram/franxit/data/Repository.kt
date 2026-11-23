@@ -341,7 +341,7 @@ class Repository private constructor(context: Context) {
         if (tasks.isEmpty()) return offers
         val seen = runCatching { shopReaders.invokeAll(tasks, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
             .mapNotNull { future -> runCatching { future.get() }.getOrNull() }.toMap()
-        return offers.map { offer -> ShopCheck.apply(offer, allLinks[offer.seller]?.let { seen[it] }) }
+        return offers.mapNotNull { offer -> ShopCheck.apply(offer, allLinks[offer.seller]?.let { seen[it] }) }
     }
 
     /** Shops looked up on DuckDuckGo, by product and shop, with the day: once a day each. */

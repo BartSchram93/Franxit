@@ -19,7 +19,7 @@ class ShopCheckTest {
         assertEquals(ShopCheck.Seen(539.0, false), seen)
         assertEquals(ShopOffer("Coolblue.be", 539.0, false), ShopCheck.apply(ShopOffer("Coolblue.be", 549.0, null), seen))
         // A sold-out shop no longer sets the price: the next one does.
-        val offers = listOf(ShopCheck.apply(ShopOffer("Coolblue.be", 549.0, null), seen), ShopOffer("Fnac.be", 719.0, null))
+        val offers = listOfNotNull(ShopCheck.apply(ShopOffer("Coolblue.be", 549.0, null), seen), ShopOffer("Fnac.be", 719.0, null))
         assertEquals("Fnac.be", Offers.cheapest(offers)!!.seller)
     }
 
@@ -52,5 +52,17 @@ class ShopCheckTest {
         val aclk = "https://www.google.com/aclk?sa=l&ai=abc"
         assertEquals(aclk, ShopCheck.direct(aclk))
         assertFalse(ShopCheck.isProductPage(ShopCheck.direct(aclk)))
+    }
+
+    @Test
+    fun aShopsPageOfAnotherColourLeavesTheShopOut() {
+        // Galaxus's link for the black Selphy CP1500 opened the pink one, at € 145,18.
+        val pink = Scraper.Result("Canon Selphy CP1500 Roze", listOf(Scraper.Offer("Galaxus", 145.18, inStock = true)))
+        val seen = ShopCheck.seen(pink, "Canon Selphy CP1500 Zwart")
+        assertTrue(seen!!.otherColour)
+        assertNull(ShopCheck.apply(ShopOffer("Galaxus.be", 119.0, null), seen))
+        // The same colour, or a page that names none: as before.
+        val black = Scraper.Result("Canon SELPHY CP1500 zwart", listOf(Scraper.Offer("Galaxus", 118.0, inStock = true)))
+        assertEquals(ShopOffer("Galaxus.be", 118.0, true), ShopCheck.apply(ShopOffer("Galaxus.be", 119.0, null), ShopCheck.seen(black, "Canon Selphy CP1500 Zwart")))
     }
 }

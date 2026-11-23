@@ -10,8 +10,12 @@ import com.bartschram.franxit.scrape.Scraper
  */
 internal object ShopCheck {
 
-    /** A shop page's [price] (null when it shows none) and whether it has the product [inStock] (null: doesn't say). */
-    data class Seen(val price: Double?, val inStock: Boolean?)
+    /**
+     * A shop page's [price] (null when it shows none) and whether it has the product [inStock] (null: doesn't say).
+     * [otherColour]: the page is of the same model in another colour (Galaxus's pink Selphy CP1500 for the black one),
+     * so its listed price is no price of this product.
+     */
+    data class Seen(val price: Double?, val inStock: Boolean?, val otherColour: Boolean = false)
 
     /** A page that says the product can't be bought now, without a price. */
     val SOLD_OUT = Seen(null, false)
@@ -21,6 +25,7 @@ internal object ShopCheck {
      * that went elsewhere), so it changes nothing.
      */
     fun seen(page: Scraper.Result, name: String): Seen? {
+        if (Matching.otherColour(page.name, name)) return Seen(null, null, otherColour = true)
         if (page.offers.isEmpty() || Matching.isOtherProduct(page.name, name)) return null
         val inStock = when {
             page.offers.all { it.inStock == false } -> false
@@ -34,10 +39,12 @@ internal object ShopCheck {
     /**
      * [offer] as its shop's page shows it: sold out when the page says so, and the page's price when it is close
      * to the listed one (between half and one and a half times: farther off, the page is likely of another
-     * version, and the listed price stays).
+     * version, and the listed price stays). Null when the page is of another colour: the offer isn't this product.
      */
-    fun apply(offer: ShopOffer, seen: Seen?): ShopOffer {
+    fun apply(offer: ShopOffer, seen: Seen?): ShopOffer? {
         if (seen == null) return offer
+        // The shop's page is of another colour: its price isn't this product's, the shop is left out.
+        if (seen.otherColour) return null
         var checked = offer
         seen.inStock?.let { checked = checked.copy(inStock = it) }
         seen.price?.takeIf { it > 0 && it / offer.price in 0.5..1.5 }?.let { checked = checked.copy(price = it) }
