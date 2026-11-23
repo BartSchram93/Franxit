@@ -1,3 +1,1 @@
-• De Koop-knop opent enkel nog productpagina's, nooit een zoekpagina
-• Winkels waarvan de app geen productpagina kent, worden niet getoond; elke winkel wordt opgezocht
-• Prijzen op Amazon worden beter gelezen
+• Verkoopt Amazon een product niet zelf, dan telt de goedkoopste andere verkoper op Amazon

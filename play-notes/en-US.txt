@@ -1,3 +1,1 @@
-• The Buy button only opens product pages, never a search
-• Shops whose product page the app doesn't know are not shown
-• Prices on Amazon are read better
+• When Amazon doesn't sell a product itself, the cheapest other seller on Amazon counts

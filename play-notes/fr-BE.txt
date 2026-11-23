@@ -1,3 +1,1 @@
-• Le bouton Acheter n'ouvre plus que des pages de produit, jamais une recherche
-• Les boutiques dont l'app ne connaît pas la page du produit ne sont pas affichées
-• Les prix sur Amazon sont mieux lus
+• Si Amazon ne vend pas le produit lui-même, le vendeur le moins cher sur Amazon compte
