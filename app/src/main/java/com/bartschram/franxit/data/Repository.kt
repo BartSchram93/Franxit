@@ -656,6 +656,25 @@ class Repository private constructor(context: Context) {
         return link
     }
 
+    /**
+     * Google Shopping's page of each shop shown, looked up right after a check (one search per shop, kept by the
+     * search service for a day) instead of on a tap: asking Google on a tap could keep the Buy button loading for a
+     * minute or two. Shops whose page the app found and read itself need none: that page is opened.
+     */
+    private fun prepareStoreLinks(productId: Long, offers: List<ShopOffer>) {
+        background.launch {
+            for (shop in offers.map { it.seller }.distinct()) {
+                if (ShoppingSettings.foundLink(appContext, productId, shop) != null) continue
+                val token = ShoppingSettings.link(appContext, productId, shop)
+                    ?.takeIf { it.startsWith(GoogleShopping.TOKEN) }?.removePrefix(GoogleShopping.TOKEN) ?: continue
+                val link = runCatching { GoogleShopping.storeLink(token, shop) { a, b -> TrustedShops.same(a, b) } }.getOrNull() ?: continue
+                ShoppingSettings.saveLink(appContext, productId, shop, link)
+                // A tap before this was ready may have kept another page for the button.
+                links.keys.removeIf { it.startsWith("$productId|") }
+            }
+        }
+    }
+
     /** What a shared product is, shown before you decide to track it: its name, photo and lowest price. */
     data class Preview(val name: String, val image: String?, val price: Double?)
 
@@ -786,6 +805,7 @@ class Repository private constructor(context: Context) {
         val shoparize = shoparizeShops(named, query)
         // Each shop's own page, where its link is known: sold out there, or another price, as the shop says it.
         val (offers, cheapest) = store(checkShopPages(named, combine(extras.offers, shoparize), result, lookups))
+        prepareStoreLinks(product.id, offers)
         // The shops are in: show them now, before the site's price history is fetched.
         onFirstResults?.invoke()
         if (cheapest == null) return null
