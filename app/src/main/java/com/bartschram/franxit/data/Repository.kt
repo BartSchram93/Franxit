@@ -425,8 +425,12 @@ class Repository private constructor(context: Context) {
             }
         }
         ShoppingSettings.saveShopStatuses(appContext, product.id, statuses)
+        // Shops the product's own page lists (vergelijk.be's bol.com): their price is that page's, so a link from another
+        // source that turns out to be another version (another colour, another product) says nothing about it.
+        val ownSellers = own.offers.map { it.seller }
         return offers.mapNotNull { offer ->
-            val page = if (offer.seller in wrongFinds) null else allLinks[offer.seller]?.let { seen[it]?.first }
+            var page = if (offer.seller in wrongFinds) null else allLinks[offer.seller]?.let { seen[it]?.first }
+            if (page != null && (page.otherColour || page.otherProduct) && ownSellers.any { TrustedShops.same(it, offer.seller) }) page = null
             ShopCheck.apply(offer, page)
         }
     }
