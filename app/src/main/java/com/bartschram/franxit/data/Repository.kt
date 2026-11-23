@@ -326,11 +326,16 @@ class Repository private constructor(context: Context) {
         val toFind = offers.filter { links[it.seller] == null && it.seller !in remembered && !TrustedShops.same(it.seller, ownHost) }
             .sortedBy { it.price }
             .map { offer -> offer.seller to GoogleShopping.siteOf(offer.seller) }
-            .filter { (seller, _) -> lookedUp.put("${product.id}|$seller", today) != today }
+            // Once a day per shop, counted only when the search got an answer: one DuckDuckGo blocked is tried again.
+            .filter { (seller, _) -> lookedUp["${product.id}|$seller"] != today }
             .take(lookups)
         val searchName = SearchNames.withBrand(product.displayName, ShoppingSettings.brand(appContext, product.id))
         // When DuckDuckGo blocks the app's searches: a few in a browser instead.
-        val browserSearches = java.util.concurrent.atomic.AtomicInteger(BROWSER_READS)
+        // One product refreshed: more of its shops in the browser (and more time); all products at once: a few.
+        val single = lookups >= LOOKUPS_ONE
+        val browserBudget = if (single) BROWSER_ONE else BROWSER_READS
+        val waitSeconds = if (single) BROWSER_WAIT_SECONDS else SHOP_CHECK_SECONDS
+        val browserSearches = java.util.concurrent.atomic.AtomicInteger(browserBudget)
         val browser = { url: String -> if (browserSearches.getAndDecrement() > 0) BrowserPages.html(appContext, url, DuckDuckGo::hasResults) else null }
         val found = toFind.map { (seller, site) ->
             java.util.concurrent.Callable {
@@ -339,11 +344,12 @@ class Repository private constructor(context: Context) {
                 // Not a page that its address says is another product.
                 val page = lookup.page?.takeIf { url -> !Matching.isOtherProduct(Matching.titleFromLink(url).orEmpty(), name) }
                 if (page == null) statuses[seller] = if (lookup.blocked) ShopCheck.Status.SEARCH_BLOCKED else ShopCheck.Status.NOT_FOUND
+                if (!lookup.blocked) lookedUp["${product.id}|$seller"] = today
                 seller to page
             }
         }.let { lookupTasks ->
             if (lookupTasks.isEmpty()) emptyList<java.util.concurrent.Future<Pair<String, String?>>>()
-            else runCatching { shopReaders.invokeAll(lookupTasks, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
+            else runCatching { shopReaders.invokeAll(lookupTasks, waitSeconds, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
         }
             .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
             .mapNotNull { (seller, page) -> page?.let { seller to it } }.toMap()
@@ -380,16 +386,28 @@ class Repository private constructor(context: Context) {
             runCatching { shopReaders.invokeAll(tasks, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
                 .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
                 .associate { (link, page, status) -> link to (page to status) }).toMutableMap()
-        // Shops that keep the app out (Fnac, Nintendo's store): their pages in a real browser, a few per check, one
-        // at a time (a browser is heavy). What it reads counts like any page.
-        seen.filter { (_, value) -> value.second == ShopCheck.Status.BLOCKED }.keys.take(BROWSER_READS).forEach { link ->
-            val html = runCatching { BrowserPages.html(appContext, link) }.getOrNull() ?: return@forEach
-            val page = runCatching { ShopCheck.seen(Scraper.fromPage(html, link), name) }.getOrElse { e ->
-                if (e.message?.startsWith("Not available at") == true) ShopCheck.SOLD_OUT else null
-            } ?: return@forEach
-            seen[link] = page to ShopCheck.Status.CHECKED
-            shopPages[link] = System.currentTimeMillis() to (page to ShopCheck.Status.CHECKED)
-            ShoppingSettings.addBrowserSite(appContext, siteOfLink(link))
+        // Shops that keep the app out (Fnac, Nintendo's store): their pages in a real browser, the cheapest shops
+        // first, two at a time (a browser is heavy). What it reads counts like any page.
+        val priceOfLink = offers.mapNotNull { offer -> allLinks[offer.seller]?.let { it to offer.price } }.toMap()
+        val browserReads = seen.filter { (_, value) -> value.second == ShopCheck.Status.BLOCKED }.keys
+            .sortedBy { priceOfLink[it] ?: Double.MAX_VALUE }.take(browserBudget)
+            .map { link ->
+                java.util.concurrent.Callable {
+                    val html = runCatching { BrowserPages.html(appContext, link) }.getOrNull() ?: return@Callable null
+                    val page = runCatching { ShopCheck.seen(Scraper.fromPage(html, link), name) }.getOrElse { e ->
+                        if (e.message?.startsWith("Not available at") == true) ShopCheck.SOLD_OUT else null
+                    } ?: return@Callable null
+                    link to page
+                }
+            }
+        if (browserReads.isNotEmpty()) {
+            runCatching { browserReaders.invokeAll(browserReads, waitSeconds, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
+                .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
+                .forEach { (link, page) ->
+                    seen[link] = page to ShopCheck.Status.CHECKED
+                    shopPages[link] = System.currentTimeMillis() to (page to ShopCheck.Status.CHECKED)
+                    ShoppingSettings.addBrowserSite(appContext, siteOfLink(link))
+                }
         }
         offers.forEach { offer -> allLinks[offer.seller]?.let { seen[it] }?.let { statuses[offer.seller] = it.second } }
         // A page the app found itself: kept when it is this product, else forgotten, and then it says nothing about
@@ -423,6 +441,13 @@ class Repository private constructor(context: Context) {
 
     /** Pages read in a browser per check, for shops that keep the app's own requests out. */
     private val BROWSER_READS = 2
+
+    /** Searches and pages in the browser when one product is refreshed, and how long they may take. */
+    private val BROWSER_ONE = 6
+    private val BROWSER_WAIT_SECONDS = 60L
+
+    /** Browsers at the same time: two (each is a whole web page with its scripts). */
+    private val browserReaders = java.util.concurrent.Executors.newFixedThreadPool(2)
 
     /** Only web addresses are ever opened: a link from a shop or from Google is not trusted with any other kind. */
     suspend fun shopLink(product: Product, seller: String? = null): String? {
