@@ -91,4 +91,20 @@ class ShopCheckTest {
         assertEquals(ShopCheck.Status.BLOCKED, ShopCheck.status(null, "Coolblue.be only allows browsers"))
         assertEquals(ShopCheck.Status.UNREADABLE, ShopCheck.status(null, "Coolblue.be's page shows no price the app can read"))
     }
+
+    @Test
+    fun aBundleOrAnotherStoresPageSaysNothingOfTheProduct() {
+        val zelda = "Nintendo Switch 2 The Legend of Zelda 40th Anniversary Edition"
+        // Coolblue's link was a bundle with a case: € 579, in stock.
+        val bundle = "https://www.coolblue.be/nl/product/988615/nintendo-switch-2-2026-the-legend-of-zelda-ocarina-of-time-bluebuilt-beschermhoes.html"
+        assertTrue(ShopCheck.isElsewhere(bundle, zelda))
+        val page = Scraper.Result("Nintendo Switch 2 (2026) + The Legend of Zelda: Ocarina of Time + BlueBuilt Beschermhoes", listOf(Scraper.Offer("Coolblue", 579.0, inStock = true)))
+        assertEquals(ShopCheck.ELSEWHERE, ShopCheck.seen(page, zelda))
+        // Amazon.com.be's price read on amazon.com (the US store, not sold there): not its page.
+        assertFalse(ShopCheck.isShopsLink("https://www.amazon.com/Canon-SELPHY-CP1500-Compact-Printer/dp/B0BF6T86WD", "Amazon.com.be"))
+        assertTrue(ShopCheck.isShopsLink("https://www.amazon.com.be/dp/B0BF6T86WD", "Amazon.com.be"))
+        assertTrue(ShopCheck.isShopsLink("https://fr.fnac.be/a123", "Fnac.be"))
+        assertTrue(ShopCheck.isShopsLink("https://store.nintendo.com/nl-be/zelda", "Nintendo"))
+        assertTrue(ShopCheck.isShopsLink("https://www.kamera-express.be/product/1", "Kamera Express"))
+    }
 }

@@ -165,6 +165,13 @@ object Matching {
 
     private fun colours(text: String): Set<String> = words(text).mapNotNull { COLOURS[it] }.toSet()
 
+    /**
+     * Whether [title] adds a bundle or an accessory that [wanted] doesn't name ("… Ocarina of Time + BlueBuilt
+     * Beschermhoes" for the console alone): a shop's page of that has another price than the product.
+     */
+    fun addsBundleOrAccessory(title: String, wanted: String): Boolean =
+        (isAccessory(title) && !isAccessory(wanted)) || (BUNDLE.containsMatchIn(title) && !BUNDLE.containsMatchIn(wanted))
+
     /** The colour words of a name as it writes them ("zwart"), to search with. */
     fun colourWords(text: String): List<String> = words(text).filter { it in COLOURS }
 

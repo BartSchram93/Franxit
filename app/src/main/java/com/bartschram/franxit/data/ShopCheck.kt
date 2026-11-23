@@ -29,7 +29,7 @@ internal object ShopCheck {
      */
     fun seen(page: Scraper.Result, name: String): Seen? {
         if (Matching.otherColour(page.name, name)) return Seen(null, null, otherColour = true)
-        if (Matching.isOtherProduct(page.name, name)) return ELSEWHERE
+        if (Matching.isOtherProduct(page.name, name) || Matching.addsBundleOrAccessory(page.name, name)) return ELSEWHERE
         if (page.offers.isEmpty()) return null
         val inStock = when {
             page.offers.all { it.inStock == false } -> false
@@ -84,7 +84,17 @@ internal object ShopCheck {
     fun isElsewhere(link: String, name: String): Boolean {
         val path = runCatching { java.net.URI(link).path }.getOrNull().orEmpty()
         if (LISTING_PATH.containsMatchIn(path) || LISTING_QUERY.containsMatchIn(link)) return true
-        return Matching.titleFromLink(link)?.let { Matching.isOtherProduct(it, name) } == true
+        return Matching.titleFromLink(link)?.let { Matching.isOtherProduct(it, name) || Matching.addsBundleOrAccessory(it, name) } == true
+    }
+
+    /**
+     * Whether [link] is on the site of the shop called [shop] when that name is a site ("Amazon.com.be"): amazon.com's
+     * page (the US store, not sold there) says nothing about Amazon.com.be. Shops without a known site: any link.
+     */
+    fun isShopsLink(link: String, shop: String): Boolean {
+        val site = com.bartschram.franxit.scrape.GoogleShopping.siteOf(shop) ?: return true
+        val host = link.substringAfter("//").substringBefore('/').substringBefore('?').lowercase().removePrefix("www.")
+        return host == site || host.endsWith(".$site")
     }
 
     /**

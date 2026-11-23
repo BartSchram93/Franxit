@@ -298,15 +298,21 @@ class Repository private constructor(context: Context) {
         ShoppingSettings.cleanFoundLinksOnce(appContext, product.id, fromGoogle.toSet())
         // How each shop was checked, shown under it (ShopCheck.Status); shops not checked this time keep their last word.
         val statuses = java.util.concurrent.ConcurrentHashMap<String, String>()
+        // Shops whose only link (from Google or Shoparize) is clearly another product (a bundle at Coolblue): looked
+        // up instead; left out when their right page isn't found, as their price is that other product's.
+        val wrongLinks = mutableSetOf<String>()
         val links = offers.associate { offer ->
             // A link through Google (".../url?q=https://www.coolblue.be/...") is read at the shop's own address.
             val link = listOf(ShoppingSettings.link(appContext, product.id, offer.seller), ShoppingSettings.shoparizeLink(appContext, product.id, offer.seller))
                 .map(ShopCheck::direct)
                 .map { it?.let(DuckDuckGo::belgian) }
                 // A page for another country (Nintendo's UK store, in pounds) is no link: the shop is looked up anew.
-                .firstOrNull { it != null && ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) }
+                .firstOrNull { it != null && ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) && ShopCheck.isShopsLink(it, offer.seller) }
                 ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
-            offer.seller to link
+            if (link != null && ShopCheck.isElsewhere(link, own.name.ifBlank { product.displayName })) {
+                wrongLinks += offer.seller
+                offer.seller to null
+            } else offer.seller to link
         }
         // The page the product was added from is read already.
         offers.filter { TrustedShops.same(it.seller, ownHost) }.forEach { statuses[it.seller] = ShopCheck.Status.CHECKED }
@@ -319,7 +325,7 @@ class Repository private constructor(context: Context) {
         val remembered = offers.filter { links[it.seller] == null && !TrustedShops.same(it.seller, ownHost) }
             .mapNotNull { offer ->
                 val link = ShoppingSettings.foundLink(appContext, product.id, offer.seller) ?: return@mapNotNull null
-                if (DuckDuckGo.isOtherCountry(link)) {
+                if (DuckDuckGo.isOtherCountry(link) || !ShopCheck.isShopsLink(link, offer.seller)) {
                     ShoppingSettings.forgetFoundLink(appContext, product.id, offer.seller)
                     null
                 } else offer.seller to link
@@ -457,9 +463,12 @@ class Repository private constructor(context: Context) {
         ShoppingSettings.saveShopStatuses(appContext, product.id, statuses)
         // Shops the product's own page lists (vergelijk.be's bol.com): their price is that page's, so a link from another
         // source that turns out to be another version (another colour, another product) says nothing about it.
-        val ownSellers = own.offers.map { it.seller }
+        // (For a Google Shopping product its own offers are Google's: a page of another version leaves that shop out.)
+        val ownSellers = if (GoogleShopping.queryOf(product.url) != null) emptyList() else own.offers.map { it.seller }
         return offers.mapNotNull { offer ->
             var page = if (offer.seller in wrongFinds) null else allLinks[offer.seller]?.let { seen[it]?.first }
+            // Its source's link was another product, and its right page wasn't found: the price is that product's.
+            if (page == null && offer.seller in wrongLinks && (allLinks[offer.seller] == null || offer.seller in wrongFinds)) page = ShopCheck.ELSEWHERE
             if (page != null && (page.otherColour || page.otherProduct) && ownSellers.any { TrustedShops.same(it, offer.seller) }) page = null
             ShopCheck.apply(offer, page)
         }
