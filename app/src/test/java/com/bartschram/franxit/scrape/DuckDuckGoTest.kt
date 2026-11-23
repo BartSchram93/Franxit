@@ -70,4 +70,11 @@ class DuckDuckGoTest {
         val lite = """<tr><td><a rel="nofollow" href="//duckduckgo.com/l/?uddg=""" + java.net.URLEncoder.encode(nintendo, "UTF-8") + """&amp;rut=a" class='result-link'>Zelda</a></td></tr>"""
         assertEquals(DuckDuckGo.Lookup(nintendo), DuckDuckGo.lookup(lite) { it == "store.nintendo.com" })
     }
+
+    @Test
+    fun theFullPageInABrowserLinksResultsDirectly() {
+        val page = """<article><a href="https://duckduckgo.com/settings">x</a><h2><a data-testid="result-title-a" href="$nintendo">Zelda</a></h2></article>"""
+        assertEquals(DuckDuckGo.Lookup(nintendo), DuckDuckGo.lookupInBrowserPage(page) { it == "store.nintendo.com" })
+        assertEquals(DuckDuckGo.Lookup(null), DuckDuckGo.lookupInBrowserPage("<article>No results</article>") { it == "store.nintendo.com" })
+    }
 }

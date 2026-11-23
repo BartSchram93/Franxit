@@ -24,9 +24,12 @@ internal object BrowserPages {
     /** After the page has loaded: a moment for its scripts (a check page passes, then loads the product). */
     private const val SETTLE_MS = 2_500L
 
-    /** The page's HTML once loaded and past any check page; null when it didn't get there in time. */
+    /**
+     * The page's HTML once loaded and [ready] (by default: past any check page); null when it didn't get there in
+     * time. A search page says itself when its results are there.
+     */
     @SuppressLint("SetJavaScriptEnabled")
-    fun html(context: Context, url: String): String? {
+    fun html(context: Context, url: String, ready: (String) -> Boolean = { !Scraper.isBrowserCheck(it) }): String? {
         val done = CountDownLatch(1)
         var result: String? = null
         var view: WebView? = null
@@ -38,10 +41,10 @@ internal object BrowserPages {
             web.evaluateJavascript("document.documentElement.outerHTML") { value ->
                 val html = runCatching { JSONTokener(value).nextValue() as? String }.getOrNull().orEmpty()
                 // Still a check page: wait for it to pass, a few times.
-                if ((html.isEmpty() || Scraper.isBrowserCheck(html)) && ++tries < 4) {
+                if ((html.isEmpty() || !ready(html)) && ++tries < 4) {
                     main.postDelayed(grab, SETTLE_MS)
                 } else {
-                    result = html.takeIf { it.isNotEmpty() && !Scraper.isBrowserCheck(it) }
+                    result = html.takeIf { it.isNotEmpty() && ready(it) }
                     done.countDown()
                 }
             }

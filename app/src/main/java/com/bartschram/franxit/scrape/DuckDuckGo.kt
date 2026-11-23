@@ -54,7 +54,8 @@ object DuckDuckGo {
     }
 
     /** The product page of [query] at the shop called [shop] (no site known): the first result on that shop's site. */
-    fun shopPage(query: String, shop: String): Lookup = search("${query.trim()} ${shop.trim()}") { isShopsSite(it, shop) }
+    fun shopPage(query: String, shop: String, browser: ((String) -> String?)? = null): Lookup =
+        search("${query.trim()} ${shop.trim()}", { isShopsSite(it, shop) }, browser)
 
     /**
      * A results page read: the first wanted result, or nothing, or "blocked" when it is no results page at all (a
@@ -66,17 +67,39 @@ object DuckDuckGo {
         return Lookup(null, blocked = !isResults)
     }
 
-    /** [words] searched on the simple results page, and on the other one when the first gave a check page. */
-    private fun search(words: String, accept: (String) -> Boolean): Lookup {
+    /** Any link on a page to a wanted site: DuckDuckGo's full page, as a browser shows it, links results directly. */
+    private val ANY_LINK = Regex("""<a\b[^>]*\bhref=["'](https?://[^"']+)["']""")
+
+    /** Whether DuckDuckGo's full page, in a browser, shows its results (or that there are none) yet. */
+    fun hasResults(html: String): Boolean =
+        "result-title-a" in html || "data-testid=\"result\"" in html || Regex("""No results|Geen resultaten|no-results""", RegexOption.IGNORE_CASE).containsMatchIn(html)
+
+    /** The full results page, read in a browser (its links point straight at the sites). */
+    internal fun lookupInBrowserPage(html: String, accept: (String) -> Boolean): Lookup {
+        lookup(html, accept).page?.let { return Lookup(it) }
+        val page = ANY_LINK.findAll(html).map { it.groupValues[1].replace("&amp;", "&") }
+            .filter { "duckduckgo.com" !in it.substringAfter("//").substringBefore('/') }
+            .firstOrNull { url -> accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) }
+        return Lookup(page)
+    }
+
+    /**
+     * [words] searched on the simple results page, on the other one when the first gave a check page, and then in a
+     * [browser] (DuckDuckGo blocks an app's searches after a few, a browser's much less): the page's HTML, or null.
+     */
+    private fun search(words: String, accept: (String) -> Boolean, browser: ((String) -> String?)?): Lookup {
         val q = URLEncoder.encode(words.trim(), "UTF-8")
         val first = runCatching { lookup(Scraper.download(BASE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
         if (!first.blocked) return first
-        return runCatching { lookup(Scraper.download(LITE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
+        val lite = runCatching { lookup(Scraper.download(LITE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
+        if (!lite.blocked || browser == null) return lite
+        val html = runCatching { browser("https://duckduckgo.com/?q=$q&ia=web") }.getOrNull() ?: return Lookup(null, blocked = true)
+        return lookupInBrowserPage(html, accept)
     }
 
     /** The product page of [query] on [site], as DuckDuckGo finds it first. */
-    fun productPage(query: String, site: String): Lookup {
+    fun productPage(query: String, site: String, browser: ((String) -> String?)? = null): Lookup {
         val wanted = site.lowercase().removePrefix("www.")
-        return search("${query.trim()} site:$site") { host -> host == wanted || host.endsWith(".$wanted") }
+        return search("${query.trim()} site:$site", { host -> host == wanted || host.endsWith(".$wanted") }, browser)
     }
 }

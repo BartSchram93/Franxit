@@ -322,9 +322,12 @@ class Repository private constructor(context: Context) {
             .filter { (seller, _) -> lookedUp.put("${product.id}|$seller", today) != today }
             .take(lookups)
         val searchName = SearchNames.withBrand(product.displayName, ShoppingSettings.brand(appContext, product.id))
+        // When DuckDuckGo blocks the app's searches: a few in a browser instead.
+        val browserSearches = java.util.concurrent.atomic.AtomicInteger(BROWSER_READS)
+        val browser = { url: String -> if (browserSearches.getAndDecrement() > 0) BrowserPages.html(appContext, url, DuckDuckGo::hasResults) else null }
         val found = toFind.map { (seller, site) ->
             java.util.concurrent.Callable {
-                val lookup = runCatching { if (site != null) DuckDuckGo.productPage(searchName, site) else DuckDuckGo.shopPage(searchName, seller) }
+                val lookup = runCatching { if (site != null) DuckDuckGo.productPage(searchName, site, browser) else DuckDuckGo.shopPage(searchName, seller, browser) }
                     .getOrElse { DuckDuckGo.Lookup(null, blocked = true) }
                 // Not a page that its address says is another product.
                 val page = lookup.page?.takeIf { url -> !Matching.isOtherProduct(Matching.titleFromLink(url).orEmpty(), name) }
