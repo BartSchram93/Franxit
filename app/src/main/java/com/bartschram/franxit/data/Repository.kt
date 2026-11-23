@@ -302,6 +302,7 @@ class Repository private constructor(context: Context) {
             // A link through Google (".../url?q=https://www.coolblue.be/...") is read at the shop's own address.
             val link = listOf(ShoppingSettings.link(appContext, product.id, offer.seller), ShoppingSettings.shoparizeLink(appContext, product.id, offer.seller))
                 .map(ShopCheck::direct)
+                .map { it?.let(DuckDuckGo::belgian) }
                 // A page for another country (Nintendo's UK store, in pounds) is no link: the shop is looked up anew.
                 .firstOrNull { it != null && ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) }
                 ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
@@ -329,7 +330,14 @@ class Repository private constructor(context: Context) {
             // Once a day per shop, counted only when the search got an answer: one DuckDuckGo blocked is tried again.
             .filter { (seller, _) -> lookedUp["${product.id}|$seller"] != today }
             .take(lookups)
-        val searchName = SearchNames.withBrand(product.displayName, ShoppingSettings.brand(appContext, product.id))
+        // With the colour the full name has ("Zwart"): the search finds that one first.
+        val colour = Matching.colourWords(name).filter { it !in product.displayName.lowercase() }.joinToString(" ")
+        val searchName = (SearchNames.withBrand(product.displayName, ShoppingSettings.brand(appContext, product.id)) + " " + colour).trim()
+        // A result whose address names another colour or product ("…-cp1500-blanc") is passed over for the next one.
+        val fits = { url: String ->
+            val words = Matching.titleFromLink(url)
+            words == null || (!Matching.otherColour(words, name) && !Matching.isOtherProduct(words, name))
+        }
         // When DuckDuckGo blocks the app's searches: a few in a browser instead.
         // One product refreshed: more of its shops in the browser (and more time); all products at once: a few.
         val single = lookups >= LOOKUPS_ONE
@@ -341,7 +349,7 @@ class Repository private constructor(context: Context) {
         val notes = java.util.concurrent.ConcurrentHashMap<String, String>()
         val found = toFind.map { (seller, site) ->
             java.util.concurrent.Callable {
-                val lookup = runCatching { if (site != null) DuckDuckGo.productPage(searchName, site, browser) else DuckDuckGo.shopPage(searchName, seller, browser) }
+                val lookup = runCatching { if (site != null) DuckDuckGo.productPage(searchName, site, browser, fits) else DuckDuckGo.shopPage(searchName, seller, browser, fits) }
                     .getOrElse { DuckDuckGo.Lookup(null, blocked = true) }
                 // Not a page that its address says is another product.
                 val page = lookup.page?.takeIf { url -> !Matching.isOtherProduct(Matching.titleFromLink(url).orEmpty(), name) }

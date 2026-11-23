@@ -33,9 +33,9 @@ object DuckDuckGo {
      * The first result on [site] in a results page; null when there is none (nothing found, or a check page instead
      * of results). Ads (whose link is no "uddg" redirect) are passed over.
      */
-    internal fun firstResult(html: String, site: String): String? {
+    internal fun firstResult(html: String, site: String, fits: (String) -> Boolean = { true }): String? {
         val wanted = site.lowercase().removePrefix("www.")
-        return firstResult(html) { host -> host == wanted || host.endsWith(".$wanted") }
+        return firstResult(html, fits) { host -> host == wanted || host.endsWith(".$wanted") }
     }
 
     /** A path for another country than Belgium: "/en-gb/…", "/de-de/…", "/nl_NL/…" (and not "/nl-be/", "/fr-be/"). */
@@ -44,19 +44,29 @@ object DuckDuckGo {
     /** Whether [url] is a shop's page for another country (Nintendo's UK store for a Belgian shopper). */
     fun isOtherCountry(url: String): Boolean {
         val path = runCatching { java.net.URI(url).path }.getOrNull().orEmpty()
-        val match = COUNTRY.find(path) ?: return false
-        return !match.groupValues[2].equals("be", ignoreCase = true)
+        COUNTRY.find(path)?.let { return !it.groupValues[2].equals("be", ignoreCase = true) }
+        // Country, then language: bol.com's "/nl/nl/" (the Netherlands) against "/be/nl/".
+        val pair = COUNTRY_LANGUAGE.find(path) ?: return false
+        return pair.groupValues[1].lowercase() != "be" && pair.groupValues[1].lowercase() in COUNTRIES
     }
 
+    private val COUNTRY_LANGUAGE = Regex("""^/([a-z]{2})/([a-z]{2})(/|$)""", RegexOption.IGNORE_CASE)
+    private val COUNTRIES = setOf("nl", "de", "fr", "uk", "gb", "lu", "at", "ch", "es", "it", "us", "pl")
+
+    /** A shop's page for Belgium where its address says the Netherlands and a Belgian one exists: bol.com's "/nl/nl/" as "/be/nl/". */
+    fun belgian(url: String): String =
+        if (url.substringAfter("//").substringBefore('/').removePrefix("www.") == "bol.com") url.replaceFirst("bol.com/nl/nl/", "bol.com/be/nl/").replaceFirst("bol.com/nl/fr/", "bol.com/be/fr/") else url
+
     /** The first result in a results page whose site ([accept] gets its host, without "www.") is wanted. */
-    internal fun firstResult(html: String, accept: (String) -> Boolean): String? =
+    internal fun firstResult(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): String? =
         RESULT.findAll(html).mapNotNull { match ->
             val href = HREF.find(match.value)?.groupValues?.get(1)?.replace("&amp;", "&") ?: return@mapNotNull null
             val target = Regex("""[?&]uddg=([^&]+)""").find(href)?.groupValues?.get(1)
                 ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrNull() }
                 ?: href.takeIf { it.startsWith("https://") && "duckduckgo.com" !in it }
             // A page for another country is passed over: the next result may be Belgium's.
-            target?.takeIf { url -> !isOtherCountry(url) && accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) }
+            // Another country, or (by its address) another colour or product: the next result may be the one.
+            target?.takeIf { url -> !isOtherCountry(url) && accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) && fits(url) }
         }.firstOrNull()
 
     /**
@@ -70,15 +80,15 @@ object DuckDuckGo {
     }
 
     /** The product page of [query] at the shop called [shop] (no site known): the first result on that shop's site. */
-    fun shopPage(query: String, shop: String, browser: ((String, (String) -> Boolean) -> String?)? = null): Lookup =
-        search("${query.trim()} ${shop.trim()}", { isShopsSite(it, shop) }, browser)
+    fun shopPage(query: String, shop: String, browser: ((String, (String) -> Boolean) -> String?)? = null, fits: (String) -> Boolean = { true }): Lookup =
+        search("${query.trim()} ${shop.trim()}", { isShopsSite(it, shop) }, browser, fits)
 
     /**
      * A results page read: the first wanted result, or nothing, or "blocked" when it is no results page at all (a
      * check page: DuckDuckGo sometimes answers apps with one).
      */
-    internal fun lookup(html: String, accept: (String) -> Boolean): Lookup {
-        firstResult(html, accept)?.let { return Lookup(it) }
+    internal fun lookup(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): Lookup {
+        firstResult(html, fits, accept)?.let { return Lookup(it) }
         val isResults = RESULT.containsMatchIn(html) || Regex("""no-results|No results|Geen resultaten""", RegexOption.IGNORE_CASE).containsMatchIn(html)
         return Lookup(null, blocked = !isResults)
     }
@@ -91,11 +101,11 @@ object DuckDuckGo {
         "result-title-a" in html || "data-testid=\"result\"" in html || Regex("""No results|Geen resultaten|no-results""", RegexOption.IGNORE_CASE).containsMatchIn(html)
 
     /** The full results page, read in a browser (its links point straight at the sites). */
-    internal fun lookupInBrowserPage(html: String, accept: (String) -> Boolean): Lookup {
-        lookup(html, accept).page?.let { return Lookup(it) }
+    internal fun lookupInBrowserPage(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): Lookup {
+        lookup(html, fits, accept).page?.let { return Lookup(it) }
         val page = ANY_LINK.findAll(html).map { it.groupValues[1].replace("&amp;", "&") }
             .filter { url -> val host = url.substringAfter("//").substringBefore('/'); "duckduckgo.com" !in host && "bing." !in host && "microsoft." !in host && !isOtherCountry(url) }
-            .firstOrNull { url -> accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) }
+            .firstOrNull { url -> accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) && fits(url) }
         return Lookup(page)
     }
 
@@ -103,30 +113,30 @@ object DuckDuckGo {
      * [words] searched on the simple results page, on the other one when the first gave a check page, and then in a
      * [browser] (DuckDuckGo blocks an app's searches after a few, a browser's much less): the page's HTML, or null.
      */
-    private fun search(words: String, accept: (String) -> Boolean, browser: ((String, (String) -> Boolean) -> String?)?): Lookup {
+    private fun search(words: String, accept: (String) -> Boolean, browser: ((String, (String) -> Boolean) -> String?)?, fits: (String) -> Boolean): Lookup {
         val q = URLEncoder.encode(words.trim(), "UTF-8")
         // Blocked a moment ago: straight to the browser, without two searches that would be blocked again.
         if (browser == null || System.currentTimeMillis() >= blockedUntil) {
-            val first = runCatching { lookup(Scraper.download(BASE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
+            val first = runCatching { lookup(Scraper.download(BASE + q, "text/html"), fits, accept) }.getOrElse { Lookup(null, blocked = true) }
             if (!first.blocked) return first
-            val lite = runCatching { lookup(Scraper.download(LITE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
+            val lite = runCatching { lookup(Scraper.download(LITE + q, "text/html"), fits, accept) }.getOrElse { Lookup(null, blocked = true) }
             if (!lite.blocked || browser == null) return lite
             blockedUntil = System.currentTimeMillis() + BLOCKED_FOR_MS
         }
         runCatching { browser("https://duckduckgo.com/?q=$q&ia=web", ::hasResults) }.getOrNull()
-            ?.let { return lookupInBrowserPage(it, accept) }
+            ?.let { return lookupInBrowserPage(it, fits, accept) }
         // DuckDuckGo shows no results even in a browser: Bing's results page, in the browser too.
         val bing = runCatching { browser("https://www.bing.com/search?q=$q&setlang=nl&cc=BE", ::hasBingResults) }.getOrNull()
             ?: return Lookup(null, blocked = true)
-        return lookupInBrowserPage(bing, accept)
+        return lookupInBrowserPage(bing, fits, accept)
     }
 
     /** Whether Bing's results page shows its results (or that there are none) yet. */
     fun hasBingResults(html: String): Boolean = "b_algo" in html || "b_no" in html
 
     /** The product page of [query] on [site], as DuckDuckGo finds it first. */
-    fun productPage(query: String, site: String, browser: ((String, (String) -> Boolean) -> String?)? = null): Lookup {
+    fun productPage(query: String, site: String, browser: ((String, (String) -> Boolean) -> String?)? = null, fits: (String) -> Boolean = { true }): Lookup {
         val wanted = site.lowercase().removePrefix("www.")
-        return search("${query.trim()} site:$site", { host -> host == wanted || host.endsWith(".$wanted") }, browser)
+        return search("${query.trim()} site:$site", { host -> host == wanted || host.endsWith(".$wanted") }, browser, fits)
     }
 }

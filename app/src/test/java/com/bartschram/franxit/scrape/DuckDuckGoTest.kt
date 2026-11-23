@@ -59,10 +59,10 @@ class DuckDuckGoTest {
         val accept = { host: String -> host == "store.nintendo.com" }
         // Results, none on the site: nothing found.
         val elsewhere = result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.fnac.be%2Fa1&amp;rut=x")
-        assertEquals(DuckDuckGo.Lookup(null, blocked = false), DuckDuckGo.lookup(elsewhere, accept))
-        assertEquals(DuckDuckGo.Lookup(null, blocked = false), DuckDuckGo.lookup("<div class=\"no-results\">No results.</div>", accept))
+        assertEquals(DuckDuckGo.Lookup(null, blocked = false), DuckDuckGo.lookup(elsewhere, accept = accept))
+        assertEquals(DuckDuckGo.Lookup(null, blocked = false), DuckDuckGo.lookup("<div class=\"no-results\">No results.</div>", accept = accept))
         // A check page instead of results: blocked.
-        assertEquals(DuckDuckGo.Lookup(null, blocked = true), DuckDuckGo.lookup("<html><body>Unfortunately, bots use DuckDuckGo too.</body></html>", accept))
+        assertEquals(DuckDuckGo.Lookup(null, blocked = true), DuckDuckGo.lookup("<html><body>Unfortunately, bots use DuckDuckGo too.</body></html>", accept = accept))
     }
 
     @Test
@@ -87,5 +87,22 @@ class DuckDuckGoTest {
         val page = result("//duckduckgo.com/l/?uddg=" + java.net.URLEncoder.encode(uk, "UTF-8") + "&amp;rut=a") +
             result("//duckduckgo.com/l/?uddg=" + java.net.URLEncoder.encode(nintendo, "UTF-8") + "&amp;rut=b")
         assertEquals(nintendo, DuckDuckGo.firstResult(page, "store.nintendo.com"))
+    }
+
+    @Test
+    fun theRightColourAndCountryAreTakenFromTheResults() {
+        val white = "https://www.vandenborre.be/fr/imprimante-photo/canon-selphy-cp1500-blanc"
+        val black = "https://www.vandenborre.be/nl/fotoprinter/canon-selphy-cp1500-zwart"
+        val page = result("//duckduckgo.com/l/?uddg=" + java.net.URLEncoder.encode(white, "UTF-8") + "&amp;rut=a") +
+            result("//duckduckgo.com/l/?uddg=" + java.net.URLEncoder.encode(black, "UTF-8") + "&amp;rut=b")
+        val fits = { url: String -> !Matching.otherColour(Matching.titleFromLink(url).orEmpty(), "Canon Selphy CP1500 Zwart") }
+        assertEquals(black, DuckDuckGo.firstResult(page, "vandenborre.be", fits))
+        // bol.com's Dutch page is the Netherlands'; its Belgian one is read instead.
+        assertTrue(DuckDuckGo.isOtherCountry("https://www.bol.com/nl/nl/p/canon-selphy-cp1500-zwart/9300000113711298/"))
+        assertFalse(DuckDuckGo.isOtherCountry("https://www.bol.com/be/nl/p/canon-selphy-cp1500-zwart/9300000113711298/"))
+        assertFalse(DuckDuckGo.isOtherCountry("https://www.vandenborre.be/fr/imprimante-photo/canon-selphy-cp1500-blanc"))
+        assertEquals("https://www.bol.com/be/nl/p/canon-selphy-cp1500-zwart/9300000113711298/",
+            DuckDuckGo.belgian("https://www.bol.com/nl/nl/p/canon-selphy-cp1500-zwart/9300000113711298/"))
+        assertEquals(black, DuckDuckGo.belgian(black))
     }
 }

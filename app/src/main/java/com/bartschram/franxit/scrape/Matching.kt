@@ -165,6 +165,9 @@ object Matching {
 
     private fun colours(text: String): Set<String> = words(text).mapNotNull { COLOURS[it] }.toSet()
 
+    /** The colour words of a name as it writes them ("zwart"), to search with. */
+    fun colourWords(text: String): List<String> = words(text).filter { it in COLOURS }
+
     /** True when both name a colour and have none in common: the same model, another colour. */
     internal fun otherColour(title: String, wanted: String): Boolean {
         val w = colours(wanted)
