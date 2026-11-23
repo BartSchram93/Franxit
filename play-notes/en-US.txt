@@ -1,2 +1,1 @@
-• Each shop opens the page of the price you see (e.g. Amazon: the tablet, not the bundle)
-• A shop that leads to another colour is no longer shown
+• A shop is only shown when the app can open its product page (not in another colour)

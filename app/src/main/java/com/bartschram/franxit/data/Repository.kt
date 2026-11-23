@@ -379,7 +379,7 @@ class Repository private constructor(context: Context) {
                 // A page for another country (Nintendo's UK store, in pounds) is no link: the shop is looked up anew.
                 .firstOrNull { it != null && ShopCheck.isProductPage(it) && !DuckDuckGo.isOtherCountry(it) && !DuckDuckGo.isForeignSite(it) && ShopCheck.isShopsLink(it, offer.seller) }
                 ?.takeIf { !TrustedShops.same(offer.seller, ownHost) }
-            if (link != null && ShopCheck.isElsewhere(link, own.name.ifBlank { product.displayName })) {
+            if (link != null && otherVersion(link, own.name.ifBlank { product.displayName })) {
                 wrongLinks += offer.seller
                 offer.seller to landing
             } else offer.seller to (link ?: landing)
@@ -464,7 +464,7 @@ class Repository private constructor(context: Context) {
         val tasks = allLinks.values.filterNotNull().distinct().map { link ->
             java.util.concurrent.Callable {
                 // A search or list page, or another product's page by its address: not read, the shop is left out.
-                if (ShopCheck.isElsewhere(link, name)) return@Callable Triple(link, ShopCheck.ELSEWHERE, ShopCheck.Status.CHECKED)
+                if (otherVersion(link, name)) return@Callable Triple(link, ShopCheck.ELSEWHERE, ShopCheck.Status.CHECKED)
                 shopPages[link]?.takeIf { System.currentTimeMillis() - it.first < SHOP_CHECK_MS }?.let { return@Callable Triple(link, it.second.first, it.second.second) }
                 if (siteOfLink(link) in browserSites) return@Callable Triple(link, null, ShopCheck.Status.BLOCKED)
                 var error: String? = null
@@ -540,7 +540,7 @@ class Repository private constructor(context: Context) {
                 ShoppingSettings.saveFoundLink(appContext, product.id, seller, link)
             } else {
                 ShoppingSettings.forgetFoundLink(appContext, product.id, seller)
-                if (page != null || ShopCheck.isElsewhere(link, name)) statuses[seller] = ShopCheck.Status.NOT_FOUND
+                if (page != null || otherVersion(link, name)) statuses[seller] = ShopCheck.Status.NOT_FOUND
                 wrongFinds += seller
             }
         }
@@ -567,10 +567,12 @@ class Repository private constructor(context: Context) {
         // Not even when its lookup was blocked or is still to come: only shops whose product page can be opened are
         // listed (a search instead of the product is never shown).
         val noPage = offers.filter { offer ->
-            (allLinks[offer.seller] == null || offer.seller in wrongFinds) &&
-                !TrustedShops.same(offer.seller, ownHost) &&
-                (clickLinks.none { TrustedShops.same(it.first, offer.seller) } || offer.seller in wrongLandings) &&
-                landings[offer.seller] == null
+            val link = allLinks[offer.seller]?.takeIf { offer.seller !in wrongFinds }
+            val page = link?.let { seen[it]?.first }
+            // A page of this product: by its address and, when it was read, by what it says (not the pink Selphy at
+            // Galaxus, which kept the app out but names "roze" in its address).
+            val goodLink = link != null && !otherVersion(link, name) && page?.otherColour != true && page?.otherProduct != true
+            !goodLink && !TrustedShops.same(offer.seller, ownHost) && landings[offer.seller] == null
         }.map { it.seller }.toSet()
         return offers.mapNotNull { offer ->
             if (offer.seller in foreign || offer.seller in noPage) return@mapNotNull null

@@ -1,2 +1,1 @@
-• Chaque boutique ouvre la page du prix affiché (p. ex. Amazon : la tablette, pas le pack)
-• Une boutique qui mène à une autre couleur n'est plus affichée
+• Une boutique n'est affichée que si l'app peut ouvrir la page du produit (pas dans une autre couleur)

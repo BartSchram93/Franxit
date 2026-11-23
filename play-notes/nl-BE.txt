@@ -1,2 +1,1 @@
-• Elke winkel opent de pagina van de prijs die je ziet (bv. Amazon: de tablet, niet de bundel)
-• Een winkel die naar een andere kleur leidt, wordt niet meer getoond
+• Een winkel wordt enkel getoond als de app er de productpagina van kan openen (niet in een andere kleur)
