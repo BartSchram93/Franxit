@@ -70,6 +70,11 @@ object Scraper {
         // prices (Pokémon cards for a piano bench): that page is no answer for this product.
         // Only for vergelijk.be, whose product urls stay put; a shop may redirect to its own new url.
         if ("vergelijk.be" in URL(url).host && movedElsewhere(url, finalUrl)) throw IOException(goneMessage(url))
+        return fromPage(html, url)
+    }
+
+    /** The product on the page [html] of [url] (read here, or in a browser): its offers, or why there are none. */
+    fun fromPage(html: String, url: String): Result {
         return try {
             parse(html)
         } catch (e: IOException) {

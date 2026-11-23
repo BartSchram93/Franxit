@@ -239,4 +239,5 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Not checked: the shop's page can't be read" to "Pas vérifié : la page du magasin est illisible",
     "Not checked: product page not found" to "Pas vérifié : page du produit introuvable",
     "Not checked: search for the page blocked" to "Pas vérifié : recherche de la page bloquée",
+    "Stock not confirmed at %s" to "Stock chez %s non confirmé",
 )

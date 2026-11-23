@@ -239,4 +239,5 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Not checked: the shop's page can't be read" to "Niet gecontroleerd: de pagina van de winkel is niet leesbaar",
     "Not checked: product page not found" to "Niet gecontroleerd: productpagina niet gevonden",
     "Not checked: search for the page blocked" to "Niet gecontroleerd: zoeken naar de pagina geblokkeerd",
+    "Stock not confirmed at %s" to "Voorraad bij %s niet bevestigd",
 )

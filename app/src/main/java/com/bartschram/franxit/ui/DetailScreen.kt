@@ -195,6 +195,16 @@ fun DetailScreen(
                     Spacer(Modifier.height(4.dp))
                     Text("Out of stock", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                // The price is of a shop that couldn't be checked, while one that was is sold out: this one may be too.
+                val unconfirmed = remember(product) {
+                    val head = shopStatus(latest.seller)
+                    head != null && head != com.bartschram.franxit.data.ShopCheck.Status.CHECKED && latest.inStock != false &&
+                        product.offers.any { it.inStock == false && shopStatus(it.seller) == com.bartschram.franxit.data.ShopCheck.Status.CHECKED }
+                }
+                if (unconfirmed) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(t("Stock not confirmed at %s", Shops.name(latest.seller)), style = MaterialTheme.typography.bodyMedium, color = Warning)
+                }
                 product.targetPrice?.let {
                     Spacer(Modifier.height(4.dp))
                     TargetLine(it, latest.price, muted = !product.notify)

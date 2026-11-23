@@ -362,10 +362,20 @@ class Repository private constructor(context: Context) {
                 Triple(link, seen, status)
             }
         }
-        val seen = if (tasks.isEmpty()) emptyMap() else
+        val seen = (if (tasks.isEmpty()) emptyMap() else
             runCatching { shopReaders.invokeAll(tasks, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
                 .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
-                .associate { (link, page, status) -> link to (page to status) }
+                .associate { (link, page, status) -> link to (page to status) }).toMutableMap()
+        // Shops that keep the app out (Fnac, Nintendo's store): their pages in a real browser, a few per check, one
+        // at a time (a browser is heavy). What it reads counts like any page.
+        seen.filter { (_, value) -> value.second == ShopCheck.Status.BLOCKED }.keys.take(BROWSER_READS).forEach { link ->
+            val html = runCatching { BrowserPages.html(appContext, link) }.getOrNull() ?: return@forEach
+            val page = runCatching { ShopCheck.seen(Scraper.fromPage(html, link), name) }.getOrElse { e ->
+                if (e.message?.startsWith("Not available at") == true) ShopCheck.SOLD_OUT else null
+            } ?: return@forEach
+            seen[link] = page to ShopCheck.Status.CHECKED
+            shopPages[link] = System.currentTimeMillis() to (page to ShopCheck.Status.CHECKED)
+        }
         offers.forEach { offer -> allLinks[offer.seller]?.let { seen[it] }?.let { statuses[offer.seller] = it.second } }
         // A page the app found itself: kept when it is this product, else forgotten, and then it says nothing about
         // the shop (which stays, with the price its source gave): it may just be the wrong page of that shop.
@@ -395,6 +405,9 @@ class Repository private constructor(context: Context) {
      */
     private val LOOKUPS_ONE = 15
     private val LOOKUPS_ALL = 3
+
+    /** Pages read in a browser per check, for shops that keep the app's own requests out. */
+    private val BROWSER_READS = 2
 
     /** Only web addresses are ever opened: a link from a shop or from Google is not trusted with any other kind. */
     suspend fun shopLink(product: Product, seller: String? = null): String? {
