@@ -17,7 +17,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -552,9 +551,6 @@ class Repository private constructor(context: Context) {
     private val BROWSER_ONE = Int.MAX_VALUE
     private val BROWSER_WAIT_SECONDS = 180L
 
-    /** How long a tap on Buy waits for Google's page of a shop before it opens a search on the shop's site. */
-    private val TAP_WAIT_MS = 6_000L
-
     /** Browsers at the same time: two (each is a whole web page with its scripts). */
     private val browserReaders = java.util.concurrent.Executors.newFixedThreadPool(2)
 
@@ -611,14 +607,7 @@ class Repository private constructor(context: Context) {
             val page = if (link.startsWith(GoogleShopping.TOKEN)) {
                 // A page the app found and read as this product: opened at once, no search spent or waited for.
                 if (foundPage != null) return@withContext foundPage
-                // Google's page for the shop is a search that can take a minute or two ("Buy at Bol.com" kept loading):
-                // the tap waits a few seconds, then opens a search on the shop's site; the lookup goes on and is
-                // remembered, so the next tap opens the shop's page.
-                val lookup = background.async { lookUpStoreLink(product, shop, link.removePrefix(GoogleShopping.TOKEN)) }
-                withTimeoutOrNull(TAP_WAIT_MS) { lookup.await() } ?: run {
-                    lookup.invokeOnCompletion { links.keys.removeIf { it.startsWith("${product.id}|") } }
-                    return@withContext GoogleShopping.fallbackUrl(GoogleShopping.queryOf(product.url) ?: product.displayName, shop)
-                }
+                lookUpStoreLink(product, shop, link.removePrefix(GoogleShopping.TOKEN))
             } else link
             // Google's link when it is the shop's page; a search only when nothing better is known.
             if (ShopCheck.isProductPage(ShopCheck.direct(page)) || foundPage == null) return@withContext page
