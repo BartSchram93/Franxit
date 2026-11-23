@@ -1,1 +1,1 @@
-• Toont een winkelpagina een lagere prijs dan haar productgegevens, dan telt de getoonde prijs
+• Een ander model van dezelfde reeks (Ultra, Pro, Max, Mini, Complete…) telt niet meer als hetzelfde product

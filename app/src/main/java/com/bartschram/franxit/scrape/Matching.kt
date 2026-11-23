@@ -212,6 +212,7 @@ object Matching {
      */
     fun isOtherProduct(title: String, wanted: String): Boolean {
         if (title.isBlank()) return false
+        if (otherTier(title, wanted)) return true
         val want = words(wanted)
         if (want.filter(::isModelCode).any { it in compact(title) }) return false
         // Not by a "+" or an edition word: a shop's title adds a case and stylus to a tablet ("TCL NXTPAPER 14 + Flip
@@ -227,6 +228,19 @@ object Matching {
         val slug = path.split('/').filter { it.isNotBlank() }.maxByOrNull { part -> part.count { it == '-' } } ?: return null
         val words = slug.removeSuffix(".html").split('-').filter { it.isNotBlank() }
         return words.takeIf { list -> list.count { w -> w.any(Char::isLetter) } >= 3 }?.joinToString(" ")
+    }
+
+    /**
+     * Words that make a sibling model of the same line: "Dreame Aqua 10 Ultra Roller Complete" is not the "Aqua 10
+     * Roller" (€ 649 against € 899 at Vanden Borre), an "iPhone 15 Pro" not an "iPhone 15".
+     */
+    private val TIERS = setOf("ultra", "pro", "max", "plus", "mini", "lite", "complete")
+
+    /** True when one names a tier word ([TIERS]) the other doesn't have. */
+    internal fun otherTier(title: String, wanted: String): Boolean {
+        val t = words(title).filter { it in TIERS }.toSet()
+        val w = words(wanted).filter { it in TIERS }.toSet()
+        return t != w
     }
 
     private val BUNDLE = Regex("""\s\+\s|\bbundel\b|\bbundle\b|\bset met\b|\bincl\.?\b|\binclusief\b""", RegexOption.IGNORE_CASE)

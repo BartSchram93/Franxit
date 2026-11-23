@@ -1,1 +1,1 @@
-• When a shop page shows a lower price than its product data, the shown price counts
+• Another model of the same line (Ultra, Pro, Max, Mini, Complete…) no longer counts as the same product

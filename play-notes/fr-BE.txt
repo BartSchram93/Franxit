@@ -1,1 +1,1 @@
-• Si une page affiche un prix plus bas que ses données produit, le prix affiché compte
+• Un autre modèle de la même gamme (Ultra, Pro, Max, Mini, Complete…) ne compte plus comme le même produit

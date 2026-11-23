@@ -197,4 +197,12 @@ class MatchingTest {
         val words = Matching.titleFromLink("https://www.galaxus.be/nl/s1/product/canon-selphy-cp1500-roze-thermische-overdracht-kleur-printer-38251390")!!
         assertTrue(Matching.otherColour(words, "Canon Selphy CP1500 Zwart"))
     }
+
+    @Test
+    fun aSiblingModelIsAnotherProduct() {
+        val wanted = "Dreame Aqua 10 Ultra Roller Complete - Robotstofzuiger - Met Dweilfunctie - Wit"
+        assertTrue(Matching.isOtherProduct("Dreame Aqua 10 Roller White", wanted))
+        assertFalse(Matching.isOtherProduct("Dreame Aqua10 Ultra Roller Complete robotstofzuiger wit", wanted.replace("Aqua 10", "Aqua10")))
+        assertTrue(Matching.isOtherProduct("Apple iPhone 15 Pro 128 GB", "Apple iPhone 15 128 GB"))
+    }
 }
