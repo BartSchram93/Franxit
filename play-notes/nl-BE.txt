@@ -1,2 +1,1 @@
-• De Koop-knop opent eerst de echte productpagina (ook via vergelijk.be) voor hij zoekt
-• De Koop-knop opent geen pagina meer van een andere kleur of een ander product
+• De Koop-knop opent de winkelpagina waarvan de prijs gelezen werd

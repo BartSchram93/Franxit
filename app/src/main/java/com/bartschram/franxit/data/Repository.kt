@@ -535,6 +535,14 @@ class Repository private constructor(context: Context) {
                 wrongFinds += seller
             }
         }
+        // The page each shop's price (or sold out) was read from: the one the Buy button opens, whatever source gave it
+        // (Coolblue's read page, where the button searched for another Zelda instead).
+        ShoppingSettings.saveCheckedLinks(appContext, product.id, offers.mapNotNull { offer ->
+            if (offer.seller in wrongFinds) return@mapNotNull null
+            val link = allLinks[offer.seller] ?: return@mapNotNull null
+            val page = seen[link]?.first ?: return@mapNotNull null
+            if (page.otherColour || page.otherProduct || ShopCheck.isElsewhere(link, name)) null else offer.seller to link
+        }.toMap())
         ShoppingSettings.saveShopStatuses(appContext, product.id, statuses)
         // The Buy button's pages looked up before this check: the pages known now may be others.
         this.links.keys.removeIf { it.startsWith("${product.id}|") }
@@ -636,6 +644,10 @@ class Repository private constructor(context: Context) {
         val shop = BuyLink.shop(seller, product.offers)
         // A page the app found itself and read as this product: when no source gives the shop's product page.
         val foundPage = shop?.let { ShoppingSettings.foundLink(appContext, product.id, it) }?.takeIf { !DuckDuckGo.isOtherCountry(it) }
+        // The page the last check read this shop's price from: the page of the price you see.
+        shop?.let { ShoppingSettings.checkedLink(appContext, product.id, it) }
+            ?.takeIf { !ShoppingSettings.isWrongLink(appContext, product.id, it) }
+            ?.let { return@withContext it }
         // Google's page for the shop (a search on its site when Google gave none).
         val googlePage = shop?.let { ShoppingSettings.link(appContext, product.id, it) }?.let { link ->
             if (link.startsWith(GoogleShopping.TOKEN)) {

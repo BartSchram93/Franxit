@@ -1,2 +1,1 @@
-• Le bouton Acheter ouvre d'abord la vraie page du produit (aussi via vergelijk.be) avant de chercher
-• Le bouton Acheter n'ouvre plus la page d'une autre couleur ou d'un autre produit
+• Le bouton Acheter ouvre la page de la boutique dont le prix a été lu

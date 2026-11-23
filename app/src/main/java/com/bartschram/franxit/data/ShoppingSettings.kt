@@ -116,6 +116,17 @@ object ShoppingSettings {
         prefs(context).edit { putStringSet("wrong_links_$productId", known + links) }
     }
 
+    /** The page of a shop the last check read as this product (its price or sold out): what the Buy button opens. */
+    fun saveCheckedLinks(context: Context, productId: Long, links: Map<String, String>) {
+        if (links.isEmpty()) return
+        val all = prefs(context).getString("checked_links_$productId", null)?.let(::JSONObject) ?: JSONObject()
+        links.forEach { (shop, link) -> all.put(TrustedShops.key(shop), link) }
+        prefs(context).edit { putString("checked_links_$productId", all.toString()) }
+    }
+
+    fun checkedLink(context: Context, productId: Long, shop: String): String? =
+        prefs(context).getString("checked_links_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)).takeIf(String::isNotBlank) }
+
     fun isWrongLink(context: Context, productId: Long, link: String): Boolean =
         link in prefs(context).getStringSet("wrong_links_$productId", null).orEmpty()
 

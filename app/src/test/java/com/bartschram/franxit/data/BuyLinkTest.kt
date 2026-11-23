@@ -91,5 +91,7 @@ class BuyLinkTest {
         assertEquals("TCL NXTPAPER 14", BuyLink.searchName("TCL NXTPAPER 14", "TCL NXTPAPER 14 hoes"))
         // Another colour than the product's: Fnac's search found the pink one for a black printer.
         assertEquals("Canon Selphy CP1500", BuyLink.searchName("Canon Selphy CP1500", "Canon Selphy CP1500 Pink"))
+        // A game with every word of the console's name, in another order.
+        assertEquals("Nintendo Switch 2 The Legend of", BuyLink.searchName("Nintendo Switch 2 The Legend of", "The Legend Of Zelda, Ocarina Of Time Nintendo Switch 2"))
     }
 }

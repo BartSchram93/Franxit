@@ -1,2 +1,1 @@
-• The Buy button opens the real product page first (also through vergelijk.be) before it searches
-• The Buy button no longer opens a page of another colour or another product
+• The Buy button opens the shop page the price was read from

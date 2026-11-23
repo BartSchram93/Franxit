@@ -44,7 +44,10 @@ internal object BuyLink {
         // a screen protector, made the Buy button search Amazon for that.
         val extra = words(title) - words(name)
         // Nor a colour the name doesn't have ("Canon Selphy CP1500 Pink" searched Fnac for the pink one).
-        val same = words(title).containsAll(words(name)) && extra.size in 1..2 &&
+        // And the name as one piece in it, the extra words before or after ("The Legend Of Zelda, Ocarina Of Time
+        // Nintendo Switch 2", a game, has every word of "Nintendo Switch 2 The Legend of" but not in that order).
+        val sequence = { s: String -> s.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.joinToString(" ", " ", " ") }
+        val same = sequence(name) in sequence(title) && extra.size in 1..2 &&
             com.bartschram.franxit.scrape.Matching.colourWords(extra.joinToString(" ")).isEmpty() &&
             !com.bartschram.franxit.scrape.Matching.addsBundleOrAccessory(title, name) &&
             !com.bartschram.franxit.scrape.Matching.otherEdition(title, name)
