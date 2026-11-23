@@ -87,6 +87,24 @@ internal object ShopCheck {
         return Matching.titleFromLink(link)?.let { Matching.isOtherProduct(it, name) } == true
     }
 
+    /**
+     * How a shop's price was checked, shown under it: at the shop itself, or why not. Stored by shop (TrustedShops.key).
+     */
+    object Status {
+        const val CHECKED = "checked"
+        const val BLOCKED = "blocked"
+        const val UNREADABLE = "unreadable"
+        const val NOT_FOUND = "not_found"
+        const val SEARCH_BLOCKED = "search_blocked"
+    }
+
+    /** The status after reading a shop's page: read ([seen] not null), or why it couldn't be ([error]). */
+    fun status(seen: Seen?, error: String?): String = when {
+        seen != null -> Status.CHECKED
+        error?.contains("only allows browsers") == true -> Status.BLOCKED
+        else -> Status.UNREADABLE
+    }
+
     /** A link that is a shop's product page, not a search that leads to one. */
     fun isProductPage(link: String?): Boolean =
         link != null && (link.startsWith("https://") || link.startsWith("http://")) &&

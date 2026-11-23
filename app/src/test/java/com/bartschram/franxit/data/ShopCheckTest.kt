@@ -84,4 +84,11 @@ class ShopCheckTest {
         val book = Scraper.Result("La Légende des Quatres - Le clan des loups", listOf(Scraper.Offer("Fnac", 15.9)))
         assertEquals(ShopCheck.ELSEWHERE, ShopCheck.seen(book, bench))
     }
+
+    @Test
+    fun howAShopWasCheckedIsSaid() {
+        assertEquals(ShopCheck.Status.CHECKED, ShopCheck.status(ShopCheck.Seen(539.0, false), null))
+        assertEquals(ShopCheck.Status.BLOCKED, ShopCheck.status(null, "Coolblue.be only allows browsers"))
+        assertEquals(ShopCheck.Status.UNREADABLE, ShopCheck.status(null, "Coolblue.be's page shows no price the app can read"))
+    }
 }

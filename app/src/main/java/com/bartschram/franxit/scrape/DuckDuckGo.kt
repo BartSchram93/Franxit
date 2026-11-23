@@ -12,8 +12,15 @@ object DuckDuckGo {
 
     private const val BASE = "https://html.duckduckgo.com/html/?q="
 
-    /** A result's link on the page: DuckDuckGo's redirect, with the address itself in "uddg". */
-    private val RESULT = Regex("""<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"""")
+    /** DuckDuckGo's other simple results page, asked when the first answers with a check page. */
+    private const val LITE = "https://lite.duckduckgo.com/lite/?q="
+
+    /** A result's link on the page (html: class "result__a", lite: "result-link"): DuckDuckGo's redirect, the address in "uddg". */
+    private val RESULT = Regex("""<a\b[^>]*(?:result__a|result-link)[^>]*>""")
+    private val HREF = Regex("""\bhref=["']([^"']+)["']""")
+
+    /** What a search gave: the shop's [page], nothing ([page] null), or a check page instead of results ([blocked]). */
+    data class Lookup(val page: String?, val blocked: Boolean = false)
 
     fun searchUrl(query: String, site: String) = BASE + URLEncoder.encode("${query.trim()} site:$site", "UTF-8")
 
@@ -29,7 +36,7 @@ object DuckDuckGo {
     /** The first result in a results page whose site ([accept] gets its host, without "www.") is wanted. */
     internal fun firstResult(html: String, accept: (String) -> Boolean): String? =
         RESULT.findAll(html).mapNotNull { match ->
-            val href = match.groupValues[1].replace("&amp;", "&")
+            val href = HREF.find(match.value)?.groupValues?.get(1)?.replace("&amp;", "&") ?: return@mapNotNull null
             val target = Regex("""[?&]uddg=([^&]+)""").find(href)?.groupValues?.get(1)
                 ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrNull() }
                 ?: href.takeIf { it.startsWith("https://") && "duckduckgo.com" !in it }
@@ -47,10 +54,29 @@ object DuckDuckGo {
     }
 
     /** The product page of [query] at the shop called [shop] (no site known): the first result on that shop's site. */
-    fun shopPage(query: String, shop: String): String? =
-        firstResult(Scraper.download(BASE + URLEncoder.encode("${query.trim()} ${shop.trim()}", "UTF-8"), "text/html")) { isShopsSite(it, shop) }
+    fun shopPage(query: String, shop: String): Lookup = search("${query.trim()} ${shop.trim()}") { isShopsSite(it, shop) }
 
-    /** The product page of [query] on [site], as DuckDuckGo finds it first; null when it finds none. */
-    fun productPage(query: String, site: String): String? =
-        firstResult(Scraper.download(searchUrl(query, site), "text/html"), site)
+    /**
+     * A results page read: the first wanted result, or nothing, or "blocked" when it is no results page at all (a
+     * check page: DuckDuckGo sometimes answers apps with one).
+     */
+    internal fun lookup(html: String, accept: (String) -> Boolean): Lookup {
+        firstResult(html, accept)?.let { return Lookup(it) }
+        val isResults = RESULT.containsMatchIn(html) || Regex("""no-results|No results|Geen resultaten""", RegexOption.IGNORE_CASE).containsMatchIn(html)
+        return Lookup(null, blocked = !isResults)
+    }
+
+    /** [words] searched on the simple results page, and on the other one when the first gave a check page. */
+    private fun search(words: String, accept: (String) -> Boolean): Lookup {
+        val q = URLEncoder.encode(words.trim(), "UTF-8")
+        val first = runCatching { lookup(Scraper.download(BASE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
+        if (!first.blocked) return first
+        return runCatching { lookup(Scraper.download(LITE + q, "text/html"), accept) }.getOrElse { Lookup(null, blocked = true) }
+    }
+
+    /** The product page of [query] on [site], as DuckDuckGo finds it first. */
+    fun productPage(query: String, site: String): Lookup {
+        val wanted = site.lowercase().removePrefix("www.")
+        return search("${query.trim()} site:$site") { host -> host == wanted || host.endsWith(".$wanted") }
+    }
 }

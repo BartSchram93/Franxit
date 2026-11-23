@@ -70,6 +70,17 @@ object ShoppingSettings {
 
     fun brand(context: Context, productId: Long): String? = prefs(context).getString("brand_$productId", null)?.takeIf { it.isNotBlank() }
 
+    /** How each shop's price of a product was checked (ShopCheck.Status), by shop: the last word for each. */
+    fun saveShopStatuses(context: Context, productId: Long, statuses: Map<String, String>) {
+        if (statuses.isEmpty()) return
+        val all = prefs(context).getString("shop_status_$productId", null)?.let(::JSONObject) ?: JSONObject()
+        statuses.forEach { (shop, status) -> all.put(TrustedShops.key(shop), status) }
+        prefs(context).edit { putString("shop_status_$productId", all.toString()) }
+    }
+
+    fun shopStatus(context: Context, productId: Long, shop: String): String? =
+        prefs(context).getString("shop_status_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)).takeIf(String::isNotBlank) }
+
     /** The product's full title on Shoparize ("999 Games Patchwork"), for the Buy button's search on a shop's site. */
     fun saveShoparizeTitle(context: Context, productId: Long, title: String) =
         prefs(context).edit { putString("shoparize_title_$productId", title) }

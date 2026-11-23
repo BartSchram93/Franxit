@@ -115,6 +115,8 @@ fun DetailScreen(
     onSetNotify: (Boolean) -> Unit,
     discounts: Map<String, Double>,
     shopLink: suspend (seller: String?) -> String?,
+    /** How a shop's price was checked (ShopCheck.Status), shown under it; null when not known. */
+    shopStatus: (seller: String) -> String? = { null },
     /** "Also search Google Shopping": null when it doesn't apply (no key, or a Google Shopping product). */
     googleAuto: Boolean = false,
     photoChoice: Photos.Choice = Photos.Choice.SITE,
@@ -294,7 +296,7 @@ fun DetailScreen(
                 }
             }
 
-            ShopsToday(product, discounts) { seller -> shopLink(seller) }
+            ShopsToday(product, discounts, shopStatus) { seller -> shopLink(seller) }
             // Few shops: more are searched for by themselves; the customer only sees the usual searching words.
             // Or a product still being looked up for the first time: nothing to show yet but the words.
             if (refreshing && (googleAuto || product.latest == null)) {
@@ -450,7 +452,7 @@ private fun filter(history: List<PricePoint>, span: Span): List<PricePoint> {
  * at that shop (through a fresh vergelijk.be link), so you can pick where to buy yourself.
  */
 @Composable
-private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopLink: suspend (String) -> String?) {
+private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopStatus: (String) -> String?, shopLink: suspend (String) -> String?) {
     // Cheapest for you first: with a shop discount that can differ from the shops' own order.
     val offers = remember(product.offers, discounts) {
         mergeSameShop(product.offers).sortedWith(compareBy({ it.inStock == false }, { Discounts.yourPrice(it, discounts) }))
@@ -492,6 +494,11 @@ private fun ShopsToday(product: Product, discounts: Map<String, Double>, shopLin
                 Text(names[offer.seller] ?: Shops.name(offer.seller), style = MaterialTheme.typography.bodyMedium)
                 if (offer.inStock == false) {
                     Text("Out of stock", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                // How the price was checked: at the shop itself, or why not.
+                val status = remember(product, offer.seller) { shopStatus(offer.seller) }
+                statusText(status)?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (opening == offer.seller) {
@@ -621,4 +628,14 @@ internal fun SearchingWords(first: String = "Searching…") {
         }
     }
     androidx.compose.material3.Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** The line under a shop for how its price was checked (ShopCheck.Status); null when there's nothing to say. */
+private fun statusText(status: String?): String? = when (status) {
+    com.bartschram.franxit.data.ShopCheck.Status.CHECKED -> t("Checked at the shop")
+    com.bartschram.franxit.data.ShopCheck.Status.BLOCKED -> t("Not checked: the shop doesn't let the app in")
+    com.bartschram.franxit.data.ShopCheck.Status.UNREADABLE -> t("Not checked: the shop's page can't be read")
+    com.bartschram.franxit.data.ShopCheck.Status.NOT_FOUND -> t("Not checked: product page not found")
+    com.bartschram.franxit.data.ShopCheck.Status.SEARCH_BLOCKED -> t("Not checked: search for the page blocked")
+    else -> null
 }

@@ -260,6 +260,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             },
             discounts = discounts,
             shopLink = { seller -> repo.shopLink(selected, seller) },
+            shopStatus = { seller -> com.bartschram.franxit.data.ShoppingSettings.shopStatus(context, selected.id, seller) },
             googleAuto = shoppingKey && GoogleShopping.queryOf(selected.url) == null &&
                 mergeSameShop(selected.offers).size <= 3,
         )

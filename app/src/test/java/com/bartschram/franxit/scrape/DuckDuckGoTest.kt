@@ -53,4 +53,21 @@ class DuckDuckGoTest {
             DuckDuckGo.firstResult(page) { DuckDuckGo.isShopsSite(it, "Kamera Express") },
         )
     }
+
+    @Test
+    fun aCheckPageIsToldApartFromNoResults() {
+        val accept = { host: String -> host == "store.nintendo.com" }
+        // Results, none on the site: nothing found.
+        val elsewhere = result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.fnac.be%2Fa1&amp;rut=x")
+        assertEquals(DuckDuckGo.Lookup(null, blocked = false), DuckDuckGo.lookup(elsewhere, accept))
+        assertEquals(DuckDuckGo.Lookup(null, blocked = false), DuckDuckGo.lookup("<div class=\"no-results\">No results.</div>", accept))
+        // A check page instead of results: blocked.
+        assertEquals(DuckDuckGo.Lookup(null, blocked = true), DuckDuckGo.lookup("<html><body>Unfortunately, bots use DuckDuckGo too.</body></html>", accept))
+    }
+
+    @Test
+    fun theLitePageIsReadToo() {
+        val lite = """<tr><td><a rel="nofollow" href="//duckduckgo.com/l/?uddg=""" + java.net.URLEncoder.encode(nintendo, "UTF-8") + """&amp;rut=a" class='result-link'>Zelda</a></td></tr>"""
+        assertEquals(DuckDuckGo.Lookup(nintendo), DuckDuckGo.lookup(lite) { it == "store.nintendo.com" })
+    }
 }
