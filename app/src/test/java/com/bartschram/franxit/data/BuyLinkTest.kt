@@ -89,5 +89,7 @@ class BuyLinkTest {
         // A screen protector on Shoparize, with all of the tablet's name in it.
         assertEquals("TCL NXTPAPER 14", BuyLink.searchName("TCL NXTPAPER 14", "EtuiTab - Szkło Hartowane - TCL NXTPAPER 14"))
         assertEquals("TCL NXTPAPER 14", BuyLink.searchName("TCL NXTPAPER 14", "TCL NXTPAPER 14 hoes"))
+        // Another colour than the product's: Fnac's search found the pink one for a black printer.
+        assertEquals("Canon Selphy CP1500", BuyLink.searchName("Canon Selphy CP1500", "Canon Selphy CP1500 Pink"))
     }
 }

@@ -105,6 +105,20 @@ object ShoppingSettings {
         prefs(context).edit { putString("found_links_$productId", all.toString()) }
     }
 
+    /**
+     * Shop pages read as another colour or another product than this one (Galaxus's page from Google for the pink
+     * printer, where the black one was wanted): the Buy button never opens them.
+     */
+    fun saveWrongLinks(context: Context, productId: Long, links: Collection<String>) {
+        if (links.isEmpty()) return
+        val known = prefs(context).getStringSet("wrong_links_$productId", null).orEmpty()
+        if (known.containsAll(links)) return
+        prefs(context).edit { putStringSet("wrong_links_$productId", known + links) }
+    }
+
+    fun isWrongLink(context: Context, productId: Long, link: String): Boolean =
+        link in prefs(context).getStringSet("wrong_links_$productId", null).orEmpty()
+
     fun foundLink(context: Context, productId: Long, shop: String): String? =
         prefs(context).getString("found_links_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)).takeIf(String::isNotBlank) }
 

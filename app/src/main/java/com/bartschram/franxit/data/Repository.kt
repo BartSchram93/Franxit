@@ -504,6 +504,10 @@ class Repository private constructor(context: Context) {
                 }
         }
         offers.forEach { offer -> allLinks[offer.seller]?.let { seen[it] }?.let { statuses[offer.seller] = it.second } }
+        // Pages that are another colour or product: never opened by the Buy button, whatever source gave them.
+        ShoppingSettings.saveWrongLinks(appContext, product.id, seen.filter { (_, value) ->
+            value.first?.let { it.otherColour || it.otherProduct } == true
+        }.keys)
         offers.forEach { offer ->
             val link = allLinks[offer.seller] ?: return@forEach
             val read = seen[link]
@@ -640,6 +644,8 @@ class Repository private constructor(context: Context) {
                 lookUpStoreLink(product, shop, link.removePrefix(GoogleShopping.TOKEN))
             } else link
         }
+            // A page read as another colour or product (Galaxus's pink printer): not opened.
+            ?.takeIf { link -> listOf(link, ShopCheck.direct(link)?.let(DuckDuckGo::belgian)).none { it != null && ShoppingSettings.isWrongLink(appContext, product.id, it) } }
         if (googlePage != null && ShopCheck.isProductPage(ShopCheck.direct(googlePage))) return@withContext googlePage
         // In order: a product page from vergelijk.be (its own link for the shop) or Shoparize, a page the app found,
         // and only then a search. Amazon.com.be opened a search where vergelijk.be's link was right.

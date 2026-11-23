@@ -43,7 +43,9 @@ internal object BuyLink {
         // in it, at most two more, and no accessory or other edition. "EtuiTab - Szkło Hartowane - TCL NXTPAPER 14",
         // a screen protector, made the Buy button search Amazon for that.
         val extra = words(title) - words(name)
+        // Nor a colour the name doesn't have ("Canon Selphy CP1500 Pink" searched Fnac for the pink one).
         val same = words(title).containsAll(words(name)) && extra.size in 1..2 &&
+            com.bartschram.franxit.scrape.Matching.colourWords(extra.joinToString(" ")).isEmpty() &&
             !com.bartschram.franxit.scrape.Matching.addsBundleOrAccessory(title, name) &&
             !com.bartschram.franxit.scrape.Matching.otherEdition(title, name)
         return if (same) title else name
