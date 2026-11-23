@@ -568,6 +568,12 @@ class Repository private constructor(context: Context) {
                     BuyLink.orSearch(null, shop, buyName(product))
                 } else found
             }
+            // DuckDuckGo found no page of this shop at the check: its "first result" would be a page with only an ad.
+            ?.let { found ->
+                val shop = BuyLink.shop(seller, product.offers)
+                val notFound = shop != null && ShoppingSettings.shopStatus(appContext, product.id, shop) == ShopCheck.Status.NOT_FOUND
+                if (notFound) GoogleShopping.listedSearchUrl(found) ?: found else found
+            }
         if (link != null) links[key] = System.currentTimeMillis() to link
         return link
     }

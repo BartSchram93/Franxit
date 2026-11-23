@@ -1,1 +1,2 @@
 • The Buy button names the same shop as the top of the list, also at equal prices
+• When the app finds no page of a shop, the button shows search results instead of an empty page

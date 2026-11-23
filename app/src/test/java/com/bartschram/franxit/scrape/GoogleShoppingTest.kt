@@ -634,4 +634,14 @@ class GoogleShoppingTest {
         assertEquals(GoogleShopping.NO_SEARCHES_LEFT, GoogleShopping.explain(java.io.IOException("HTTP 429")))
         assertEquals("Google Shopping had a problem, tried again at the next check", GoogleShopping.explain(java.io.IOException("HTTP 502")))
     }
+
+    @Test
+    fun aFirstResultSearchBecomesAListedOne() {
+        val lucky = GoogleShopping.siteSearchUrl("Logitech MX Master 4 Graphite", "artencraft.be")
+        assertEquals(
+            "https://www.google.be/search?q=Logitech+MX+Master+4+Graphite+site%3Aartencraft.be",
+            GoogleShopping.listedSearchUrl(lucky),
+        )
+        assertEquals(null, GoogleShopping.listedSearchUrl("https://www.bol.com/be/nl/p/x/123/"))
+    }
 }
