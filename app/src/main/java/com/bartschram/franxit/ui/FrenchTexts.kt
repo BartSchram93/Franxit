@@ -240,5 +240,8 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Checking what's in stock…" to "On vérifie ce qui est en stock…",
     "Making sure it's the right model and colour…" to "On s'assure du bon modèle et de la bonne couleur…",
     "Laying all the prices side by side…" to "On compare tous les prix…",
-    "Almost there, a few slow shops…" to "Presque fini, encore quelques boutiques lentes…",
+    "Opening the shops that hide their prices…" to "On ouvre les boutiques qui cachent leurs prix…",
+    "Some shops take their time to answer…" to "Certaines boutiques prennent leur temps pour répondre…",
+    "Double-checking the cheapest one…" to "On revérifie la moins chère…",
+    "Still on it, thanks for waiting…" to "On y est encore, merci de patienter…",
 )

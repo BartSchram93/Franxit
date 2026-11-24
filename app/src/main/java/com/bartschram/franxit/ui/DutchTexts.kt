@@ -240,5 +240,8 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Checking what's in stock…" to "Nakijken wat er op voorraad is…",
     "Making sure it's the right model and colour…" to "Zeker zijn van het juiste model en de juiste kleur…",
     "Laying all the prices side by side…" to "Alle prijzen naast elkaar leggen…",
-    "Almost there, a few slow shops…" to "Bijna klaar, nog een paar trage winkels…",
+    "Opening the shops that hide their prices…" to "De winkels openen die hun prijs verstoppen…",
+    "Some shops take their time to answer…" to "Sommige winkels nemen hun tijd om te antwoorden…",
+    "Double-checking the cheapest one…" to "De goedkoopste nog eens nakijken…",
+    "Still on it, thanks for waiting…" to "Nog even bezig, bedankt voor je geduld…",
 )

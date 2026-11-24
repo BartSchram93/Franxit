@@ -652,15 +652,18 @@ internal fun SearchingWords(first: String = "Searching…") {
     val words = remember(first) {
         listOf(
             first, "Peeking at the shops' own pages…", "Checking what's in stock…",
-            "Making sure it's the right model and colour…", "Laying all the prices side by side…",
-            "Almost there, a few slow shops…",
+            "Making sure it's the right model and colour…", "Opening the shops that hide their prices…",
+            "Some shops take their time to answer…", "Laying all the prices side by side…",
+            "Double-checking the cheapest one…", "Still on it, thanks for waiting…",
         )
     }
+    // Nine lines of four seconds cover a check of half a minute; a longer one goes round them again (after the
+    // first), so no line stays long or promises "almost there" when it isn't.
     var index by remember { mutableStateOf(0) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        while (index < words.lastIndex) {
-            kotlinx.coroutines.delay(3500)
-            index++
+        while (true) {
+            kotlinx.coroutines.delay(4000)
+            index = if (index < words.lastIndex) index + 1 else 1
         }
     }
     // The dots at the end walk from one to three and start again, so you can see it is still working.
