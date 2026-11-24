@@ -74,8 +74,8 @@ internal object ShopCheck {
 
     /** Paths and parameters of a shop's search or list pages ("fr.fnac.be/se77634/…", "/zoeken?q=…"). */
     // Also a brand's page: Fnac's "/Dreame/m516876" lists all of Dreame, found for a Dreame Aqua 10 Roller.
-    // And the shop's own pages (contact, help, cart).
-    private val LISTING_PATH = Regex("""/(search|zoeken|zoek|recherche|rechercher|catalogsearch|s|se\d+|ia\d+|c\d+|categor(y|ie|ies)|collections?|m\d+|brands?|merken?|marques?|""" +
+    // And the shop's own pages (contact, help, cart). And Fnac's series ("/s68918/PS5", all PS5s) like its "se" lists.
+    private val LISTING_PATH = Regex("""/(search|zoeken|zoek|recherche|rechercher|catalogsearch|s|se\d+|s\d+|ia\d+|c\d+|categor(y|ie|ies)|collections?|m\d+|brands?|merken?|marques?|""" +
             // Pages about the shop, not a product: Senetic's link for a Logitech mouse landed on "/site/contact/".
             """contact|kontakt|help|hulp|aide|faq|klantenservice|customer-?service|service-client|about(-us)?|over-ons|""" +
             """a-propos|cart|winkelwagen|winkelmandje|panier|basket|login|account|mijn-account|mon-compte|404|error)(/|$)""", RegexOption.IGNORE_CASE)

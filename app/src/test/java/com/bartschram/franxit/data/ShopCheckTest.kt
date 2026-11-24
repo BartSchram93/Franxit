@@ -153,4 +153,10 @@ class ShopCheckTest {
         assertTrue(ShopCheck.isElsewhere("https://www.example.be/nl/klantenservice", "Logitech MX Master 4 Graphite"))
         assertFalse(ShopCheck.isElsewhere("https://www.senetic.be/product/910-007561", "Logitech MX Master 4 Graphite"))
     }
+
+    @Test
+    fun fnacsSeriesPageIsNoProductPage() {
+        assertTrue(ShopCheck.isElsewhere("https://www.nl.fnac.be/s68918/PS5", "Sony PlayStation 5 Pro Digital Edition"))
+        assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/a20523460/Sony-Console-PS5-Pro-Wit-en-Zwart", "Sony PlayStation 5 Pro Digital Edition"))
+    }
 }

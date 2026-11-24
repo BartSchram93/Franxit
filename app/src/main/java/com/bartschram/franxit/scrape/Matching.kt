@@ -14,7 +14,14 @@ object Matching {
     )
 
     private fun words(text: String): Set<String> =
-        text.lowercase().split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotBlank() }.toSet()
+        SHORT_NAMES.fold(text.lowercase()) { t, (short, long) -> short.replace(t, long) }
+            .split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotBlank() }.toSet()
+
+    /** Short names shops write for the same thing: "PS5" is a "PlayStation 5" (Fnac's PS5 Pro next to vergelijk.be's). */
+    private val SHORT_NAMES = listOf(
+        Regex("""\bps\s?(\d)\b""") to "playstation $1",
+        Regex("""\bplaystation(\d)\b""") to "playstation $1",
+    )
 
     private fun isAccessory(text: String): Boolean = text.lowercase().let { t -> ACCESSORY.any { it in t } }
 
