@@ -142,6 +142,8 @@ class ShopCheckTest {
     @Test
     fun fnacsBrandPageIsNoProductPage() {
         assertTrue(ShopCheck.isElsewhere("https://www.nl.fnac.be/Dreame/m516876", "Dreame Aqua 10 Roller White"))
-        assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/a21345678/Dreame-Robot-Was-en-stofzuiger-Aqua-10-Roller-White", "Dreame Aqua 10 Roller White"))
+        // The page it should have found instead.
+        assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/Dreame-Robot-Was-en-stofzuiger-Aqua-10-Roller-White/a23004441", "Dreame Aqua 10 Roller White"))
+        assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/Dreame-Robot-Was-en-stofzuiger-Aqua-10-Roller-White/a23004441", "Dreame Aqua 10 Roller"))
     }
 }
