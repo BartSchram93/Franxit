@@ -1,1 +1,1 @@
-• While checking: a moving bar at the top and "Still checking shops…" by the shops
+• A calmer loading bar and a neater card while recognising a product

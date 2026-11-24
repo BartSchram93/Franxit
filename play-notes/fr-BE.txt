@@ -1,1 +1,1 @@
-• Pendant la vérification : une barre animée en haut et « Vérification des boutiques en cours… » près des boutiques
+• Barre de chargement plus calme et une carte plus nette pendant la reconnaissance
