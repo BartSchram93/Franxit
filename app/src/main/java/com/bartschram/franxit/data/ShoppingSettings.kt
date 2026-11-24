@@ -40,6 +40,11 @@ object ShoppingSettings {
     fun lastExtraOffers(context: Context, productId: Long): List<ShopOffer>? =
         loadOffers(context, "extra_offers_$productId", EXTRA_VERSION, null)
 
+    /** The day of Google Shopping's last search for a product ("2026-11-24"), whatever it found; null when never. */
+    fun lastExtraDay(context: Context, productId: Long): String? =
+        prefs(context).getString("extra_offers_$productId", null)?.let { runCatching { JSONObject(it) }.getOrNull() }
+            ?.takeIf { it.optInt("v") == EXTRA_VERSION }?.optString("day")?.takeIf { it.isNotBlank() }
+
     /** Bumped when the way Shoparize's results are found or filtered changes. */
     private const val SHOPARIZE_VERSION = 5
 

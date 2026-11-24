@@ -207,7 +207,7 @@ class Repository private constructor(context: Context) {
     private val googleSlowUntil = java.util.concurrent.ConcurrentHashMap<Long, Long>()
     private val GOOGLE_SLOW_PAUSE_MS = 60 * 60_000L
 
-    private fun extraShops(product: Product, query: String?, reference: Double?, ownShops: Int): Extras {
+    private fun extraShops(product: Product, query: String?, reference: Double?, ownShops: Int, waiting: Boolean = false): Extras {
         if (!searchesExtra(query, ownShops)) return Extras(emptyList())
         val today = LocalDate.now().toString()
         ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return Extras(it) }
@@ -215,6 +215,10 @@ class Repository private constructor(context: Context) {
         // at their own pages like any). A refresh right after a slow one took the same 25 seconds again.
         val last = ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty()
         if ((googleSlowUntil[product.id] ?: 0L) > System.currentTimeMillis()) return Extras(last)
+        // You're waiting (a refresh) and the night's check asked Google yesterday or today: its shops, without asking
+        // again. Google is asked at night, where its slowness bothers no one; a product new to it is asked at once.
+        val yesterday = LocalDate.now().minusDays(1).toString()
+        if (waiting && ShoppingSettings.lastExtraDay(appContext, product.id)?.let { it >= yesterday } == true) return Extras(last)
         // What results are held against: the name with its model code ("… Zilverkleurig" + "GM-2100YM-8AER"), so another colour's code is out.
         val matchName = matchName(product)
         // The wording that worked last time first, then the product's name, its fuller name, and "kopen".
@@ -966,7 +970,7 @@ class Repository private constructor(context: Context) {
         }
         // Shoparize at the same time as Google Shopping: both mostly wait on another server.
         val shoparizeLater = shopReaders.submit(java.util.concurrent.Callable { shoparizeShops(named, query) })
-        val extras = GoogleShopping.within(googleTime(lookups)) { extraShops(named, query, ownCheapest, ownShops) }
+        val extras = GoogleShopping.within(googleTime(lookups)) { extraShops(named, query, ownCheapest, ownShops, waiting = lookups >= LOOKUPS_ONE) }
         step(product.id, "More shops (Google)")
         val shoparize = runCatching { shoparizeLater.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
         step(product.id, "More shops (Shoparize)")
