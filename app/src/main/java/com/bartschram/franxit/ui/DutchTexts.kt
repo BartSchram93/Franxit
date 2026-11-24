@@ -235,5 +235,4 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Not found on comparison sites · checked once a day" to "Niet gevonden op vergelijkingssites · één keer per dag gecontroleerd",
     "Connection lost, tried again at the next check" to "Verbinding verbroken, de volgende controle probeert opnieuw",
     "Connection to %s lost" to "Verbinding met %s verbroken",
-    "Still checking shops…" to "Nog winkels aan het nakijken…",
 )

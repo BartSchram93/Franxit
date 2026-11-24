@@ -311,7 +311,7 @@ fun DetailScreen(
                 }
             }
 
-            ShopsToday(product, discounts, shopStatus, shopNote, refreshing) { seller -> shopLink(seller) }
+            ShopsToday(product, discounts, shopStatus, shopNote) { seller -> shopLink(seller) }
             // Few shops: more are searched for by themselves; the customer only sees the usual searching words.
             // Or a product still being looked up for the first time: nothing to show yet but the words.
             if (refreshing && (googleAuto || product.latest == null)) {
@@ -474,7 +474,6 @@ private fun ShopsToday(
     discounts: Map<String, Double>,
     shopStatus: (String) -> String?,
     shopNote: (String) -> String?,
-    refreshing: Boolean,
     shopLink: suspend (String) -> String?,
 ) {
     // Held down: what happened to that shop at the last check.
@@ -501,15 +500,6 @@ private fun ShopsToday(
     var showAll by rememberSaveable { mutableStateOf(false) }
     Spacer(Modifier.height(24.dp))
     Text("Shops today", style = MaterialTheme.typography.titleSmall)
-    // The list isn't final yet: more shops can come, prices and the cheapest can still change.
-    if (refreshing) {
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.material3.CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-            Spacer(Modifier.width(8.dp))
-            Text("Still checking shops…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
     Spacer(Modifier.height(4.dp))
     // "Bol." and "Bol Plaza" both read "Bol.com"; only when both are listed, call the second "Bol.com partner".
     val names = remember(offers) {
