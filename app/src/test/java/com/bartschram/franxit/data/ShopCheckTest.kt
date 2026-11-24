@@ -165,6 +165,8 @@ class ShopCheckTest {
         val ps5 = "Sony PlayStation 5 Pro Digital Edition"
         assertTrue(ShopCheck.isElsewhere("https://www.nl.fnac.be/gaming/playstation5-pro-console/q", ps5))
         assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/a20523460/Sony-Console-PS5-Pro-Wit-en-Zwart", ps5))
+        // Where vergelijk.be's link for Fnac lands.
+        assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/Sony-Console-PS5-Pro-Wit-en-Zwart/a20901133?oref=664940f6&Origin=AWINBE915303&sv1=affiliate", ps5))
         assertFalse(ShopCheck.isElsewhere("https://www.amazon.com.be/-/nl/TCL-NXTPAPER-Octa-Core-RAM-uitbreiding-geheugen/dp/B0DB1NG88R", "TCL NXTPAPER 14"))
         assertFalse(ShopCheck.isElsewhere("https://www.coolblue.be/nl/product/973125/dreame-aqua-10-roller-white.html", "Dreame Aqua 10 Roller White"))
         assertFalse(ShopCheck.isElsewhere("https://www.bol.com/be/nl/p/dreame-aqua10-roller/9300000239190736/", "Dreame Aqua 10 Roller"))
