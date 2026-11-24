@@ -50,6 +50,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
@@ -167,7 +168,7 @@ fun DetailScreen(
         Column(Modifier.padding(padding).fillMaxSize()) {
         // While a check runs: a thin moving bar under the top bar, seen wherever you have scrolled to.
         if (refreshing) {
-            androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth().height(3.dp))
+            SlowProgressBar(Modifier.fillMaxWidth().height(3.dp))
         } else {
             Spacer(Modifier.height(3.dp))
         }
@@ -676,3 +677,28 @@ internal fun SearchingWords(first: String = "Searching…") {
     androidx.compose.material3.Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
+/**
+ * A thin bar with a piece gliding from left to right, calmly: Material's own moved too fast for a check that takes
+ * a while.
+ */
+@Composable
+private fun SlowProgressBar(modifier: Modifier = Modifier) {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "progress")
+    val position by transition.animateFloat(
+        initialValue = -0.35f,
+        targetValue = 1f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(2600, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        ),
+        label = "position",
+    )
+    val track = MaterialTheme.colorScheme.surfaceVariant
+    val bar = MaterialTheme.colorScheme.primary
+    androidx.compose.foundation.Canvas(modifier) {
+        drawRect(track)
+        val width = size.width * 0.35f
+        val start = (size.width * position).coerceAtLeast(0f)
+        val end = (size.width * position + width).coerceAtMost(size.width)
+        if (end > start) drawRect(bar, topLeft = androidx.compose.ui.geometry.Offset(start, 0f), size = androidx.compose.ui.geometry.Size(end - start, size.height))
+    }
+}

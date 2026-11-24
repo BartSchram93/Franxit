@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -120,17 +121,22 @@ fun PriceTagSearch(onSearch: (String) -> Unit) {
     }
 
     if (reading || recognizing) {
-        AlertDialog(
-            onDismissRequest = {},
-            text = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+        // A small card with just the dots and the words: an AlertDialog without buttons left an empty strip below.
+        androidx.compose.ui.window.Dialog(onDismissRequest = {}) {
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     LoadingDots()
                     Spacer(Modifier.width(14.dp))
                     Text(if (reading) "Reading the price tag…" else "Recognising the product…")
                 }
-            },
-            confirmButton = {},
-        )
+            }
+        }
     }
 
     askOnline?.let { (uri, text) ->
