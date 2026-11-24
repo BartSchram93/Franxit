@@ -858,6 +858,8 @@ class Repository private constructor(context: Context) {
      * A shop's page you added, read as any page; when the shop keeps the app's own requests out ("only allows
      * browsers": music-vanderheyden.be, mkcmoto.com), read in the browser instead, as the shops' pages in a check are.
      */
+    private val OWN_PAGE_BROWSER_MS = 30_000L
+
     private fun readPage(url: String): Scraper.Result =
         try {
             Scraper.fetch(url)
@@ -865,8 +867,11 @@ class Repository private constructor(context: Context) {
             // Only for a page that keeps apps out or shows its price with scripts: not for one that's sold out or gone.
             val message = e.message.orEmpty()
             if ("only allows browsers" !in message && "shows no price" !in message) throw e
-            val html = runCatching { BrowserPages.html(appContext, url) }.getOrNull() ?: throw e
-            runCatching { Scraper.fromPage(html, url) }.getOrElse { throw e }
+            // More time than a shop's page in a check: it's the one page the product depends on, and a check page
+            // that wants a few seconds (music-vanderheyden.be) still lets the browser through after it.
+            val html = runCatching { BrowserPages.html(appContext, url, waitMs = OWN_PAGE_BROWSER_MS) }.getOrNull() ?: throw e
+            // Past the check: what the page itself says (no price on it, sold out) rather than "only allows browsers".
+            Scraper.fromPage(html, url)
         }
 
     /** What a shared product is, shown before you decide to track it: its name, photo and lowest price. */

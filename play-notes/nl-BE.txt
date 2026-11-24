@@ -1,1 +1,1 @@
-• Een winkelpagina die je zelf toevoegt en die apps buitenhoudt, wordt nu in de ingebouwde browser gelezen
+• Winkelpagina's die apps buitenhouden: de ingebouwde browser krijgt meer tijd en doet zich voor als Chrome

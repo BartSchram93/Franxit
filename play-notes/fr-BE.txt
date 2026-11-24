@@ -1,1 +1,1 @@
-• Une page de boutique ajoutée toi-même qui bloque les applis est maintenant lue dans le navigateur intégré
+• Pages qui bloquent les applis : le navigateur intégré a plus de temps et se présente comme Chrome

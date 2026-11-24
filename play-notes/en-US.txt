@@ -1,1 +1,1 @@
-• A shop page you add yourself that keeps apps out is now read in the built-in browser
+• Pages that keep apps out: the built-in browser gets more time and presents itself as Chrome

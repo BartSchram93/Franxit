@@ -28,15 +28,15 @@ internal object BrowserPages {
      * The page's HTML once loaded and [ready] (by default: past any check page); null when it didn't get there in
      * time. A search page says itself when its results are there.
      */
-    fun html(context: Context, url: String, ready: (String) -> Boolean = { !Scraper.isBrowserCheck(it) }): String? =
-        page(context, url, ready)?.second
+    fun html(context: Context, url: String, ready: (String) -> Boolean = { !Scraper.isBrowserCheck(it) }, waitMs: Long = WAIT_MS): String? =
+        page(context, url, ready, waitMs)?.second
 
     /**
      * Like [html], with the address the browser ended at: where a link that forwards (a comparison site's link to a
      * shop that keeps apps out) really leads.
      */
     @SuppressLint("SetJavaScriptEnabled")
-    fun page(context: Context, url: String, ready: (String) -> Boolean = { !Scraper.isBrowserCheck(it) }): Pair<String, String>? {
+    fun page(context: Context, url: String, ready: (String) -> Boolean = { !Scraper.isBrowserCheck(it) }, waitMs: Long = WAIT_MS): Pair<String, String>? {
         val done = CountDownLatch(1)
         var result: Pair<String, String>? = null
         var view: WebView? = null
@@ -48,7 +48,7 @@ internal object BrowserPages {
             web.evaluateJavascript("document.documentElement.outerHTML") { value ->
                 val html = runCatching { JSONTokener(value).nextValue() as? String }.getOrNull().orEmpty()
                 // Still a check page: wait for it to pass, a few times.
-                if ((html.isEmpty() || !ready(html)) && ++tries < 6) {
+                if ((html.isEmpty() || !ready(html)) && ++tries < (waitMs / SETTLE_MS).toInt()) {
                     main.postDelayed(grab, SETTLE_MS)
                 } else {
                     result = html.takeIf { it.isNotEmpty() && ready(it) }?.let { (web.url ?: url) to it }
@@ -63,6 +63,8 @@ internal object BrowserPages {
                 web.settings.javaScriptEnabled = true
                 web.settings.domStorageEnabled = true
                 web.settings.blockNetworkImage = true
+                // As Chrome on this phone, not as an app's web view ("; wv"), which some shops' checks turn away.
+                web.settings.userAgentString = web.settings.userAgentString.replace("; wv", "").replace(Regex("""\s*Version/\d+(\.\d+)*"""), "")
                 web.webViewClient = object : WebViewClient() {
                     override fun onPageFinished(page: WebView, address: String) {
                         // Each load (a check page, then the product) starts the wait again.
@@ -76,7 +78,7 @@ internal object BrowserPages {
                 done.countDown()
             }
         }
-        done.await(WAIT_MS, TimeUnit.MILLISECONDS)
+        done.await(waitMs, TimeUnit.MILLISECONDS)
         main.post {
             main.removeCallbacks(grab)
             view?.stopLoading()
