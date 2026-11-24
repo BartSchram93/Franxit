@@ -373,16 +373,22 @@ class Repository private constructor(context: Context) {
         // Shops whose vergelijk.be link lands on another version (Galaxus's pink Selphy for the black one): its
         // offer there is that version's, so the shop is left out unless another source has its right page.
         val wrongLandings = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+        // A shop vergelijk.be lists ships to Belgium, whatever its country (phonemarket.nl): the rule for other
+        // countries' shops is only for shops from other sources.
+        val belgianListing = "vergelijk.be" in ownHost
+        fun listedHere(seller: String) = belgianListing && own.offers.any { TrustedShops.same(it.seller, seller) }
         val toFollow = mutableListOf<java.util.concurrent.Callable<Unit>>()
         for (offer in offers) {
-            if (DuckDuckGo.isForeignSite("https://" + Shops.name(offer.seller).lowercase())) {
+            val anyCountry = listedHere(offer.seller)
+            if (!anyCountry && DuckDuckGo.isForeignSite("https://" + Shops.name(offer.seller).lowercase())) {
                 foreign += offer.seller
                 continue
             }
-            val known = ShoppingSettings.landing(appContext, product.id, offer.seller)
+            // (A vergelijk.be shop remembered as another country's before this rule: its link is followed again.)
+            val known = ShoppingSettings.landing(appContext, product.id, offer.seller)?.takeIf { !(anyCountry && it == FOREIGN) }
             if (known != null) {
                 // (One remembered before this rule: a landing on another country's site.)
-                if (known == FOREIGN || (known != "-" && DuckDuckGo.isForeignSite(known))) foreign += offer.seller
+                if (!anyCountry && (known == FOREIGN || (known != "-" && DuckDuckGo.isForeignSite(known)))) foreign += offer.seller
                 else if (known != "-" && otherVersion(known, name, product)) wrongLandings += offer.seller
                 else if (known != "-") landings[offer.seller] = known
                 continue
@@ -390,7 +396,7 @@ class Repository private constructor(context: Context) {
             val click = clickLinks.firstOrNull { TrustedShops.same(it.first, offer.seller) }?.second ?: continue
             toFollow += java.util.concurrent.Callable {
                 val end = runCatching { DuckDuckGo.belgian(Scraper.finalUrl(click)) }.getOrNull()
-                if (end != null && DuckDuckGo.isForeignSite(end) && ShopCheck.isProductPage(end)) {
+                if (!anyCountry && end != null && DuckDuckGo.isForeignSite(end) && ShopCheck.isProductPage(end)) {
                     ShoppingSettings.saveLanding(appContext, product.id, offer.seller, FOREIGN)
                     foreign += offer.seller
                     return@Callable
@@ -490,7 +496,7 @@ class Repository private constructor(context: Context) {
                 // Not a page that its address says is another product.
                 val page = lookup.page?.takeIf { url -> !Matching.isOtherProduct(Matching.titleFromLink(url).orEmpty(), name) }
                 // Found only on another country's site (fotodevakman.nl): a shop of that country, not shown.
-                if (page == null && lookup.foreign != null) {
+                if (page == null && lookup.foreign != null && !listedHere(seller)) {
                     ShoppingSettings.saveLanding(appContext, product.id, seller, FOREIGN)
                     foreign += seller
                 }

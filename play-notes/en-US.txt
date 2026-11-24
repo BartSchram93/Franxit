@@ -1,3 +1,1 @@
-• Faster refresh: Google Shopping is asked at night, during the day the app uses that answer
-• "Shops today" also shows with a single shop
-• Hold the price down: you also see which shops aren't shown, and why
+• Foreign shops that vergelijk.be lists are shown too: they deliver to Belgium

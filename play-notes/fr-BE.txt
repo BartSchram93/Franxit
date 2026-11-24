@@ -1,3 +1,1 @@
-• Actualisation plus rapide : Google Shopping est interrogé la nuit, la journée l'appli utilise cette réponse
-• « Boutiques aujourd'hui » s'affiche aussi avec une seule boutique
-• Maintiens le prix appuyé : tu vois aussi quelles boutiques ne sont pas affichées, et pourquoi
+• Les boutiques étrangères affichées par vergelijk.be sont aussi affichées : elles livrent en Belgique
