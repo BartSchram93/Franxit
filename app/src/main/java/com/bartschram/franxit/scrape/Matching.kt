@@ -87,7 +87,9 @@ object Matching {
         val accessory = if (isAccessory(title) && !isAccessory(wanted)) 1.0 else 0.0
         // Another pack or another number of pieces ("60 stuks" for "100 stuks") goes down like an accessory.
         val otherPack = if (otherPack(title, wanted)) 1.0 else 0.0
-        return titleInWanted + wantedInTitle / 2 - accessory - otherPack
+        // A sibling model ("Aqua 10 Ultra Roller" for "Aqua 10 Roller") goes down too: the search lists it last.
+        val otherModel = if (otherTier(title, wanted)) 1.0 else 0.0
+        return titleInWanted + wantedInTitle / 2 - accessory - otherPack - otherModel
     }
 
     /**

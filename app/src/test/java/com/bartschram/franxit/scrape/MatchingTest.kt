@@ -207,4 +207,10 @@ class MatchingTest {
         // "Complete" is the Belgian name of the same Ultra: not another model.
         assertFalse(Matching.otherTier("Dreame Aqua10 Ultra Roller", wanted))
     }
+
+    @Test
+    fun theSearchListsASiblingModelBelowTheOneAskedFor() {
+        val wanted = "Dreame Aqua 10 Roller"
+        assertTrue(Matching.score("Dreame Aqua 10 Roller - Robotstofzuiger - Wit", wanted) > Matching.score("Dreame Aqua 10 Ultra Roller Complete - Robotstofzuiger - Wit", wanted))
+    }
 }

@@ -582,7 +582,10 @@ class Repository private constructor(context: Context) {
             var page = if (offer.seller in wrongFinds) null else allLinks[offer.seller]?.let { seen[it]?.first }
             // Its source's link was another product, and its right page wasn't found: the price is that product's.
             if (page == null && offer.seller in wrongLinks && (allLinks[offer.seller] == null || offer.seller in wrongFinds)) page = ShopCheck.ELSEWHERE
-            if (page != null && (page.otherColour || page.otherProduct) && ownSellers.any { TrustedShops.same(it, offer.seller) }) page = null
+            // Not when that page is where vergelijk.be's own link lands: then vergelijk.be's offer is that other product
+            // (its Aqua 10 Ultra Roller page listed MediaMarkt's plain Aqua 10 Roller), and the shop is left out.
+            val viaOwnLink = allLinks[offer.seller] != null && allLinks[offer.seller] == landings[offer.seller]
+            if (page != null && (page.otherColour || page.otherProduct) && !viaOwnLink && ownSellers.any { TrustedShops.same(it, offer.seller) }) page = null
             ShopCheck.apply(offer, page)
         }
     }

@@ -1,1 +1,2 @@
-• Un autre modèle de la même gamme (Ultra, Pro, Max, Mini…) ne compte plus comme le même produit
+• La recherche affiche un autre modèle de la gamme (Ultra, Pro…) en bas
+• Une boutique dont le lien de vergelijk.be mène à un autre modèle n'est pas affichée

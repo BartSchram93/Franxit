@@ -1,1 +1,2 @@
-• Een ander model van dezelfde reeks (Ultra, Pro, Max, Mini…) telt niet meer als hetzelfde product
+• Zoeken toont een ander model van dezelfde reeks (Ultra, Pro…) onderaan
+• Een winkel waarvan vergelijk.be naar een ander model linkt, wordt niet getoond
