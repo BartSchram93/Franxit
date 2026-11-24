@@ -127,6 +127,16 @@ object ShoppingSettings {
     fun checkedLink(context: Context, productId: Long, shop: String): String? =
         prefs(context).getString("checked_links_$productId", null)?.let { JSONObject(it).optString(TrustedShops.key(shop)).takeIf(String::isNotBlank) }
 
+    /** How long each step of the last check took (label to milliseconds), for the diagnosis on the price. */
+    fun saveCheckSteps(context: Context, productId: Long, steps: List<Pair<String, Long>>) =
+        prefs(context).edit { putString("check_steps_$productId", steps.joinToString("\n") { (label, ms) -> "$label\t$ms" }) }
+
+    fun checkSteps(context: Context, productId: Long): List<Pair<String, Long>> =
+        prefs(context).getString("check_steps_$productId", null).orEmpty().lines().mapNotNull { line ->
+            val parts = line.split('\t')
+            parts.getOrNull(1)?.toLongOrNull()?.let { parts[0] to it }
+        }
+
     fun isWrongLink(context: Context, productId: Long, link: String): Boolean =
         link in prefs(context).getStringSet("wrong_links_$productId", null).orEmpty()
 

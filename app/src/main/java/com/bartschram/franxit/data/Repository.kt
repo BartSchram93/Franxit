@@ -61,6 +61,15 @@ class Repository private constructor(context: Context) {
      */
     val confirmed: StateFlow<Map<Long, Map<String, Double?>>> = _confirmed
 
+    /** How long each step of a running check took, by product: shown when you hold the price down. */
+    private val steps = java.util.concurrent.ConcurrentHashMap<Long, Pair<Long, MutableList<Pair<String, Long>>>>()
+
+    /** The step that just ended, called [label]: its time since the step before. */
+    private fun step(productId: Long, label: String) {
+        val now = System.currentTimeMillis()
+        steps.computeIfPresent(productId) { _, (last, list) -> list += label to (now - last); now to list }
+    }
+
     private fun confirm(productId: Long, sellers: Collection<String>, price: Double?) {
         if (sellers.isEmpty()) return
         _confirmed.update { all ->
@@ -376,6 +385,7 @@ class Repository private constructor(context: Context) {
             }
         }
         if (toFollow.isNotEmpty()) runCatching { shopReaders.invokeAll(toFollow, secondsLeft(SHOP_CHECK_SECONDS), java.util.concurrent.TimeUnit.SECONDS) }
+        step(product.id, "Following comparison links")
         // Google Shopping's shops: their own page asked for now (one search each, kept for a day by the search
         // service), so that it is read like any page and the Buy button opens it at once. One that Google gives no
         // product page for is looked up below.
@@ -391,6 +401,7 @@ class Repository private constructor(context: Context) {
                 }
             }
         if (resolving.isNotEmpty()) runCatching { shopReaders.invokeAll(resolving, secondsLeft(SHOP_CHECK_SECONDS), java.util.concurrent.TimeUnit.SECONDS) }
+        step(product.id, "Asking for shop links")
         // Shops whose only link (from Google or Shoparize) is clearly another product (a bundle at Coolblue): looked
         // up instead; left out when their right page isn't found, as their price is that other product's.
         val wrongLinks = mutableSetOf<String>()
@@ -483,6 +494,7 @@ class Repository private constructor(context: Context) {
         }
             .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
             .mapNotNull { (seller, page) -> page?.let { seller to it } }.toMap()
+        step(product.id, "Searching shop pages")
         // Found pages are only kept once read as this product (below): 123inkt's first find was a list of ink.
         val foundLinks = remembered + found
         val allLinks = links + foundLinks
@@ -528,6 +540,7 @@ class Repository private constructor(context: Context) {
             runCatching { shopReaders.invokeAll(tasks, secondsLeft(SHOP_CHECK_SECONDS), java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
                 .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
                 .associate { (link, page, status) -> link to (page to status) }).toMutableMap()
+        step(product.id, "Reading shop pages")
         // Shops that keep the app out (Fnac, Nintendo's store): their pages in a real browser, the cheapest shops
         // first, two at a time (a browser is heavy). What it reads counts like any page.
         val priceOfLink = offers.mapNotNull { offer -> allLinks[offer.seller]?.let { it to offer.price } }.toMap()
@@ -554,6 +567,7 @@ class Repository private constructor(context: Context) {
                     ShoppingSettings.addBrowserSite(appContext, siteOfLink(link))
                 }
         }
+        step(product.id, "Reading in the browser")
         offers.forEach { offer -> allLinks[offer.seller]?.let { seen[it] }?.let { statuses[offer.seller] = it.second } }
         // Pages that are another colour or product: never opened by the Buy button, whatever source gave them.
         ShoppingSettings.saveWrongLinks(appContext, product.id, seen.filter { (_, value) ->
@@ -842,10 +856,15 @@ class Repository private constructor(context: Context) {
     /** Scrapes one product and stores today's cheapest price. Returns an [Alert] when worth notifying. */
     private fun check(product: Product, lookups: Int = LOOKUPS_ALL, onFirstResults: (() -> Unit)? = null): Alert? {
         _confirmed.update { it + (product.id to emptyMap()) }
+        val start = System.currentTimeMillis()
+        steps[product.id] = start to mutableListOf()
         try {
             return checkProduct(product, lookups, onFirstResults)
         } finally {
             _confirmed.update { it - product.id }
+            steps.remove(product.id)?.second?.let { list ->
+                ShoppingSettings.saveCheckSteps(appContext, product.id, list + ("Total" to (System.currentTimeMillis() - start)))
+            }
         }
     }
 
@@ -866,6 +885,7 @@ class Repository private constructor(context: Context) {
             db.markChecked(product.id, now, null, e.message ?: e.javaClass.simpleName)
             throw e
         }
+        step(product.id, "Product page")
         // The page shows another product now: keep the history clean instead of saving its prices.
         // Only once it has been read before: a new product's name is just a placeholder.
         if (query == null && product.history.isNotEmpty() && !Matching.isStillTheSame(product.name, result.name)) {
@@ -918,7 +938,9 @@ class Repository private constructor(context: Context) {
             onFirstResults()
         }
         val extras = GoogleShopping.within(googleTime(lookups)) { extraShops(named, query, ownCheapest, ownShops) }
+        step(product.id, "More shops (Google)")
         val shoparize = shoparizeShops(named, query)
+        step(product.id, "More shops (Shoparize)")
         // Each shop's own page, where its link is known: sold out there, or another price, as the shop says it.
         val (offers, cheapest) = store(checkShopPages(named, combine(extras.offers, shoparize), result, lookups))
         // The shops are in: show them now, before the site's price history is fetched.
@@ -928,10 +950,12 @@ class Repository private constructor(context: Context) {
         // Optional extra: the site's own long-term history. Never fails the check. It only gains a
         // day at a time, so once it reaches today a refresh skips it.
         if (product.siteHistory.lastOrNull()?.day != today) {
+            step(product.id, "Showing the shops")
             runCatching { VergelijkHistory.fetch(product.url) }.getOrNull()
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { db.replaceSiteHistory(product.id, it) }
         }
+        step(product.id, "Price history")
 
         // Notify from here, so a manual refresh alerts just like the daily check. Otherwise a refresh
         // that crosses the target would make the next daily check think it was already crossed.

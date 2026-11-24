@@ -59,6 +59,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import com.bartschram.franxit.data.TrustedShops
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.Box
@@ -136,6 +138,8 @@ fun DetailScreen(
     onPhoto: (Photos.Choice) -> Unit = {},
     /** While checking: the shops whose own page was read so far (by TrustedShops.key) and their price; null otherwise. */
     confirmed: Map<String, Double?>? = null,
+    /** How long each step of the last check took (label, milliseconds): shown when the price is held down. */
+    checkSteps: () -> List<Pair<String, Long>> = { emptyList() },
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
@@ -225,10 +229,39 @@ fun DetailScreen(
             if (latest != null) Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) {
                 // Grey until the cheapest shop's own page confirms it.
                 val cheapestSure = confirmed == null || Offers.cheapest(product.offers)?.let { TrustedShops.key(it.seller) in confirmed } != false
+                // Held down: how long each step of the last check took, to see what makes a check slow.
+                var showSteps by remember { mutableStateOf<List<Pair<String, Long>>?>(null) }
                 Text(
                     latest.price.euro(), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.alpha(sureAlpha(cheapestSure)),
+                    modifier = Modifier.alpha(sureAlpha(cheapestSure)).pointerInput(Unit) {
+                        detectTapGestures(onLongPress = { showSteps = checkSteps() })
+                    },
                 )
+                showSteps?.let { list ->
+                    AlertDialog(
+                        onDismissRequest = { showSteps = null },
+                        title = { Text("Last check") },
+                        text = {
+                            Column {
+                                if (list.isEmpty()) Text("Not checked since this was added.", style = MaterialTheme.typography.bodySmall)
+                                list.forEach { (label, ms) ->
+                                    Row(Modifier.fillMaxWidth()) {
+                                        Text(
+                                            label, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f),
+                                            fontWeight = if (label == "Total") FontWeight.SemiBold else null,
+                                        )
+                                        androidx.compose.material3.Text(
+                                            String.format(L10n.locale, "%.1f s", ms / 1000.0),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = if (label == "Total") FontWeight.SemiBold else null,
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = { TextButton(onClick = { showSteps = null }) { androidx.compose.material3.Text("OK") } },
+                    )
+                }
                 // The shop is on the Buy button and in Shops today; only say what those don't.
                 if (latest.inStock == false) {
                     Spacer(Modifier.height(4.dp))

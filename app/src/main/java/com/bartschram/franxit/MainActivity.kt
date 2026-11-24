@@ -262,6 +262,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             googleAuto = shoppingKey && GoogleShopping.queryOf(selected.url) == null &&
                 mergeSameShop(selected.offers).size <= 3,
             confirmed = confirmed[selected.id],
+            checkSteps = { com.bartschram.franxit.data.ShoppingSettings.checkSteps(context, selected.id) },
         )
     } else {
         ListScreen(

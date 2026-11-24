@@ -1,2 +1,1 @@
-• A check no longer takes much more than a minute
-• The loading text no longer jumps
+• Hold the price down to see how long each step of the last check took

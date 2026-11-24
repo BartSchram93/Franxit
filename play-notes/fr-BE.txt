@@ -1,2 +1,1 @@
-• Une vérification ne dure plus beaucoup plus d'une minute
-• Le texte de chargement ne saute plus
+• Maintiens le prix appuyé pour voir combien de temps a pris chaque étape de la dernière vérification
