@@ -408,11 +408,14 @@ internal fun ProductPhoto(bitmap: ImageBitmap?, size: Dp, corner: Dp) {
         }
         return
     }
-    Image(
-        bitmap, contentDescription = null, contentScale = ContentScale.Fit,
-        colorFilter = if (dark) ColorFilter.tint(tile, BlendMode.Multiply) else null,
-        modifier = Modifier.size(size).clip(shape).background(tile),
-    )
+    // A margin inside the tile: photos that fill their whole frame ran into the rounded edge.
+    Box(Modifier.size(size).clip(shape).background(tile), contentAlignment = Alignment.Center) {
+        Image(
+            bitmap, contentDescription = null, contentScale = ContentScale.Fit,
+            colorFilter = if (dark) ColorFilter.tint(tile, BlendMode.Multiply) else null,
+            modifier = Modifier.fillMaxSize().padding(size * 0.09f),
+        )
+    }
 }
 
 @Composable
