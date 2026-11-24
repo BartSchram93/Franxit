@@ -112,6 +112,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
     // Products swiped away are hidden while their Undo time runs.
     val products = remember(allProducts, removing) { allProducts.filter { it.id !in removing } }
     val progress by repo.progress.collectAsState()
+    val confirmed by repo.confirmed.collectAsState()
     val scope = rememberCoroutineScope()
     var refreshing by remember { mutableStateOf(false) }
     var selectedId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -260,6 +261,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             shopNote = { seller -> com.bartschram.franxit.data.ShoppingSettings.shopNote(context, selected.id, seller) },
             googleAuto = shoppingKey && GoogleShopping.queryOf(selected.url) == null &&
                 mergeSameShop(selected.offers).size <= 3,
+            confirmed = confirmed[selected.id],
         )
     } else {
         ListScreen(

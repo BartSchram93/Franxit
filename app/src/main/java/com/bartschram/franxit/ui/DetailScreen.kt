@@ -59,6 +59,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import com.bartschram.franxit.data.TrustedShops
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -132,6 +134,8 @@ fun DetailScreen(
     googlePhoto: Boolean = false,
     photoVersion: Int = 0,
     onPhoto: (Photos.Choice) -> Unit = {},
+    /** While checking: the shops whose own page was read so far (by TrustedShops.key) and their price; null otherwise. */
+    confirmed: Map<String, Double?>? = null,
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
@@ -219,7 +223,12 @@ fun DetailScreen(
             // The photo sits right of the price, in space that's otherwise empty: you see it's the right
             // product (and spot a wrong photo) without the name losing width.
             if (latest != null) Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) {
-                Text(latest.price.euro(), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold)
+                // Grey until the cheapest shop's own page confirms it.
+                val cheapestSure = confirmed == null || Offers.cheapest(product.offers)?.let { TrustedShops.key(it.seller) in confirmed } != false
+                Text(
+                    latest.price.euro(), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.alpha(sureAlpha(cheapestSure)),
+                )
                 // The shop is on the Buy button and in Shops today; only say what those don't.
                 if (latest.inStock == false) {
                     Spacer(Modifier.height(4.dp))
@@ -296,7 +305,9 @@ fun DetailScreen(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).alpha(
+                    sureAlpha(confirmed == null || Offers.cheapest(product.offers)?.let { TrustedShops.key(it.seller) in confirmed } != false),
+                ),
             ) {
                 val latest = product.latest
                 // Two lines: the shop, and under it the price, so long shop names never get cut off.
@@ -354,7 +365,7 @@ fun DetailScreen(
                 }
             }
 
-            ShopsToday(product, discounts, shopStatus, shopNote) { seller -> shopLink(seller) }
+            ShopsToday(product, discounts, shopStatus, shopNote, confirmed) { seller -> shopLink(seller) }
 
             if (product.history.isNotEmpty() || product.siteHistory.isNotEmpty()) {
                 Spacer(Modifier.height(28.dp))
@@ -511,6 +522,7 @@ private fun ShopsToday(
     discounts: Map<String, Double>,
     shopStatus: (String) -> String?,
     shopNote: (String) -> String?,
+    confirmed: Map<String, Double?>?,
     shopLink: suspend (String) -> String?,
 ) {
     // Held down: what happened to that shop at the last check.
@@ -566,7 +578,9 @@ private fun ShopsToday(
                         }
                     }
                 }
-                .padding(vertical = 12.dp),
+                .padding(vertical = 12.dp)
+                // Grey while its price isn't confirmed by the shop's own page yet; it turns normal when it is.
+                .alpha(sureAlpha(confirmed == null || TrustedShops.key(offer.seller) in confirmed)),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
@@ -580,6 +594,9 @@ private fun ShopsToday(
                 Spacer(Modifier.width(12.dp))
             }
             val percent = Discounts.percentFor(offer.seller, discounts)
+            // The price its page gave, as soon as it's read (the check takes it the same way).
+            val offer = confirmed?.get(TrustedShops.key(offer.seller))?.takeIf { it / offer.price in 0.5..1.5 }
+                ?.let { offer.copy(price = it) } ?: offer
             if (percent == null) {
                 Text(offer.price.euro(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             } else {
@@ -741,3 +758,12 @@ private fun SlowProgressBar(modifier: Modifier = Modifier) {
         if (end > start) drawRect(bar, topLeft = androidx.compose.ui.geometry.Offset(start, 0f), size = androidx.compose.ui.geometry.Size(end - start, size.height))
     }
 }
+
+/** Full for what's certain, faded for what a running check hasn't confirmed yet; the change is gradual. */
+@Composable
+private fun sureAlpha(sure: Boolean): Float =
+    androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (sure) 1f else 0.4f,
+        animationSpec = androidx.compose.animation.core.tween(600),
+        label = "sure",
+    ).value

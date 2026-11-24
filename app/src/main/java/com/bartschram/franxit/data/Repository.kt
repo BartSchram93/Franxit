@@ -53,6 +53,22 @@ class Repository private constructor(context: Context) {
     /** While all products are being checked: how many are done, of how many. */
     val progress: StateFlow<Pair<Int, Int>?> = _progress
 
+    private val _confirmed = MutableStateFlow<Map<Long, Map<String, Double?>>>(emptyMap())
+    /**
+     * While a product is being checked: the shops whose own page has been read so far (by TrustedShops.key), with the
+     * price read there (null when none). The screen shows those shops as certain, the others as not yet. Only for
+     * the screen: nothing is stored.
+     */
+    val confirmed: StateFlow<Map<Long, Map<String, Double?>>> = _confirmed
+
+    private fun confirm(productId: Long, sellers: Collection<String>, price: Double?) {
+        if (sellers.isEmpty()) return
+        _confirmed.update { all ->
+            val shops = all[productId] ?: return@update all
+            all + (productId to (shops + sellers.associate { TrustedShops.key(it) to price }))
+        }
+    }
+
     suspend fun reload() = withContext(Dispatchers.IO) {
         finishLeftoverDeletes()
         _products.value = db.products()
@@ -457,6 +473,13 @@ class Repository private constructor(context: Context) {
         // Found pages are only kept once read as this product (below): 123inkt's first find was a list of ink.
         val foundLinks = remembered + found
         val allLinks = links + foundLinks
+        // A page read as this product: its shops are certain now, shown so on the screen at once.
+        fun confirmRead(link: String, page: ShopCheck.Seen?) {
+            if (page == null || page.otherColour || page.otherProduct) return
+            confirm(product.id, offers.filter { allLinks[it.seller] == link }.map { it.seller }, page.price)
+        }
+        // The page the product was added from is read already.
+        confirm(product.id, offers.filter { TrustedShops.same(it.seller, ownHost) }.map { it.seller }, null)
         // What each page said, by link, with its status.
         // Sites only a browser could read before: straight to the browser, without a request that is kept out anyway.
         val browserSites = ShoppingSettings.browserSites(appContext)
@@ -465,7 +488,10 @@ class Repository private constructor(context: Context) {
             java.util.concurrent.Callable {
                 // A search or list page, or another product's page by its address: not read, the shop is left out.
                 if (otherVersion(link, name, product)) return@Callable Triple(link, ShopCheck.ELSEWHERE, ShopCheck.Status.CHECKED)
-                shopPages[link]?.takeIf { System.currentTimeMillis() - it.first < SHOP_CHECK_MS }?.let { return@Callable Triple(link, it.second.first, it.second.second) }
+                shopPages[link]?.takeIf { System.currentTimeMillis() - it.first < SHOP_CHECK_MS }?.let {
+                    confirmRead(link, it.second.first)
+                    return@Callable Triple(link, it.second.first, it.second.second)
+                }
                 if (siteOfLink(link) in browserSites) return@Callable Triple(link, null, ShopCheck.Status.BLOCKED)
                 var error: String? = null
                 val seen = try {
@@ -481,6 +507,7 @@ class Repository private constructor(context: Context) {
                 }
                 val status = ShopCheck.status(seen, error)
                 shopPages[link] = System.currentTimeMillis() to (seen to status)
+                confirmRead(link, seen)
                 Triple(link, seen, status)
             }
         }
@@ -500,6 +527,7 @@ class Repository private constructor(context: Context) {
                     val page = runCatching { ShopCheck.seen(Scraper.fromPage(html, link), name) }.getOrElse { e ->
                         if (e.message?.startsWith("Not available at") == true) ShopCheck.SOLD_OUT else null
                     } ?: return@Callable null
+                    confirmRead(link, page)
                     link to page
                 }
             }
@@ -799,6 +827,15 @@ class Repository private constructor(context: Context) {
 
     /** Scrapes one product and stores today's cheapest price. Returns an [Alert] when worth notifying. */
     private fun check(product: Product, lookups: Int = LOOKUPS_ALL, onFirstResults: (() -> Unit)? = null): Alert? {
+        _confirmed.update { it + (product.id to emptyMap()) }
+        try {
+            return checkProduct(product, lookups, onFirstResults)
+        } finally {
+            _confirmed.update { it - product.id }
+        }
+    }
+
+    private fun checkProduct(product: Product, lookups: Int, onFirstResults: (() -> Unit)?): Alert? {
         val now = System.currentTimeMillis()
         val query = GoogleShopping.queryOf(product.url)
         // Google Shopping costs a search of your plan: at most once a day per product. The shops' own pages cost
