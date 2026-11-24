@@ -1,3 +1,1 @@
-• Pendant le chargement, ce que fait l'app s'affiche sous la barre en haut
-• Renommer et Ne plus suivre sont dans le menu (⋮)
-• Photos de produits avec un peu de marge
+• Touchez la photo du produit pour l'agrandir

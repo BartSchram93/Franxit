@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -239,7 +240,31 @@ fun DetailScreen(
                 }
             }
                 Spacer(Modifier.width(12.dp))
-                ProductPhoto(photo, 72.dp, 16.dp)
+                // A tap shows the photo large: to see it's the right model and colour.
+                var bigPhoto by remember { mutableStateOf(false) }
+                Box(
+                    Modifier
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+                        .clickable(enabled = photo != null) { bigPhoto = true },
+                ) { ProductPhoto(photo, 72.dp, 16.dp) }
+                if (bigPhoto && photo != null) {
+                    androidx.compose.ui.window.Dialog(
+                        onDismissRequest = { bigPhoto = false },
+                        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+                    ) {
+                        androidx.compose.foundation.layout.BoxWithConstraints(
+                            Modifier
+                                .fillMaxSize()
+                                .clickable(
+                                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                    indication = null,
+                                ) { bigPhoto = false },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            ProductPhoto(photo, minOf(maxWidth, maxHeight) * 0.9f, 24.dp)
+                        }
+                    }
+                }
             }
             product.lastError?.let {
                 Spacer(Modifier.height(8.dp))

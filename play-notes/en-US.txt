@@ -1,3 +1,1 @@
-• While loading, what the app is doing shows under the bar at the top
-• Rename and Stop tracking are in the menu (⋮)
-• Product photos with some margin
+• Tap the product photo to see it large
