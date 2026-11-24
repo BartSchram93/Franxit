@@ -3,6 +3,7 @@ package com.bartschram.franxit.data
 import android.content.Context
 import androidx.core.content.edit
 import com.bartschram.franxit.scrape.GoogleShopping
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -136,6 +137,16 @@ object ShoppingSettings {
             val parts = line.split('\t')
             parts.getOrNull(1)?.toLongOrNull()?.let { parts[0] to it }
         }
+
+    /** The shops the last check left out (shop, why with its note), for the diagnosis on the price. */
+    fun saveLeftOut(context: Context, productId: Long, shops: List<Pair<String, String>>) =
+        prefs(context).edit { putString("left_out_$productId", JSONArray(shops.map { (shop, why) -> JSONArray(listOf(shop, why)) }).toString()) }
+
+    fun leftOut(context: Context, productId: Long): List<Pair<String, String>> =
+        runCatching {
+            val all = JSONArray(prefs(context).getString("left_out_$productId", null) ?: return emptyList())
+            (0 until all.length()).map { all.getJSONArray(it).let { a -> a.getString(0) to a.getString(1) } }
+        }.getOrDefault(emptyList())
 
     fun isWrongLink(context: Context, productId: Long, link: String): Boolean =
         link in prefs(context).getStringSet("wrong_links_$productId", null).orEmpty()

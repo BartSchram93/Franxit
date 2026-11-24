@@ -257,4 +257,8 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Reading in the browser" to "Lire dans le navigateur",
     "Showing the shops" to "Afficher les boutiques",
     "Price history" to "Historique des prix",
+    "Not shown" to "Non affichées",
+    "Another country's site" to "Site d'un autre pays",
+    "No product page found" to "Aucune page produit trouvée",
+    "Another product or colour" to "Autre produit ou autre couleur",
 )

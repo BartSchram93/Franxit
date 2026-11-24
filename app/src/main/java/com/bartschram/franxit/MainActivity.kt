@@ -263,6 +263,7 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
                 mergeSameShop(selected.offers).size <= 3,
             confirmed = confirmed[selected.id],
             checkSteps = { com.bartschram.franxit.data.ShoppingSettings.checkSteps(context, selected.id) },
+            leftOut = { com.bartschram.franxit.data.ShoppingSettings.leftOut(context, selected.id) },
         )
     } else {
         ListScreen(

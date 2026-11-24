@@ -1,1 +1,2 @@
-• Ook met maar één winkel staat "Winkels vandaag" er, zodat je die winkel kunt ingedrukt houden
+• Ook met maar één winkel staat "Winkels vandaag" er
+• Hou de prijs ingedrukt: je ziet ook welke winkels niet getoond worden, en waarom

@@ -257,4 +257,8 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Reading in the browser" to "Lezen in de browser",
     "Showing the shops" to "Winkels tonen",
     "Price history" to "Prijsgeschiedenis",
+    "Not shown" to "Niet getoond",
+    "Another country's site" to "Site van een ander land",
+    "No product page found" to "Geen productpagina gevonden",
+    "Another product or colour" to "Ander product of andere kleur",
 )

@@ -140,6 +140,8 @@ fun DetailScreen(
     confirmed: Map<String, Double?>? = null,
     /** How long each step of the last check took (label, milliseconds): shown when the price is held down. */
     checkSteps: () -> List<Pair<String, Long>> = { emptyList() },
+    /** The shops the last check left out, with why: shown with the steps. */
+    leftOut: () -> List<Pair<String, String>> = { emptyList() },
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var renaming by rememberSaveable { mutableStateOf(false) }
@@ -231,10 +233,11 @@ fun DetailScreen(
                 val cheapestSure = confirmed == null || Offers.cheapest(product.offers)?.let { TrustedShops.key(it.seller) in confirmed } != false
                 // Held down: how long each step of the last check took, to see what makes a check slow.
                 var showSteps by remember { mutableStateOf<List<Pair<String, Long>>?>(null) }
+                var shopsLeftOut by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
                 Text(
                     latest.price.euro(), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.alpha(sureAlpha(cheapestSure)).pointerInput(Unit) {
-                        detectTapGestures(onLongPress = { showSteps = checkSteps() })
+                        detectTapGestures(onLongPress = { shopsLeftOut = leftOut(); showSteps = checkSteps() })
                     },
                 )
                 showSteps?.let { list ->
@@ -242,7 +245,7 @@ fun DetailScreen(
                         onDismissRequest = { showSteps = null },
                         title = { Text("Last check") },
                         text = {
-                            Column {
+                            Column(Modifier.verticalScroll(rememberScrollState())) {
                                 if (list.isEmpty()) Text("Not checked since this was added.", style = MaterialTheme.typography.bodySmall)
                                 list.forEach { (label, ms) ->
                                     Row(Modifier.fillMaxWidth()) {
@@ -254,6 +257,20 @@ fun DetailScreen(
                                             String.format(L10n.locale, "%.1f s", ms / 1000.0),
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = if (label == "Total") FontWeight.SemiBold else null,
+                                        )
+                                    }
+                                }
+                                if (shopsLeftOut.isNotEmpty()) {
+                                    Spacer(Modifier.height(14.dp))
+                                    Text("Not shown", style = MaterialTheme.typography.titleSmall)
+                                    shopsLeftOut.forEach { (shop, why) ->
+                                        Spacer(Modifier.height(6.dp))
+                                        androidx.compose.material3.Text(Shops.name(shop), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                                        // The reason in the app's language; the note under it as the check wrote it.
+                                        androidx.compose.material3.Text(
+                                            why.lines().mapIndexed { i, line -> if (i == 0) t(line) else line }.joinToString("\n"),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }

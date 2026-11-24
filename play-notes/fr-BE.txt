@@ -1,1 +1,2 @@
 • « Boutiques aujourd'hui » s'affiche aussi avec une seule boutique
+• Maintiens le prix appuyé : tu vois aussi quelles boutiques ne sont pas affichées, et pourquoi

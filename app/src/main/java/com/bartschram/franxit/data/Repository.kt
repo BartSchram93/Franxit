@@ -633,8 +633,18 @@ class Repository private constructor(context: Context) {
             val viaVergelijk = clickLinks.any { TrustedShops.same(it.first, offer.seller) } && offer.seller !in wrongLandings
             !goodLink && !viaVergelijk && !TrustedShops.same(offer.seller, ownHost) && landings[offer.seller] == null
         }.map { it.seller }.toSet()
-        return offers.mapNotNull { offer ->
-            if (offer.seller in foreign || offer.seller in noPage) return@mapNotNull null
+        // Shops left out and why, shown with the check's steps (held price): a shop that isn't listed can't be held down.
+        val leftOut = mutableListOf<Pair<String, String>>()
+        val kept = offers.mapNotNull { offer ->
+            val why = when {
+                offer.seller in foreign -> "Another country's site"
+                offer.seller in noPage -> "No product page found"
+                else -> null
+            }
+            if (why != null) {
+                leftOut += offer.seller to (why + (notes[offer.seller]?.let { "\n$it" } ?: ""))
+                return@mapNotNull null
+            }
             var page = if (offer.seller in wrongFinds) null else allLinks[offer.seller]?.let { seen[it]?.first }
             // Its source's link was another product, and its right page wasn't found: the price is that product's.
             if (page == null && offer.seller in wrongLinks && (allLinks[offer.seller] == null || offer.seller in wrongFinds)) page = ShopCheck.ELSEWHERE
@@ -642,8 +652,12 @@ class Repository private constructor(context: Context) {
             // (its Aqua 10 Ultra Roller page listed MediaMarkt's plain Aqua 10 Roller), and the shop is left out.
             val viaOwnLink = allLinks[offer.seller] != null && allLinks[offer.seller] == landings[offer.seller]
             if (page != null && (page.otherColour || page.otherProduct) && !viaOwnLink && ownSellers.any { TrustedShops.same(it, offer.seller) }) page = null
-            ShopCheck.apply(offer, page)
+            ShopCheck.apply(offer, page).also { result ->
+                if (result == null) leftOut += offer.seller to ("Another product or colour" + (notes[offer.seller]?.let { "\n$it" } ?: ""))
+            }
         }
+        ShoppingSettings.saveLeftOut(appContext, product.id, leftOut)
+        return kept
     }
 
     /** Shops looked up on DuckDuckGo, by product and shop, with the day: once a day each. */

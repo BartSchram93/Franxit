@@ -1,1 +1,2 @@
 • "Shops today" also shows with a single shop
+• Hold the price down: you also see which shops aren't shown, and why
