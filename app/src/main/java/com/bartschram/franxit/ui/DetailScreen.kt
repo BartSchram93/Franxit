@@ -190,7 +190,7 @@ fun DetailScreen(
         if (refreshing) {
             SlowProgressBar(Modifier.fillMaxWidth().height(3.dp))
             Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
-                SearchingWords(if (product.latest == null) "Looking up the product…" else "Calling round the shops…")
+                SearchingWords(if (product.latest == null) "Looking up the product…" else "Doing the rounds of the shops…")
             }
         } else {
             Spacer(Modifier.height(3.dp))

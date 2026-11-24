@@ -235,7 +235,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Not found on comparison sites · checked once a day" to "Introuvable sur les comparateurs · vérifié une fois par jour",
     "Connection lost, tried again at the next check" to "Connexion interrompue, la prochaine vérification réessaie",
     "Connection to %s lost" to "Connexion avec %s interrompue",
-    "Calling round the shops…" to "On fait le tour des boutiques…",
+    "Doing the rounds of the shops…" to "On fait le tour des boutiques…",
     "Browsing the shelves…" to "On fouille les rayons…",
     "Seeing if it's still in stock…" to "Encore en stock ? On regarde…",
     "Right colour? Just checking…" to "Bonne couleur ? On vérifie…",
