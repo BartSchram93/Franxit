@@ -73,7 +73,8 @@ internal object ShopCheck {
     }
 
     /** Paths and parameters of a shop's search or list pages ("fr.fnac.be/se77634/…", "/zoeken?q=…"). */
-    private val LISTING_PATH = Regex("""/(search|zoeken|zoek|recherche|rechercher|catalogsearch|s|se\d+|ia\d+|c\d+|categor(y|ie|ies)|collections?)(/|$)""", RegexOption.IGNORE_CASE)
+    // Also a brand's page: Fnac's "/Dreame/m516876" lists all of Dreame, found for a Dreame Aqua 10 Roller.
+    private val LISTING_PATH = Regex("""/(search|zoeken|zoek|recherche|rechercher|catalogsearch|s|se\d+|ia\d+|c\d+|categor(y|ie|ies)|collections?|m\d+|brands?|merken?|marques?)(/|$)""", RegexOption.IGNORE_CASE)
     private val LISTING_QUERY = Regex("""[?&](q|k|query|search|searchtext|keyword|keywords|text|Search)=""")
 
     /**

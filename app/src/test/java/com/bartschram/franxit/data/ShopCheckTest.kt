@@ -138,4 +138,10 @@ class ShopCheckTest {
         // Fnac's book for a keyboard bench stays another product.
         org.junit.Assert.assertTrue(ShopCheck.isElsewhere("https://www.fr.fnac.be/a123/La-Legende-des-Quatres", "Hercules Keyboard Bench"))
     }
+
+    @Test
+    fun fnacsBrandPageIsNoProductPage() {
+        assertTrue(ShopCheck.isElsewhere("https://www.nl.fnac.be/Dreame/m516876", "Dreame Aqua 10 Roller White"))
+        assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/a21345678/Dreame-Robot-Was-en-stofzuiger-Aqua-10-Roller-White", "Dreame Aqua 10 Roller White"))
+    }
 }

@@ -1,2 +1,1 @@
-• Zoeken toont een ander model van dezelfde reeks (Ultra, Pro…) onderaan
-• Een winkel waarvan vergelijk.be naar een ander model linkt, wordt niet getoond
+• Een merkpagina (zoals Fnac's pagina van alle Dreame-producten) telt niet meer als productpagina
