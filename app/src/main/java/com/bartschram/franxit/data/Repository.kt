@@ -389,14 +389,16 @@ class Repository private constructor(context: Context) {
                 continue
             }
             // (A vergelijk.be shop remembered as another country's before this rule: its link is followed again.)
-            val known = ShoppingSettings.landing(appContext, product.id, offer.seller)?.takeIf { !(anyCountry && it == FOREIGN) }
+            // ("-" from before the browser could follow links: followed again once, now in the browser if need be;
+            // "--" when that didn't get there either.)
+            val known = ShoppingSettings.landing(appContext, product.id, offer.seller)?.takeIf { !(anyCountry && it == FOREIGN) && it != "-" }
             if (known != null) {
                 // (One remembered before this rule: a landing on another country's site.)
                 // A shop with a Belgian site whose link led abroad: not that page, nor vergelijk.be's link; its Belgian page.
-                if (hasBelgianSite && (known == FOREIGN || (known != "-" && DuckDuckGo.isForeignSite(known)))) wrongLandings += offer.seller
-                else if (!anyCountry && (known == FOREIGN || (known != "-" && DuckDuckGo.isForeignSite(known)))) foreign += offer.seller
-                else if (known != "-" && otherVersion(known, name, product)) wrongLandings += offer.seller
-                else if (known != "-") landings[offer.seller] = known
+                if (hasBelgianSite && (known == FOREIGN || (!known.startsWith("-") && DuckDuckGo.isForeignSite(known)))) wrongLandings += offer.seller
+                else if (!anyCountry && (known == FOREIGN || (!known.startsWith("-") && DuckDuckGo.isForeignSite(known)))) foreign += offer.seller
+                else if (!known.startsWith("-") && otherVersion(known, name, product)) wrongLandings += offer.seller
+                else if (!known.startsWith("-")) landings[offer.seller] = known
                 continue
             }
             val click = clickLinks.firstOrNull { TrustedShops.same(it.first, offer.seller) }?.second ?: continue
@@ -415,7 +417,7 @@ class Repository private constructor(context: Context) {
                     return@Callable
                 }
                 val landing = end?.takeIf { ShopCheck.isLandingOf(it, offer.seller) }
-                ShoppingSettings.saveLanding(appContext, product.id, offer.seller, landing ?: "-")
+                ShoppingSettings.saveLanding(appContext, product.id, offer.seller, landing ?: "--")
                 if (landing != null && otherVersion(landing, name, product)) wrongLandings += offer.seller
                 else if (landing != null) {
                     landings[offer.seller] = landing
