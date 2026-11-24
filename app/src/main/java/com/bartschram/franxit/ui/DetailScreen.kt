@@ -575,7 +575,8 @@ private fun ShopsToday(
             compareBy<ShopOffer> { it.inStock == false }.then(Offers.order { Discounts.yourPrice(it, discounts) }),
         )
     }
-    if (offers.size < 2) return
+    // Also one shop: its row says where the price comes from, and holding it down why (Fnac alone at € 2.004,95).
+    if (offers.isEmpty()) return
     val uri = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     var opening by remember { mutableStateOf<String?>(null) }
