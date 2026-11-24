@@ -307,6 +307,9 @@ class Repository private constructor(context: Context) {
     private val shopReaders = java.util.concurrent.Executors.newFixedThreadPool(8)
     private val SHOP_CHECK_SECONDS = 25L
 
+    /** Google Shopping's searches of one check together: one product refreshed (you're waiting), or in the background. */
+    private fun googleTime(lookups: Int) = if (lookups >= LOOKUPS_ONE) 25_000L else 90_000L
+
     /** All shop pages of one check together: one product refreshed (you're waiting), or in the background. */
     private val SHOPS_ONE_MS = 45_000L
     private val SHOPS_ALL_MS = 120_000L
@@ -856,7 +859,7 @@ class Repository private constructor(context: Context) {
             return null
         }
         val result = try {
-            if (query == null) Scraper.fetch(product.url) else searchGoogleShopping(product.id, query)
+            if (query == null) Scraper.fetch(product.url) else GoogleShopping.within(googleTime(lookups)) { searchGoogleShopping(product.id, query) }
         } catch (e: Exception) {
             // Google Shopping used up (or its key refused): not the customer's problem, tried again at the next check.
             if (query != null && e.message in setOf(GoogleShopping.NO_SEARCHES_LEFT, GoogleShopping.BAD_KEY)) return null
@@ -914,7 +917,7 @@ class Repository private constructor(context: Context) {
             store(combine(ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty(), ShoppingSettings.lastShoparizeOffers(appContext, product.id).orEmpty()))
             onFirstResults()
         }
-        val extras = extraShops(named, query, ownCheapest, ownShops)
+        val extras = GoogleShopping.within(googleTime(lookups)) { extraShops(named, query, ownCheapest, ownShops) }
         val shoparize = shoparizeShops(named, query)
         // Each shop's own page, where its link is known: sold out there, or another price, as the shop says it.
         val (offers, cheapest) = store(checkShopPages(named, combine(extras.offers, shoparize), result, lookups))

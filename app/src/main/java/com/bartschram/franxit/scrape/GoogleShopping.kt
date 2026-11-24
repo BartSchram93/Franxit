@@ -124,6 +124,23 @@ object GoogleShopping {
     /** How long a search may take: Google Shopping through LiteScrape can take most of a minute. */
     private const val SEARCH_TIMEOUT_MS = 75_000
 
+    private val deadline = ThreadLocal<Long?>()
+
+    /**
+     * [block] with all its requests to the search service within [ms] together: a search tries up to three wordings,
+     * each with Google's page of the product and the shops' links, each asked twice when slow, and a refresh with
+     * one shop took two minutes on a slow day. What doesn't fit fails as "didn't answer in time".
+     */
+    fun <T> within(ms: Long, block: () -> T): T {
+        val before = deadline.get()
+        deadline.set(System.currentTimeMillis() + ms)
+        try {
+            return block()
+        } finally {
+            deadline.set(before)
+        }
+    }
+
     /**
      * One request to the search service, with its errors in plain words. A search that takes too long is asked once
      * more: the service may have it by then (it keeps answers for a day).
@@ -132,8 +149,11 @@ object GoogleShopping {
         val token = com.bartschram.franxit.BuildConfig.APP_TOKEN.takeIf { it.isNotBlank() }?.let { mapOf("X-Franxit-Token" to it) }.orEmpty()
         var last: IOException? = null
         repeat(2) {
+            // Within the time this check gives Google ([within]): no new request when it's (nearly) up.
+            val left = deadline.get()?.let { it - System.currentTimeMillis() } ?: Long.MAX_VALUE
+            if (left < 3_000) throw IOException(TOO_SLOW)
             try {
-                return Scraper.download(PROXY + path, "application/json", token, SEARCH_TIMEOUT_MS)
+                return Scraper.download(PROXY + path, "application/json", token, minOf(SEARCH_TIMEOUT_MS.toLong(), left).toInt())
             } catch (e: java.net.SocketTimeoutException) {
                 last = e
             } catch (e: java.net.SocketException) {
