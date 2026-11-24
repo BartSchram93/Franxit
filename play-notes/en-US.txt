@@ -1,1 +1,1 @@
-• A brand page (like Fnac's page of all Dreame products) no longer counts as a product page
+• A contact, help or cart page no longer counts as a product page

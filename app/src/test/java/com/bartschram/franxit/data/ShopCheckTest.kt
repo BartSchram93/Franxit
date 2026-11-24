@@ -146,4 +146,11 @@ class ShopCheckTest {
         assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/Dreame-Robot-Was-en-stofzuiger-Aqua-10-Roller-White/a23004441", "Dreame Aqua 10 Roller White"))
         assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/Dreame-Robot-Was-en-stofzuiger-Aqua-10-Roller-White/a23004441", "Dreame Aqua 10 Roller"))
     }
+
+    @Test
+    fun aShopsContactPageIsNoProductPage() {
+        assertTrue(ShopCheck.isElsewhere("https://www.senetic.be/site/contact/", "Logitech MX Master 4 Graphite"))
+        assertTrue(ShopCheck.isElsewhere("https://www.example.be/nl/klantenservice", "Logitech MX Master 4 Graphite"))
+        assertFalse(ShopCheck.isElsewhere("https://www.senetic.be/product/910-007561", "Logitech MX Master 4 Graphite"))
+    }
 }
