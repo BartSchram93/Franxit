@@ -1,1 +1,2 @@
-• While checking, prices are grey and turn normal shop by shop once confirmed
+• A check no longer takes much more than a minute
+• The loading text no longer jumps

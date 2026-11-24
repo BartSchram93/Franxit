@@ -1,1 +1,2 @@
-• Pendant la vérification, les prix sont gris puis reprennent leur couleur boutique par boutique une fois confirmés
+• Une vérification ne dure plus beaucoup plus d'une minute
+• Le texte de chargement ne saute plus

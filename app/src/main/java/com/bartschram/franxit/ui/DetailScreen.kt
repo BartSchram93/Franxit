@@ -195,7 +195,7 @@ fun DetailScreen(
         if (refreshing) {
             SlowProgressBar(Modifier.fillMaxWidth().height(3.dp))
             Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
-                SearchingWords(if (product.latest == null) "Looking up the product…" else "Doing the rounds of the shops…")
+                SearchingWords(if (product.latest == null) "Looking up the product…" else "Doing the rounds of the shops…", centered = true)
             }
         } else {
             Spacer(Modifier.height(3.dp))
@@ -689,7 +689,7 @@ private fun shareProduct(context: Context, product: Product) {
 
 /** While Google Shopping searches, a changing word says what it is up to, so the line doesn't sit still. */
 @Composable
-internal fun SearchingWords(first: String = "Searching…") {
+internal fun SearchingWords(first: String = "Searching…", centered: Boolean = false) {
     // A few calm words, one after the other; the last one stays when it takes longer.
     val words = remember(first) {
         listOf(
@@ -727,9 +727,16 @@ internal fun SearchingWords(first: String = "Searching…") {
         }
     }
     // One line fades into the next instead of jumping.
-    androidx.compose.animation.Crossfade(targetState = index, animationSpec = androidx.compose.animation.core.tween(500), label = "words") { shownIndex ->
+    // Centred over the whole width, the old line and the new one alike: else the new one started at the left and
+    // jumped to the middle once the old one had gone.
+    val width = if (centered) Modifier.fillMaxWidth() else Modifier
+    val align = if (centered) androidx.compose.ui.text.style.TextAlign.Center else null
+    androidx.compose.animation.Crossfade(targetState = index, modifier = width, animationSpec = androidx.compose.animation.core.tween(500), label = "words") { shownIndex ->
         val line = if (shownIndex == index) text else androidx.compose.ui.text.AnnotatedString(t(words[shownIndex]))
-        androidx.compose.material3.Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        androidx.compose.material3.Text(
+            line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = align, modifier = width,
+        )
     }
 }
 

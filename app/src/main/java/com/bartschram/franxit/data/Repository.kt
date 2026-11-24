@@ -306,6 +306,10 @@ class Repository private constructor(context: Context) {
     /** Shop pages read at the same time; a check waits at most [SHOP_CHECK_SECONDS] for all of them. */
     private val shopReaders = java.util.concurrent.Executors.newFixedThreadPool(8)
     private val SHOP_CHECK_SECONDS = 25L
+
+    /** All shop pages of one check together: one product refreshed (you're waiting), or in the background. */
+    private val SHOPS_ONE_MS = 45_000L
+    private val SHOPS_ALL_MS = 120_000L
     /** What a shop's page said, by its link, with when: read again after [SHOP_CHECK_MS]. */
     private val shopPages = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, Pair<ShopCheck.Seen?, String>>>()
     private val SHOP_CHECK_MS = 3 * 60 * 60 * 1000L
@@ -317,6 +321,12 @@ class Repository private constructor(context: Context) {
      * read, or is of another product, changes nothing.
      */
     private fun checkShopPages(product: Product, offers: List<ShopOffer>, own: Scraper.Result, lookups: Int): List<ShopOffer> {
+        // One time limit for all of it: following links, asking Google, searching, reading, the browser. Each step had
+        // its own (up to three minutes for the browser), and a refresh could take two minutes and more. What isn't
+        // done by then waits for the next check; a shop without a page by then isn't shown this time.
+        val deadline = System.currentTimeMillis() + if (lookups >= LOOKUPS_ONE) SHOPS_ONE_MS else SHOPS_ALL_MS
+        fun secondsLeft(cap: Long) = minOf(cap, maxOf(1L, (deadline - System.currentTimeMillis()) / 1000))
+        fun timeLeft() = System.currentTimeMillis() < deadline - 3_000
         val ownHost = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
         val name = own.name.ifBlank { product.displayName }
         // Links the version before found itself and kept as if Google gave them: dropped once (a list of ink at 123inkt.be).
@@ -362,7 +372,7 @@ class Repository private constructor(context: Context) {
                 else if (landing != null) landings[offer.seller] = landing
             }
         }
-        if (toFollow.isNotEmpty()) runCatching { shopReaders.invokeAll(toFollow, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }
+        if (toFollow.isNotEmpty()) runCatching { shopReaders.invokeAll(toFollow, secondsLeft(SHOP_CHECK_SECONDS), java.util.concurrent.TimeUnit.SECONDS) }
         // Google Shopping's shops: their own page asked for now (one search each, kept for a day by the search
         // service), so that it is read like any page and the Buy button opens it at once. One that Google gives no
         // product page for is looked up below.
@@ -377,7 +387,7 @@ class Repository private constructor(context: Context) {
                     Unit
                 }
             }
-        if (resolving.isNotEmpty()) runCatching { shopReaders.invokeAll(resolving, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }
+        if (resolving.isNotEmpty()) runCatching { shopReaders.invokeAll(resolving, secondsLeft(SHOP_CHECK_SECONDS), java.util.concurrent.TimeUnit.SECONDS) }
         // Shops whose only link (from Google or Shoparize) is clearly another product (a bundle at Coolblue): looked
         // up instead; left out when their right page isn't found, as their price is that other product's.
         val wrongLinks = mutableSetOf<String>()
@@ -439,7 +449,7 @@ class Repository private constructor(context: Context) {
         val browserBudget = if (single) BROWSER_ONE else BROWSER_READS
         val waitSeconds = if (single) BROWSER_WAIT_SECONDS else SHOP_CHECK_SECONDS
         val browserSearches = java.util.concurrent.atomic.AtomicInteger(browserBudget)
-        val browser = { url: String, ready: (String) -> Boolean -> if (browserSearches.getAndDecrement() > 0) BrowserPages.html(appContext, url, ready) else null }
+        val browser = { url: String, ready: (String) -> Boolean -> if (timeLeft() && browserSearches.getAndDecrement() > 0) BrowserPages.html(appContext, url, ready) else null }
         // What happened to each shop, shown when you hold it down: to find out why a price wasn't checked.
         val notes = java.util.concurrent.ConcurrentHashMap<String, String>()
         val found = toFind.map { (seller, site) ->
@@ -466,7 +476,7 @@ class Repository private constructor(context: Context) {
             }
         }.let { lookupTasks ->
             if (lookupTasks.isEmpty()) emptyList<java.util.concurrent.Future<Pair<String, String?>>>()
-            else runCatching { shopReaders.invokeAll(lookupTasks, waitSeconds, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
+            else runCatching { shopReaders.invokeAll(lookupTasks, secondsLeft(waitSeconds), java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
         }
             .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
             .mapNotNull { (seller, page) -> page?.let { seller to it } }.toMap()
@@ -512,7 +522,7 @@ class Repository private constructor(context: Context) {
             }
         }
         val seen = (if (tasks.isEmpty()) emptyMap() else
-            runCatching { shopReaders.invokeAll(tasks, SHOP_CHECK_SECONDS, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
+            runCatching { shopReaders.invokeAll(tasks, secondsLeft(SHOP_CHECK_SECONDS), java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
                 .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
                 .associate { (link, page, status) -> link to (page to status) }).toMutableMap()
         // Shops that keep the app out (Fnac, Nintendo's store): their pages in a real browser, the cheapest shops
@@ -523,6 +533,7 @@ class Repository private constructor(context: Context) {
             .sortedBy { priceOfLink[it] ?: Double.MAX_VALUE }.take(browserBudget)
             .map { link ->
                 java.util.concurrent.Callable {
+                    if (!timeLeft()) return@Callable null
                     val html = runCatching { BrowserPages.html(appContext, link) }.getOrNull() ?: return@Callable null
                     val page = runCatching { ShopCheck.seen(Scraper.fromPage(html, link), name) }.getOrElse { e ->
                         if (e.message?.startsWith("Not available at") == true) ShopCheck.SOLD_OUT else null
@@ -532,7 +543,7 @@ class Repository private constructor(context: Context) {
                 }
             }
         if (browserReads.isNotEmpty()) {
-            runCatching { browserReaders.invokeAll(browserReads, waitSeconds, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
+            runCatching { browserReaders.invokeAll(browserReads, secondsLeft(waitSeconds), java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
                 .mapNotNull { future -> runCatching { future.get() }.getOrNull() }
                 .forEach { (link, page) ->
                     seen[link] = page to ShopCheck.Status.CHECKED
