@@ -57,6 +57,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.SpanStyle
@@ -166,9 +167,13 @@ fun DetailScreen(
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-        // While a check runs: a thin moving bar under the top bar, seen wherever you have scrolled to.
+        // While a check runs: a thin moving bar under the top bar, seen wherever you have scrolled to, and right
+        // under it what the app is busy with, in a few calm words, so the bar and its meaning are read together.
         if (refreshing) {
             SlowProgressBar(Modifier.fillMaxWidth().height(3.dp))
+            Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
+                SearchingWords(if (product.latest == null) "Looking up the product…" else "Asking the shops for their prices…")
+            }
         } else {
             Spacer(Modifier.height(3.dp))
         }
@@ -312,12 +317,6 @@ fun DetailScreen(
             }
 
             ShopsToday(product, discounts, shopStatus, shopNote) { seller -> shopLink(seller) }
-            // Few shops: more are searched for by themselves; the customer only sees the usual searching words.
-            // Or a product still being looked up for the first time: nothing to show yet but the words.
-            if (refreshing && (googleAuto || product.latest == null)) {
-                Spacer(Modifier.height(12.dp))
-                SearchingWords(if (product.latest == null) "Looking up the product…" else "Searching…")
-            }
 
             if (product.history.isNotEmpty() || product.siteHistory.isNotEmpty()) {
                 Spacer(Modifier.height(28.dp))
@@ -634,14 +633,15 @@ internal fun SearchingWords(first: String = "Searching…") {
     // A few calm words, one after the other; the last one stays when it takes longer.
     val words = remember(first) {
         listOf(
-            first, "Reading the details…", "Checking the shops…", "Comparing prices…", "Checking stock…",
-            "Looking for the best price…", "Double-checking the prices…", "Still searching…",
+            first, "Peeking at the shops' own pages…", "Checking what's in stock…",
+            "Making sure it's the right model and colour…", "Laying all the prices side by side…",
+            "Almost there, a few slow shops…",
         )
     }
     var index by remember { mutableStateOf(0) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
         while (index < words.lastIndex) {
-            kotlinx.coroutines.delay(2500)
+            kotlinx.coroutines.delay(3500)
             index++
         }
     }
@@ -664,7 +664,11 @@ internal fun SearchingWords(first: String = "Searching…") {
             append(shown)
         }
     }
-    androidx.compose.material3.Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    // One line fades into the next instead of jumping.
+    androidx.compose.animation.Crossfade(targetState = index, animationSpec = androidx.compose.animation.core.tween(500), label = "words") { shownIndex ->
+        val line = if (shownIndex == index) text else androidx.compose.ui.text.AnnotatedString(t(words[shownIndex]))
+        androidx.compose.material3.Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 /**

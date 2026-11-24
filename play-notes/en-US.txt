@@ -1,1 +1,2 @@
-• A calmer loading bar, a neater card while recognising, and product photos with some margin
+• While loading, what the app is doing shows under the bar at the top
+• Product photos with some margin

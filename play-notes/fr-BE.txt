@@ -1,1 +1,2 @@
-• Barre de chargement plus calme, carte plus nette pendant la reconnaissance et photos avec un peu de marge
+• Pendant le chargement, ce que fait l'app s'affiche sous la barre en haut
+• Photos de produits avec un peu de marge
