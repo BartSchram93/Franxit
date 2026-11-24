@@ -190,7 +190,7 @@ fun DetailScreen(
         if (refreshing) {
             SlowProgressBar(Modifier.fillMaxWidth().height(3.dp))
             Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp), contentAlignment = Alignment.Center) {
-                SearchingWords(if (product.latest == null) "Looking up the product…" else "Asking the shops for their prices…")
+                SearchingWords(if (product.latest == null) "Looking up the product…" else "Asking the shops…")
             }
         } else {
             Spacer(Modifier.height(3.dp))
@@ -651,10 +651,9 @@ internal fun SearchingWords(first: String = "Searching…") {
     // A few calm words, one after the other; the last one stays when it takes longer.
     val words = remember(first) {
         listOf(
-            first, "Peeking at the shops' own pages…", "Checking what's in stock…",
-            "Making sure it's the right model and colour…", "Opening the shops that hide their prices…",
-            "Some shops take their time to answer…", "Laying all the prices side by side…",
-            "Double-checking the cheapest one…", "Still on it, thanks for waiting…",
+            first, "Visiting shop pages…", "Checking stock…", "Checking model and colour…",
+            "Finding hidden prices…", "Waiting for slow shops…", "Comparing prices…",
+            "Double-checking the cheapest…", "Still on it…",
         )
     }
     // Nine lines of four seconds cover a check of half a minute; a longer one goes round them again (after the
