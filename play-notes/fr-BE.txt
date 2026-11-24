@@ -1,1 +1,1 @@
-• Pages qui bloquent les applis : le navigateur intégré a plus de temps et se présente comme Chrome
+• Une page de boutique normale avec un formulaire captcha ou un script de sécurité n'est plus prise pour une page de contrôle

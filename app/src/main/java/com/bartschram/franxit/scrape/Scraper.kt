@@ -115,14 +115,23 @@ object Scraper {
         "cf-chl", "challenge-platform", "access denied", "are you a robot", "bot protection",
     )
 
-    /** A bot check, not a product page: one of the usual challenge texts, or a tiny page without a title. */
+    /**
+     * A bot check, not a product page: a challenge text in its title, or in a small page (a check page is a few
+     * kilobytes), or a tiny page without a title. Not the same words somewhere in a full shop page: Cloudflare puts
+     * its "challenge-platform" script in ordinary pages, and a contact form its "captcha"; music-vanderheyden.be's
+     * product page counted as a check page, even in the browser, and the product never got a name or price.
+     */
     internal fun isBrowserCheck(html: String): Boolean {
         val lower = html.lowercase()
-        if (CHALLENGE.any { it in lower }) return true
         val title = Regex("<title[^>]*>(.*?)</title>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
             .find(html)?.groupValues?.get(1)?.trim().orEmpty()
+        if (CHALLENGE.any { it in title.lowercase() }) return true
+        if (html.length < CHECK_PAGE_SIZE && CHALLENGE.any { it in lower }) return true
         return html.length < 5_000 && title.isEmpty()
     }
+
+    /** A page this size or larger is a real page, whatever words it holds. */
+    private const val CHECK_PAGE_SIZE = 60_000
 
     /** Whether a redirect ended on another page than the product's (the query aside). */
     internal fun movedElsewhere(asked: String, got: String): Boolean {

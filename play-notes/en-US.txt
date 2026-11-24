@@ -1,1 +1,1 @@
-• Pages that keep apps out: the built-in browser gets more time and presents itself as Chrome
+• A normal shop page with a captcha form or a security script is no longer taken for a check page
