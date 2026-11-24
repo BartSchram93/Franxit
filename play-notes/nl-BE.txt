@@ -1,1 +1,2 @@
-• Bij Fnac, Bol, Coolblue en Amazon telt alleen een echte productpagina nog (geen thema- of lijstpagina's)
+• Een link van vergelijk.be naar een winkel die de app buitenhoudt (zoals Fnac), wordt via de ingebouwde browser gevolgd tot de juiste productpagina
+• Bij Fnac, Bol, Coolblue en Amazon telt alleen een echte productpagina nog

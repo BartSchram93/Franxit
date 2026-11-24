@@ -401,7 +401,14 @@ class Repository private constructor(context: Context) {
             }
             val click = clickLinks.firstOrNull { TrustedShops.same(it.first, offer.seller) }?.second ?: continue
             toFollow += java.util.concurrent.Callable {
-                val end = runCatching { DuckDuckGo.belgian(Scraper.finalUrl(click)) }.getOrNull()
+                val followed = runCatching { DuckDuckGo.belgian(Scraper.finalUrl(click)) }.getOrNull()
+                // A shop that keeps the app out (Fnac) stops the link on the way: followed once in the browser, which
+                // gets through and ends on the shop's page (and the page it read there is kept for this check).
+                var read: String? = null
+                val end = if ((followed == null || !ShopCheck.isLandingOf(followed, offer.seller)) && timeLeft()) {
+                    runCatching { BrowserPages.page(appContext, click) }.getOrNull()
+                        ?.let { (address, html) -> read = html; DuckDuckGo.belgian(address) } ?: followed
+                } else followed
                 if (!anyCountry && end != null && DuckDuckGo.isForeignSite(end) && ShopCheck.isProductPage(end)) {
                     ShoppingSettings.saveLanding(appContext, product.id, offer.seller, FOREIGN)
                     if (hasBelgianSite) wrongLandings += offer.seller else foreign += offer.seller
@@ -410,7 +417,13 @@ class Repository private constructor(context: Context) {
                 val landing = end?.takeIf { ShopCheck.isLandingOf(it, offer.seller) }
                 ShoppingSettings.saveLanding(appContext, product.id, offer.seller, landing ?: "-")
                 if (landing != null && otherVersion(landing, name, product)) wrongLandings += offer.seller
-                else if (landing != null) landings[offer.seller] = landing
+                else if (landing != null) {
+                    landings[offer.seller] = landing
+                    read?.let { html ->
+                        val page = runCatching { ShopCheck.seen(Scraper.fromPage(html, landing), name) }.getOrNull()
+                        if (page != null) shopPages[landing] = System.currentTimeMillis() to (page to ShopCheck.Status.CHECKED)
+                    }
+                }
             }
         }
         if (toFollow.isNotEmpty()) runCatching { shopReaders.invokeAll(toFollow, secondsLeft(SHOP_CHECK_SECONDS), java.util.concurrent.TimeUnit.SECONDS) }

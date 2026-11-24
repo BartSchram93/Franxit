@@ -28,10 +28,17 @@ internal object BrowserPages {
      * The page's HTML once loaded and [ready] (by default: past any check page); null when it didn't get there in
      * time. A search page says itself when its results are there.
      */
+    fun html(context: Context, url: String, ready: (String) -> Boolean = { !Scraper.isBrowserCheck(it) }): String? =
+        page(context, url, ready)?.second
+
+    /**
+     * Like [html], with the address the browser ended at: where a link that forwards (a comparison site's link to a
+     * shop that keeps apps out) really leads.
+     */
     @SuppressLint("SetJavaScriptEnabled")
-    fun html(context: Context, url: String, ready: (String) -> Boolean = { !Scraper.isBrowserCheck(it) }): String? {
+    fun page(context: Context, url: String, ready: (String) -> Boolean = { !Scraper.isBrowserCheck(it) }): Pair<String, String>? {
         val done = CountDownLatch(1)
-        var result: String? = null
+        var result: Pair<String, String>? = null
         var view: WebView? = null
         val main = Handler(Looper.getMainLooper())
         var tries = 0
@@ -44,7 +51,7 @@ internal object BrowserPages {
                 if ((html.isEmpty() || !ready(html)) && ++tries < 6) {
                     main.postDelayed(grab, SETTLE_MS)
                 } else {
-                    result = html.takeIf { it.isNotEmpty() && ready(it) }
+                    result = html.takeIf { it.isNotEmpty() && ready(it) }?.let { (web.url ?: url) to it }
                     done.countDown()
                 }
             }
