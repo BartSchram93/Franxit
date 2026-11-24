@@ -159,4 +159,15 @@ class ShopCheckTest {
         assertTrue(ShopCheck.isElsewhere("https://www.nl.fnac.be/s68918/PS5", "Sony PlayStation 5 Pro Digital Edition"))
         assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/a20523460/Sony-Console-PS5-Pro-Wit-en-Zwart", "Sony PlayStation 5 Pro Digital Edition"))
     }
+
+    @Test
+    fun aBigShopsPageOfAnotherShapeIsNoProductPage() {
+        val ps5 = "Sony PlayStation 5 Pro Digital Edition"
+        assertTrue(ShopCheck.isElsewhere("https://www.nl.fnac.be/gaming/playstation5-pro-console/q", ps5))
+        assertFalse(ShopCheck.isElsewhere("https://www.nl.fnac.be/a20523460/Sony-Console-PS5-Pro-Wit-en-Zwart", ps5))
+        assertFalse(ShopCheck.isElsewhere("https://www.amazon.com.be/-/nl/TCL-NXTPAPER-Octa-Core-RAM-uitbreiding-geheugen/dp/B0DB1NG88R", "TCL NXTPAPER 14"))
+        assertFalse(ShopCheck.isElsewhere("https://www.coolblue.be/nl/product/973125/dreame-aqua-10-roller-white.html", "Dreame Aqua 10 Roller White"))
+        assertFalse(ShopCheck.isElsewhere("https://www.bol.com/be/nl/p/dreame-aqua10-roller/9300000239190736/", "Dreame Aqua 10 Roller"))
+        assertTrue(ShopCheck.isElsewhere("https://www.coolblue.be/nl/robotstofzuigers/dreame", "Dreame Aqua 10 Roller"))
+    }
 }

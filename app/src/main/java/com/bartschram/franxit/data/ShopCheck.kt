@@ -79,6 +79,13 @@ internal object ShopCheck {
             // Pages about the shop, not a product: Senetic's link for a Logitech mouse landed on "/site/contact/".
             """contact|kontakt|help|hulp|aide|faq|klantenservice|customer-?service|service-client|about(-us)?|over-ons|""" +
             """a-propos|cart|winkelwagen|winkelmandje|panier|basket|login|account|mijn-account|mon-compte|404|error)(/|$)""", RegexOption.IGNORE_CASE)
+    /** How a product page's address looks at shops where it always looks so. */
+    private val PRODUCT_PATHS = mapOf(
+        "fnac.be" to Regex("""/(a|mp)\d+(/|$)"""),
+        "bol.com" to Regex("""/p/"""),
+        "coolblue.be" to Regex("""/product/\d+"""),
+        "amazon.com.be" to Regex("""/(dp|gp/product)/[A-Z0-9]{10}"""),
+    )
     private val LISTING_QUERY = Regex("""[?&](q|k|query|search|searchtext|keyword|keywords|text|Search)=""")
 
     /**
@@ -89,6 +96,11 @@ internal object ShopCheck {
     fun isElsewhere(link: String, name: String): Boolean {
         val path = runCatching { java.net.URI(link).path }.getOrNull().orEmpty()
         if (LISTING_PATH.containsMatchIn(path) || LISTING_QUERY.containsMatchIn(link)) return true
+        // Big shops whose product pages have a known shape: any other page of theirs is a list or a theme page
+        // (Fnac's "/gaming/playstation5-pro-console/q", found for the PS5 Pro, has no price of its own).
+        val host = runCatching { java.net.URI(link).host }.getOrNull().orEmpty().lowercase().removePrefix("www.")
+        PRODUCT_PATHS.entries.firstOrNull { (site, _) -> host == site || host.endsWith(".$site") }
+            ?.let { (_, shape) -> if (!shape.containsMatchIn(path)) return true }
         return Matching.titleFromLink(link)?.let { Matching.isOtherProduct(it, name) || Matching.addsBundleOrAccessory(it, name) || Matching.otherEdition(it, name) } == true
     }
 
