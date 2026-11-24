@@ -854,6 +854,21 @@ class Repository private constructor(context: Context) {
         return link
     }
 
+    /**
+     * A shop's page you added, read as any page; when the shop keeps the app's own requests out ("only allows
+     * browsers": music-vanderheyden.be, mkcmoto.com), read in the browser instead, as the shops' pages in a check are.
+     */
+    private fun readPage(url: String): Scraper.Result =
+        try {
+            Scraper.fetch(url)
+        } catch (e: IOException) {
+            // Only for a page that keeps apps out or shows its price with scripts: not for one that's sold out or gone.
+            val message = e.message.orEmpty()
+            if ("only allows browsers" !in message && "shows no price" !in message) throw e
+            val html = runCatching { BrowserPages.html(appContext, url) }.getOrNull() ?: throw e
+            runCatching { Scraper.fromPage(html, url) }.getOrElse { throw e }
+        }
+
     /** What a shared product is, shown before you decide to track it: its name, photo and lowest price. */
     data class Preview(val name: String, val image: String?, val price: Double?)
 
@@ -863,7 +878,7 @@ class Repository private constructor(context: Context) {
      */
     suspend fun preview(url: String): Preview? = withContext(Dispatchers.IO) {
         GoogleShopping.queryOf(url)?.let { return@withContext Preview(it, null, null) }
-        val page = runCatching { Scraper.fetch(url) }.getOrNull() ?: return@withContext null
+        val page = runCatching { readPage(url) }.getOrNull() ?: return@withContext null
         val name = Names.short(page.name).ifBlank { page.name }.takeIf { it.isNotBlank() } ?: return@withContext null
         Preview(name, page.image, page.offers.takeIf { it.isNotEmpty() }?.let { page.cheapest.price })
     }
@@ -877,7 +892,7 @@ class Repository private constructor(context: Context) {
      * and all, to match the right version), or the link's words.
      */
     suspend fun productTitleFor(url: String): String? = withContext(Dispatchers.IO) {
-        runCatching { Scraper.fetch(url).name }.getOrNull()?.takeIf { it.isNotBlank() } ?: Names.fromUrl(url)
+        runCatching { readPage(url).name }.getOrNull()?.takeIf { it.isNotBlank() } ?: Names.fromUrl(url)
     }
 
     suspend fun checkAll(): CheckSummary = withContext(Dispatchers.IO) {
@@ -936,7 +951,7 @@ class Repository private constructor(context: Context) {
             return null
         }
         val result = try {
-            if (query == null) Scraper.fetch(product.url) else GoogleShopping.within(googleTime(lookups)) { searchGoogleShopping(product.id, query) }
+            if (query == null) readPage(product.url) else GoogleShopping.within(googleTime(lookups)) { searchGoogleShopping(product.id, query) }
         } catch (e: Exception) {
             // Google Shopping used up (or its key refused): not the customer's problem, tried again at the next check.
             if (query != null && e.message in setOf(GoogleShopping.NO_SEARCHES_LEFT, GoogleShopping.BAD_KEY)) return null

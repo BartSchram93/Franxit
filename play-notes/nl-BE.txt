@@ -1,2 +1,1 @@
-• Een link van vergelijk.be naar een winkel die de app buitenhoudt (zoals Fnac), wordt via de ingebouwde browser gevolgd tot de juiste productpagina
-• Bij Fnac, Bol, Coolblue en Amazon telt alleen een echte productpagina nog
+• Een winkelpagina die je zelf toevoegt en die apps buitenhoudt, wordt nu in de ingebouwde browser gelezen

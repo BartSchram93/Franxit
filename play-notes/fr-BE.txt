@@ -1,2 +1,1 @@
-• Un lien de vergelijk.be vers une boutique qui bloque l'appli (comme Fnac) est suivi dans le navigateur intégré jusqu'à la bonne page produit
-• Chez Fnac, Bol, Coolblue et Amazon, seule une vraie page produit compte encore
+• Une page de boutique ajoutée toi-même qui bloque les applis est maintenant lue dans le navigateur intégré

@@ -1,2 +1,1 @@
-• A vergelijk.be link to a shop that keeps the app out (like Fnac) is followed in the built-in browser to the right product page
-• At Fnac, Bol, Coolblue and Amazon only a real product page counts
+• A shop page you add yourself that keeps apps out is now read in the built-in browser
