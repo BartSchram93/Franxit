@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -161,7 +162,24 @@ fun DetailScreen(
                     } else {
                         IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, t("Check now")) }
                     }
-                    IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Default.Delete, t("Stop tracking")) }
+                    // Rename and Stop tracking in a menu: the bin sat right next to Refresh, a mistap away from
+                    // losing the product's history.
+                    var menu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, t("More")) }
+                        androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text("Rename") },
+                                leadingIcon = { Icon(Icons.Default.Edit, null) },
+                                onClick = { menu = false; renaming = true },
+                            )
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = { Text("Stop tracking") },
+                                leadingIcon = { Icon(Icons.Default.Delete, null) },
+                                onClick = { menu = false; confirmDelete = true },
+                            )
+                        }
+                    }
                 },
             )
         },
@@ -188,12 +206,7 @@ fun DetailScreen(
             val photo by produceState<ImageBitmap?>(null, product.id, product.lastChecked, photoVersion) {
                 value = withContext(Dispatchers.IO) { Images.load(context, product.id)?.asImageBitmap() }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(product.displayName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                IconButton(onClick = { renaming = true }) {
-                    Icon(Icons.Default.Edit, "Rename", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            Text(product.displayName, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
             extraName(product.displayName, product.name)?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -558,8 +571,13 @@ private fun ShopsToday(
         }
     }
     if (offers.size > SHOPS_SHOWN) {
+        // A small action, not a heading: the list ends at its last shop.
         TextButton(onClick = { showAll = !showAll }, contentPadding = PaddingValues(0.dp)) {
-            Text(if (showAll) "Show fewer" else t("Show all %d shops", offers.size))
+            Text(
+                if (showAll) "Show fewer" else t("Show all %d shops", offers.size),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }
