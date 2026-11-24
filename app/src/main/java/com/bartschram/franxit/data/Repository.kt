@@ -203,10 +203,18 @@ class Repository private constructor(context: Context) {
 
     private class Extras(val offers: List<ShopOffer>, val error: String? = null)
 
+    /** Products whose Google Shopping search was too slow, until when it isn't asked again. */
+    private val googleSlowUntil = java.util.concurrent.ConcurrentHashMap<Long, Long>()
+    private val GOOGLE_SLOW_PAUSE_MS = 60 * 60_000L
+
     private fun extraShops(product: Product, query: String?, reference: Double?, ownShops: Int): Extras {
         if (!searchesExtra(query, ownShops)) return Extras(emptyList())
         val today = LocalDate.now().toString()
         ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return Extras(it) }
+        // Google Shopping didn't answer in time a little while ago: not waited for again, its last shops instead (read
+        // at their own pages like any). A refresh right after a slow one took the same 25 seconds again.
+        val last = ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty()
+        if ((googleSlowUntil[product.id] ?: 0L) > System.currentTimeMillis()) return Extras(last)
         // What results are held against: the name with its model code ("… Zilverkleurig" + "GM-2100YM-8AER"), so another colour's code is out.
         val matchName = matchName(product)
         // The wording that worked last time first, then the product's name, its fuller name, and "kopen".
@@ -219,6 +227,11 @@ class Repository private constructor(context: Context) {
                 GoogleShopping.NOT_FOUND -> {
                     ShoppingSettings.saveExtraOffers(appContext, product.id, today, emptyList(), days = OfferCache.GOOGLE_NOTHING_DAYS)
                     Extras(emptyList())
+                }
+                // Too slow: its last shops, and not waited for again for a while.
+                GoogleShopping.TOO_SLOW -> {
+                    googleSlowUntil[product.id] = System.currentTimeMillis() + GOOGLE_SLOW_PAUSE_MS
+                    Extras(last, SILENT)
                 }
                 // Out of searches, a key that doesn't work, no connection: the customer isn't told, it just
                 // doesn't add shops until it works again (asked again at the next check).
@@ -951,9 +964,11 @@ class Repository private constructor(context: Context) {
             store(combine(ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty(), ShoppingSettings.lastShoparizeOffers(appContext, product.id).orEmpty()))
             onFirstResults()
         }
+        // Shoparize at the same time as Google Shopping: both mostly wait on another server.
+        val shoparizeLater = shopReaders.submit(java.util.concurrent.Callable { shoparizeShops(named, query) })
         val extras = GoogleShopping.within(googleTime(lookups)) { extraShops(named, query, ownCheapest, ownShops) }
         step(product.id, "More shops (Google)")
-        val shoparize = shoparizeShops(named, query)
+        val shoparize = runCatching { shoparizeLater.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
         step(product.id, "More shops (Shoparize)")
         // Each shop's own page, where its link is known: sold out there, or another price, as the shop says it.
         val (offers, cheapest) = store(checkShopPages(named, combine(extras.offers, shoparize), result, lookups))

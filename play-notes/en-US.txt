@@ -1,2 +1,3 @@
+• Faster refresh: two search services at once, and no waiting again for an hour after a slow search
 • "Shops today" also shows with a single shop
 • Hold the price down: you also see which shops aren't shown, and why

@@ -1,2 +1,3 @@
+• Actualisation plus rapide : deux services de recherche en même temps, et plus d'attente pendant une heure après une recherche lente
 • « Boutiques aujourd'hui » s'affiche aussi avec une seule boutique
 • Maintiens le prix appuyé : tu vois aussi quelles boutiques ne sont pas affichées, et pourquoi
