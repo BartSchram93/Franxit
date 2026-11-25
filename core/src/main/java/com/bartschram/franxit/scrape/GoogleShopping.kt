@@ -67,7 +67,7 @@ object GoogleShopping {
      */
     fun fetch(
         query: String, trusted: (String) -> String?, terms: List<String> = listOf(query), reference: Double? = null,
-        /** The search's shops as soon as it answers, before Google's page of the product adds more (seconds later). */
+        /** The shops so far as each answer comes: the search's, then with Google's page of the product's. */
         onFirst: ((Found) -> Unit)? = null,
     ): Found {
         // Google's results depend a lot on the wording: "TCL Nxtpaper 14" gets only screen protectors,
@@ -96,6 +96,7 @@ object GoogleShopping {
         val found = searched.token?.let { token ->
             val t = URLEncoder.encode(token, "UTF-8")
             runCatching { addStores(searched, serp("/stores?page_token=$t"), query, reference, trusted) }.getOrNull()
+                ?.also { if (it.result.offers.isNotEmpty()) runCatching { onFirst(it) } }
         } ?: searched
         if (found.result.offers.isEmpty()) throw IOException(NOT_FOUND)
         return resolveLinks(found)

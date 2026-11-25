@@ -1186,10 +1186,10 @@ class Repository private constructor(context: Context) {
         // product's first Google search took a minute, and nothing showed until then).
         val shoparizeLater = shopReaders.submit(java.util.concurrent.Callable { shoparizeShops(named, query) })
         // Google's search answers before its page of the product does (each some ten seconds): its shops then, too.
-        val googleFirst = java.util.concurrent.CompletableFuture<List<ShopOffer>>()
+        val googleSoFar = java.util.concurrent.LinkedBlockingQueue<List<ShopOffer>>()
         val extrasLater = googleReaders.submit(java.util.concurrent.Callable {
             GoogleShopping.within(googleTime(lookups)) {
-                extraShops(named, query, ownCheapest, ownShops, waiting = lookups >= LOOKUPS_ONE) { googleFirst.complete(it) }
+                extraShops(named, query, ownCheapest, ownShops, waiting = lookups >= LOOKUPS_ONE) { googleSoFar.put(it) }
             }
         })
         // Meanwhile the shops known already (the source's, and what Google and Shoparize found last time) are shown
@@ -1212,14 +1212,16 @@ class Repository private constructor(context: Context) {
             store(checkShopPages(named, soFar, result, lookups))
             onFirstResults()
         }
-        // Google's search's shops as soon as they're there, while its page of the product is still asked.
+        // Google's shops as each of its answers comes (its search's, then its page of the product's), while the rest
+        // is still asked: each answer's shops on the screen at once, checked one by one.
         if (onFirstResults != null) {
-            while (!extrasLater.isDone && !googleFirst.isDone) Thread.sleep(100)
-            if (!extrasLater.isDone && googleFirst.isDone) {
-                val soFar = combine(googleFirst.get(), shoparize)
-                db.replaceOffers(product.id, soFar)
+            while (!extrasLater.isDone) {
+                val soFar = googleSoFar.poll(100, java.util.concurrent.TimeUnit.MILLISECONDS) ?: continue
+                if (extrasLater.isDone) break
+                val shops = combine(soFar, shoparize)
+                db.replaceOffers(product.id, shops)
                 onFirstResults()
-                store(checkShopPages(named, soFar, result, lookups))
+                store(checkShopPages(named, shops, result, lookups))
                 onFirstResults()
             }
         }
