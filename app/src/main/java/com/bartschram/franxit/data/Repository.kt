@@ -62,6 +62,21 @@ class Repository private constructor(context: Context) {
      */
     val confirmed: StateFlow<Map<Long, Map<String, Double?>>> = _confirmed
 
+    private val _found = MutableStateFlow<Map<Long, Set<String>>>(emptyMap())
+    /**
+     * While a product is being checked: the shops whose product page is known so far (by TrustedShops.key). The
+     * screen lists only those (grey until [confirmed]): a shop shows the moment its page is found.
+     */
+    val found: StateFlow<Map<Long, Set<String>>> = _found
+
+    private fun markFound(productId: Long, sellers: Collection<String>) {
+        if (sellers.isEmpty()) return
+        _found.update { all ->
+            val shops = all[productId] ?: return@update all
+            all + (productId to (shops + sellers.map { TrustedShops.key(it) }))
+        }
+    }
+
     /** How long each step of a running check took, by product: shown when you hold the price down. */
     private val steps = java.util.concurrent.ConcurrentHashMap<Long, Pair<Long, MutableList<Pair<String, Long>>>>()
 
@@ -73,6 +88,7 @@ class Repository private constructor(context: Context) {
 
     private fun confirm(productId: Long, sellers: Collection<String>, price: Double?) {
         if (sellers.isEmpty()) return
+        markFound(productId, sellers)
         _confirmed.update { all ->
             val shops = all[productId] ?: return@update all
             all + (productId to (shops + sellers.associate { TrustedShops.key(it) to price }))
@@ -518,6 +534,27 @@ class Repository private constructor(context: Context) {
                     null
                 } else offer.seller to link
             }.toMap()
+        // A shop shows as soon as its page is known, and its page is read at once (not after all the lookups): its
+        // price shows the moment it's read. The reading below then finds it read already.
+        val earlyBrowserSites = ShoppingSettings.browserSites(appContext)
+        fun readEarly(seller: String, link: String) {
+            markFound(product.id, listOf(seller))
+            shopReaders.submit {
+                runCatching {
+                    if (otherVersion(link, name, product)) return@runCatching
+                    shopPages[link]?.takeIf { System.currentTimeMillis() - it.first < SHOP_CHECK_MS }?.let { (_, cached) ->
+                        cached.first?.takeIf { !it.otherColour && !it.otherProduct }?.let { confirm(product.id, listOf(seller), it.price) }
+                        return@runCatching
+                    }
+                    if (runCatching { URI(link).host.removePrefix("www.") }.getOrDefault("") in earlyBrowserSites) return@runCatching
+                    val seen = ShopCheck.seen(Scraper.fetch(link, readTimeoutMs = 12_000), name) ?: return@runCatching
+                    shopPages[link] = System.currentTimeMillis() to (seen to ShopCheck.Status.CHECKED)
+                    if (!seen.otherColour && !seen.otherProduct) confirm(product.id, listOf(seller), seen.price)
+                }
+            }
+        }
+        markFound(product.id, offers.filter { TrustedShops.same(it.seller, ownHost) }.map { it.seller })
+        (links.filterValues { it != null }.mapValues { it.value!! } + remembered).forEach { (seller, link) -> readEarly(seller, link) }
         val toFind = offers.filter { links[it.seller] == null && it.seller !in remembered && !TrustedShops.same(it.seller, ownHost) }
             .sortedBy { it.price }
             .map { offer -> offer.seller to GoogleShopping.siteOf(offer.seller) }
@@ -564,6 +601,8 @@ class Repository private constructor(context: Context) {
                 }
                 if (page == null) statuses[seller] = if (lookup.blocked) ShopCheck.Status.SEARCH_BLOCKED else ShopCheck.Status.NOT_FOUND
                 if (!lookup.blocked) lookedUp["${product.id}|$seller"] = today
+                // Found: shown now, and its page read at once.
+                page?.let { readEarly(seller, it) }
                 seller to page
             }
         }.let { lookupTasks ->
@@ -1046,12 +1085,14 @@ class Repository private constructor(context: Context) {
     /** Scrapes one product and stores today's cheapest price. Returns an [Alert] when worth notifying. */
     private fun check(product: Product, lookups: Int = LOOKUPS_ALL, background: Boolean = false, onFirstResults: (() -> Unit)? = null): Alert? {
         _confirmed.update { it + (product.id to emptyMap()) }
+        _found.update { it + (product.id to emptySet()) }
         val start = System.currentTimeMillis()
         steps[product.id] = start to mutableListOf()
         try {
             return checkProduct(product, lookups, background, onFirstResults)
         } finally {
             _confirmed.update { it - product.id }
+            _found.update { it - product.id }
             steps.remove(product.id)?.second?.let { list ->
                 ShoppingSettings.saveCheckSteps(appContext, product.id, list + ("Total" to (System.currentTimeMillis() - start)))
             }

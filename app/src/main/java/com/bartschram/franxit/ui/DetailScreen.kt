@@ -138,6 +138,8 @@ fun DetailScreen(
     onPhoto: (Photos.Choice) -> Unit = {},
     /** While checking: the shops whose own page was read so far (by TrustedShops.key) and their price; null otherwise. */
     confirmed: Map<String, Double?>? = null,
+    /** While it's being checked: the shops whose page is found so far (the others aren't listed yet). */
+    found: Set<String>? = null,
     /** How long each step of the last check took (label, milliseconds): shown when the price is held down. */
     checkSteps: () -> List<Pair<String, Long>> = { emptyList() },
     /** The shops the last check left out, with why: shown with the steps. */
@@ -417,7 +419,7 @@ fun DetailScreen(
                 }
             }
 
-            ShopsToday(product, discounts, shopStatus, shopNote, confirmed) { seller -> shopLink(seller) }
+            ShopsToday(product, discounts, shopStatus, shopNote, confirmed, found) { seller -> shopLink(seller) }
 
             if (product.history.isNotEmpty() || product.siteHistory.isNotEmpty()) {
                 Spacer(Modifier.height(28.dp))
@@ -575,6 +577,7 @@ private fun ShopsToday(
     shopStatus: (String) -> String?,
     shopNote: (String) -> String?,
     confirmed: Map<String, Double?>?,
+    found: Set<String>?,
     shopLink: suspend (String) -> String?,
 ) {
     // Held down: what happened to that shop at the last check.
@@ -588,12 +591,14 @@ private fun ShopsToday(
         )
     }
     // Cheapest for you first: with a shop discount that can differ from the shops' own order.
-    val offers = remember(product.offers, discounts) {
+    val all = remember(product.offers, discounts) {
         // The same order as the Buy button's choice (Offers.best): at the same price, by name.
         mergeSameShop(product.offers).sortedWith(
             compareBy<ShopOffer> { it.inStock == false }.then(Offers.order { Discounts.yourPrice(it, discounts) }),
         )
     }
+    // While it's being checked: only the shops whose page is found, each one as it is (its price once it's read).
+    val offers = if (found == null) all else all.filter { TrustedShops.key(it.seller).let { k -> k in found || confirmed?.containsKey(k) == true } }
     // Also one shop: its row says where the price comes from, and holding it down why (Fnac alone at € 2.004,95).
     if (offers.isEmpty()) return
     val uri = LocalUriHandler.current
