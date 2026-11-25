@@ -22,7 +22,6 @@ const DAY = 86400;
 const MAX_FRESH_PER_IP = 30;      // fresh searches per IP address per day
 
 const MAX_RECOGNIZE_PER_IP = 5;   // photos recognised per IP address per day
-const MAX_RECOGNIZE_PER_DAY = 8;  // photos recognised per day in all: about 240 a month, SerpApi's free 250
 const MAX_PHOTO_BYTES = 500_000;  // SerpApi's Image API takes at most 500 KB
 
 const MAX_DISCOVER_PER_USER = 20;  // product searches (Exa) per app (its anonymous X-Franxit-Install id) per day
@@ -61,7 +60,6 @@ async function recognize(request, env, ctx) {
   if (photo.byteLength < 1000 || photo.byteLength > MAX_PHOTO_BYTES) return bad();
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   if (!(await countToday(env, ctx, `recognize/${ip}`, MAX_RECOGNIZE_PER_IP))) return new Response("Too many photos today", { status: 429 });
-  if (!(await countToday(env, ctx, "recognize/all", MAX_RECOGNIZE_PER_DAY))) return new Response("Too many photos today", { status: 429 });
   return env.SERPAPI_KEY ? lens(photo, env) : vision(photo, env);
 }
 
