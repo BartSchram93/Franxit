@@ -158,7 +158,7 @@ object BuyAdvisor {
     fun plausibleRange(product: Product, today: LocalDate = LocalDate.now()): ClosedFloatingPointRange<Double>? =
         plausibleRange(line(product), today)
 
-    internal fun plausibleRange(line: List<Pair<LocalDate, Double>>, today: LocalDate): ClosedFloatingPointRange<Double>? {
+    fun plausibleRange(line: List<Pair<LocalDate, Double>>, today: LocalDate): ClosedFloatingPointRange<Double>? {
         val daily = daily(line, today.minusDays(C.WINDOW_DAYS), today)
         if (daily.size < C.MIN_HISTORY_DAYS) return null
         val middle = median(daily.map { it.second })
@@ -281,7 +281,7 @@ object BuyAdvisor {
     }
 
     /** Points for [x], read off [table] (x to points, ascending in x), linear between its nodes and flat beyond them. */
-    internal fun points(x: Double, table: List<Pair<Double, Double>>): Double {
+    fun points(x: Double, table: List<Pair<Double, Double>>): Double {
         if (x <= table.first().first) return table.first().second
         if (x >= table.last().first) return table.last().second
         for (i in 0 until table.size - 1) {
@@ -293,7 +293,7 @@ object BuyAdvisor {
     }
 
     /** How many separate dips (a few days clearly under the typical price) the product had. */
-    internal fun dipEpisodes(clean: List<Pair<LocalDate, Double>>, median: Double): Int {
+    fun dipEpisodes(clean: List<Pair<LocalDate, Double>>, median: Double): Int {
         var episodes = 0
         var run = 0
         for ((_, price) in clean) {
@@ -307,7 +307,7 @@ object BuyAdvisor {
         BuyAdvice(Verdict.INSUFFICIENT_DATA, null, null, current, null, null, null, null, null, null, emptyList())
 
     /** One price per day from [from] to [today], each day the last known price (a step line). */
-    internal fun daily(line: List<Pair<LocalDate, Double>>, from: LocalDate, today: LocalDate): List<Pair<LocalDate, Double>> {
+    fun daily(line: List<Pair<LocalDate, Double>>, from: LocalDate, today: LocalDate): List<Pair<LocalDate, Double>> {
         if (line.isEmpty()) return emptyList()
         val start = maxOf(line.first().first, from)
         var i = 0
@@ -329,7 +329,7 @@ object BuyAdvisor {
     }
 
     /** The lowest price that held for at least [minDays] days (else for [BuyAdviceConfig.MIN_LOW_DAYS], else the lowest of all). */
-    internal fun reliableLow(prices: List<Double>, minDays: Int = C.MIN_LOW_DAYS): Double =
+    fun reliableLow(prices: List<Double>, minDays: Int = C.MIN_LOW_DAYS): Double =
         levels(prices, minDays).minOrNull() ?: levels(prices, C.MIN_LOW_DAYS).minOrNull() ?: prices.min()
 
     /** The current price is the lowest of the last 6 (or 3) months, when the history goes back that far. */
@@ -356,7 +356,7 @@ object BuyAdvisor {
 
     private fun percentile(sorted: List<Double>, p: Double): Double = sorted[((sorted.size - 1) * p).roundToInt()]
 
-    internal fun median(values: List<Double>): Double {
+    fun median(values: List<Double>): Double {
         val sorted = values.sorted()
         val mid = sorted.size / 2
         return if (sorted.size % 2 == 1) sorted[mid] else (sorted[mid - 1] + sorted[mid]) / 2

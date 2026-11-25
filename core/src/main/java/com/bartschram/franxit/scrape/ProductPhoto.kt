@@ -24,7 +24,7 @@ object ProductPhoto {
             conn.connectTimeout = 20_000
             conn.readTimeout = 30_000
             conn.setRequestProperty("Content-Type", "image/jpeg")
-            com.bartschram.franxit.BuildConfig.APP_TOKEN.takeIf { it.isNotBlank() }?.let { conn.setRequestProperty("X-Franxit-Token", it) }
+            CoreConfig.appToken.takeIf { it.isNotBlank() }?.let { conn.setRequestProperty("X-Franxit-Token", it) }
             conn.outputStream.use { it.write(jpeg) }
             val code = conn.responseCode
             if (code == 429) throw IOException(TOO_MANY)
@@ -40,7 +40,7 @@ object ProductPhoto {
      * the same photo when it holds Vision's best guess ("Dreame Aqua 10 Ultra Roller | Coolblue" for "dreame aqua 10
      * ultra roller"), else that guess, else the thing it names most surely. Null when nothing says enough.
      */
-    internal fun name(json: String): String? {
+    fun name(json: String): String? {
         val data = runCatching { JSONObject(json) }.getOrNull() ?: return null
         val guess = data.optString("guess").trim()
         val guessWords = words(guess)
@@ -90,7 +90,7 @@ object ProductPhoto {
      * "Serax Marie Michielssen Molly bloempot" give "Molly Serax"; with more titles, "Serax Marie Michielssen Molly".
      * With one title, its first part. Null when they share nothing.
      */
-    internal fun common(titles: List<String>, sources: List<String> = emptyList()): String? {
+    fun common(titles: List<String>, sources: List<String> = emptyList()): String? {
         // The shops' names are left out: "Maltesers Maxi 300 g - Amazon.com.be" several times over is no
         // "Maltesers maxi 300 Amazon com be".
         val shopWords = WEB + sources.flatMap { source -> tokens(source).map { it.lowercase() } }

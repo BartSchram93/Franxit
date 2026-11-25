@@ -8,7 +8,7 @@ import com.bartschram.franxit.scrape.Scraper
  * Switch 2 Zelda Edition at Coolblue for € 549, Coolblue's page said € 539 and sold out. Without anything Android,
  * so the cases are tested; Repository reads the pages.
  */
-internal object ShopCheck {
+object ShopCheck {
 
     /**
      * A shop page's [price] (null when it shows none) and whether it has the product [inStock] (null: doesn't say).

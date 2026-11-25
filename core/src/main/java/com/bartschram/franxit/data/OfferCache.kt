@@ -6,7 +6,7 @@ import java.time.LocalDate
  * How long saved results of Google Shopping and Shoparize are used, without anything Android, so the rules are
  * tested (Shoparize's "nothing found" was once kept for 3 days and hid its shops; a version change must drop old ones).
  */
-internal object OfferCache {
+object OfferCache {
 
     /** A Google Shopping search that found nothing is kept this many days: a search costs, so not asked every day. */
     const val GOOGLE_NOTHING_DAYS = 3

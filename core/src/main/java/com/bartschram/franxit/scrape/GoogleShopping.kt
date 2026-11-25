@@ -146,7 +146,7 @@ object GoogleShopping {
      * more: the service may have it by then (it keeps answers for a day).
      */
     private fun serp(path: String): String {
-        val token = com.bartschram.franxit.BuildConfig.APP_TOKEN.takeIf { it.isNotBlank() }?.let { mapOf("X-Franxit-Token" to it) }.orEmpty()
+        val token = CoreConfig.appToken.takeIf { it.isNotBlank() }?.let { mapOf("X-Franxit-Token" to it) }.orEmpty()
         var last: IOException? = null
         repeat(2) {
             // Within the time this check gives Google ([within]): no new request when it's (nearly) up.
@@ -172,7 +172,7 @@ object GoogleShopping {
     const val CONNECTION_LOST = "Connection lost, tried again at the next check"
 
     /** A failed request to the search service in words ("timeout" was all a check said). */
-    internal fun explain(e: IOException): String = when {
+    fun explain(e: IOException): String = when {
         e is java.net.SocketTimeoutException -> TOO_SLOW
         e is java.net.UnknownHostException || e is java.net.ConnectException -> NO_CONNECTION
         e is java.net.SocketException -> CONNECTION_LOST
@@ -198,7 +198,7 @@ object GoogleShopping {
         return storeLinkIn(serp("/stores?page_token=$t"), shop, sameShop)
     }
 
-    internal fun storeLinkIn(json: String, shop: String, sameShop: (String, String) -> Boolean): String? {
+    fun storeLinkIn(json: String, shop: String, sameShop: (String, String) -> Boolean): String? {
         val stores = JSONObject(json).optJSONObject("product_results")?.optJSONArray("stores").objects()
         return stores.firstNotNullOfOrNull { s ->
             val link = storeUrl(s.optString("link")) ?: return@firstNotNullOfOrNull null
@@ -301,10 +301,10 @@ object GoogleShopping {
      * Google groups them under this one product, so titles aren't matched again (bol.com calls the
      * KB200B "HCKB-200B"); otherwise the same rules as the search: new, trusted shops, no odd prices.
      */
-    internal fun addStores(found: Found, json: String, query: String, trusted: (String) -> String?): Found =
+    fun addStores(found: Found, json: String, query: String, trusted: (String) -> String?): Found =
         addStores(found, json, query, null, trusted)
 
-    internal fun addStores(found: Found, json: String, query: String, reference: Double?, trusted: (String) -> String?): Found {
+    fun addStores(found: Found, json: String, query: String, reference: Double?, trusted: (String) -> String?): Found {
         val stores = JSONObject(json).optJSONObject("product_results")?.optJSONArray("stores").objects()
         val extra = stores.mapNotNull { s ->
             val name = s.optString("name").trim()
@@ -348,7 +348,7 @@ object GoogleShopping {
      * ("/fr/", "/de/", "/be/fr/", "/-/fr/"), or its title has words or letters of another language
      * ("Tablette", "pour", "Kopfhörer", "ç", "ß"). A brand like "Le Creuset" alone doesn't count.
      */
-    internal fun isOtherLanguage(title: String, link: String?, frenchToo: Boolean = allowFrench, amazonOk: Boolean = true): Boolean {
+    fun isOtherLanguage(title: String, link: String?, frenchToo: Boolean = allowFrench, amazonOk: Boolean = true): Boolean {
         val path = link?.takeIf { it.startsWith("http") && "google." !in it }
             ?.let { runCatching { java.net.URI(it) }.getOrNull() }
         val folders = path?.path.orEmpty().lowercase().split('/').filter { it.isNotEmpty() }
@@ -397,11 +397,11 @@ object GoogleShopping {
      * A shop's site for the Belgian market: a .be, .nl or international address. A shop on a
      * French, German… address that only Google's reviews vouch for is left out (it rarely ships here).
      */
-    internal fun sellsToBelgium(site: String): Boolean =
+    fun sellsToBelgium(site: String): Boolean =
         site.substringAfterLast('.').lowercase() in setOf("be", "nl", "com", "eu", "net", "shop", "store", "online")
 
     /** Google's reviews of the shop itself: at least 4 stars from at least 50 reviews. */
-    internal fun wellReviewed(store: JSONObject): Boolean =
+    fun wellReviewed(store: JSONObject): Boolean =
         store.optDouble("rating", 0.0) >= MIN_STARS && store.optInt("reviews", 0) >= MIN_REVIEWS
 
     private const val MIN_STARS = 4.0
@@ -430,12 +430,12 @@ object GoogleShopping {
         RegexOption.IGNORE_CASE,
     )
 
-    internal fun isForeignShop(shop: String): Boolean = OTHER_COUNTRY.containsMatchIn(shop)
+    fun isForeignShop(shop: String): Boolean = OTHER_COUNTRY.containsMatchIn(shop)
 
     /** Marketplaces and import sites: other sellers, often abroad or used, at import prices (U-buy). */
     private val MARKETPLACES = listOf("ebay", "ubuy", "u-buy", "aliexpress", "temu", "wish", "fruugo", "desertcart", "joom")
 
-    internal fun isMarketplace(shop: String): Boolean = shop.lowercase().let { s -> MARKETPLACES.any { it in s } }
+    fun isMarketplace(shop: String): Boolean = shop.lowercase().let { s -> MARKETPLACES.any { it in s } }
 
     private val OUT_OF_STOCK = Regex(
         // Only clear "sold out" wording: "not available for pickup" or "unavailable in store" is no reason to hide a shop.
@@ -466,7 +466,7 @@ object GoogleShopping {
      */
     private val RELIABLE_SHOPS = listOf("bol.com", "coolblue", "fnac", "mediamarkt", "media markt", "krefel", "krëfel")
 
-    internal fun isReliableShop(name: String, site: String?): Boolean =
+    fun isReliableShop(name: String, site: String?): Boolean =
         name.trim().equals("bol", ignoreCase = true) ||
             "$name ${site.orEmpty()}".lowercase().let { text -> RELIABLE_SHOPS.any { it in text } }
 

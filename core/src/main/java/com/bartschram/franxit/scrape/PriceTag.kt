@@ -52,7 +52,7 @@ object PriceTag {
      * "DREAME-AQUA 10 ULTRA ROL BLANC": the gap around the dash after the brand not read. Put back for a line in
      * capitals (as tags write the brand and model), so the brand stays a word of its own ("Coca-Cola" is kept).
      */
-    internal fun separateBrand(text: String): String {
+    fun separateBrand(text: String): String {
         if (!isShouting(text)) return text
         return text.replaceFirst(Regex("""^(\p{L}{2,})[-–](?=\p{L}{2})"""), "$1 - ")
     }
@@ -66,7 +66,7 @@ object PriceTag {
      * A brand the photo split in two ("ROWEN TA - RO3134EA", the letters of a tag's narrow font read with a gap):
      * a piece of one or two letters is joined to the other word. Only before the dash, where the brand is one name.
      */
-    internal fun joinBrand(text: String): String {
+    fun joinBrand(text: String): String {
         val dash = Regex("""\s+[-–]\s+""").find(text) ?: return text
         val brand = text.substring(0, dash.range.first).split(' ').filter { it.isNotEmpty() }
         if (brand.size != 2 || brand.any { word -> !word.all { it.isLetter() } }) return text

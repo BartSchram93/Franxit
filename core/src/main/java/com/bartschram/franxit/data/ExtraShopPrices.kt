@@ -6,7 +6,7 @@ package com.bartschram.franxit.data
  * item or too good to be true (€ 37,99 for € 219 earbuds). Up to 150% counts: shops like bol.com are often
  * somewhat dearer and still worth showing (€ 437,52 against a cheapest of € 349,00 is 125%).
  */
-internal object ExtraShopPrices {
+object ExtraShopPrices {
     const val LOWEST = 0.5
     const val HIGHEST = 1.5
 

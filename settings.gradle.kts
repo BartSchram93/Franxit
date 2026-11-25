@@ -26,3 +26,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Franxit"
 include(":app")
+// The price logic without Android (reading shop pages, matching products): the app uses it, and a server can too.
+include(":core")

@@ -36,7 +36,7 @@ object DuckDuckGo {
      * The first result on [site] in a results page; null when there is none (nothing found, or a check page instead
      * of results). Ads (whose link is no "uddg" redirect) are passed over.
      */
-    internal fun firstResult(html: String, site: String, fits: (String) -> Boolean = { true }): String? {
+    fun firstResult(html: String, site: String, fits: (String) -> Boolean = { true }): String? {
         val wanted = site.lowercase().removePrefix("www.")
         return firstResult(html, fits) { host -> host == wanted || host.endsWith(".$wanted") }
     }
@@ -83,7 +83,7 @@ object DuckDuckGo {
         if (url.substringAfter("//").substringBefore('/').removePrefix("www.") == "bol.com") url.replaceFirst("bol.com/nl/nl/", "bol.com/be/nl/").replaceFirst("bol.com/nl/fr/", "bol.com/be/fr/") else url
 
     /** The first result in a results page whose site ([accept] gets its host, without "www.") is wanted. */
-    internal fun firstResult(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): String? =
+    fun firstResult(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): String? =
         RESULT.findAll(html).mapNotNull { match ->
             val href = HREF.find(match.value)?.groupValues?.get(1)?.replace("&amp;", "&") ?: return@mapNotNull null
             val target = Regex("""[?&]uddg=([^&]+)""").find(href)?.groupValues?.get(1)
@@ -98,7 +98,7 @@ object DuckDuckGo {
      * Whether a site ("kamera-express.be") is the shop called [shop] ("Kamera Express"): its name without the
      * domain ending, letters and digits only, is the shop's name or holds it ("fotodevakman.be" for "Fotodevakman").
      */
-    internal fun isShopsSite(host: String, shop: String): Boolean {
+    fun isShopsSite(host: String, shop: String): Boolean {
         val site = host.lowercase().removePrefix("www.").substringBeforeLast('.').substringAfterLast('.').filter { it.isLetterOrDigit() }
         val name = shop.lowercase().filter { it.isLetterOrDigit() }
         return name.length >= 4 && site.isNotEmpty() && (site == name || site.contains(name) || name.contains(site) && site.length >= 5)
@@ -112,7 +112,7 @@ object DuckDuckGo {
      * A results page read: the first wanted result, or nothing, or "blocked" when it is no results page at all (a
      * check page: DuckDuckGo sometimes answers apps with one).
      */
-    internal fun lookup(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): Lookup {
+    fun lookup(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): Lookup {
         firstResult(html, fits, accept)?.let { return Lookup(it) }
         // Only on another country's site (fotodevakman.nl): the shop is that country's.
         foreignResult(html, accept)?.let { return Lookup(null, foreign = it) }
@@ -128,7 +128,7 @@ object DuckDuckGo {
         "result-title-a" in html || "data-testid=\"result\"" in html || Regex("""No results|Geen resultaten|no-results""", RegexOption.IGNORE_CASE).containsMatchIn(html)
 
     /** The full results page, read in a browser (its links point straight at the sites). */
-    internal fun lookupInBrowserPage(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): Lookup {
+    fun lookupInBrowserPage(html: String, fits: (String) -> Boolean = { true }, accept: (String) -> Boolean): Lookup {
         lookup(html, fits, accept).let { if (it.page != null || it.foreign != null) return it }
         val page = ANY_LINK.findAll(html).map { it.groupValues[1].replace("&amp;", "&") }
             .filter { url -> val host = url.substringAfter("//").substringBefore('/'); "duckduckgo.com" !in host && "bing." !in host && "microsoft." !in host && !isOtherCountry(url) && !isForeignSite(url) }

@@ -64,7 +64,7 @@ jobs:
           APP_TOKEN: ${{ secrets.APP_TOKEN }}
         run: |
           chmod +x gradlew
-          ./gradlew testWebDebugUnitTest --console=plain
+          ./gradlew :core:test testWebDebugUnitTest --console=plain
 
       # The bundle for Google Play, signed with Play's upload key (FRANXIT_KEYSTORE_BASE64 with the PLAY password and
       # alias). Sent to Play Console at the end, and kept on this run's page (Artifacts) too.

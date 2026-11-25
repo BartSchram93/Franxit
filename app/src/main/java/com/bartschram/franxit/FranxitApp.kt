@@ -9,6 +9,8 @@ import com.bartschram.franxit.work.Notifier
 class FranxitApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // The shared module's search requests carry the build's token (it has no BuildConfig of its own).
+        com.bartschram.franxit.scrape.CoreConfig.appToken = BuildConfig.APP_TOKEN
         // The language first: the notification channels and texts use it.
         L10n.init(this)
         Notifier.createChannel(this)

@@ -73,7 +73,7 @@ object Shoparize {
      * [wanted] as Shoparize's titles write it: "5 kg" as "5kg", and a lone letter joined to the word before
      * it ("Pro X" as "ProX", "2 x 5kg" as "2x 5kg").
      */
-    internal fun tidy(wanted: String): String =
+    fun tidy(wanted: String): String =
         wanted.trim().replace(Regex("""(\d)\s+(kg|g|mg|l|cl|ml|gb|tb|mb|cm|mm|w|v|mah|hz)\b""", RegexOption.IGNORE_CASE), "$1$2")
             .replace(Regex("""(?<=\S)\s+(\p{L})(?=\s|$)"""), "$1")
             .replace(Regex("\\s+"), " ")
@@ -83,7 +83,7 @@ object Shoparize {
      * name (with a colour, a size, "incl. …") finds nothing: the name as given, then tidied, then its first
      * words only. A shorter search finds more products; [best] still decides which one is the product.
      */
-    internal fun queries(wanted: String): List<String> {
+    fun queries(wanted: String): List<String> {
         val given = wanted.trim().replace(Regex("\\s+"), " ")
         val tidy = tidy(wanted)
         // Only real words: a lone "-" or "(" says nothing and would spend a search.
@@ -131,7 +131,7 @@ object Shoparize {
      * a bundle ("… + Fortnite") or an accessory is another product with another price, and one of those
      * must not pass for the product itself.
      */
-    internal fun best(hits: List<VergelijkSearch.Hit>, wanted: String): VergelijkSearch.Hit? =
+    fun best(hits: List<VergelijkSearch.Hit>, wanted: String): VergelijkSearch.Hit? =
         hits.filter { Matching.isSameProduct(it.title, wanted, lenient = false) }
             .maxByOrNull { Matching.score(it.title, wanted) }
 
@@ -148,7 +148,7 @@ object Shoparize {
      * network's own address or a path that is only a relative deep link: then the Buy button uses a search.
      * The link is only read, never followed.
      */
-    internal fun cleanLink(trackingHref: String, shopDomain: String): String? {
+    fun cleanLink(trackingHref: String, shopDomain: String): String? {
         val domain = shopDomain.trim().lowercase().removePrefix("www.")
         if (domain.isEmpty()) return null
         var text = trackingHref.substringAfter("url=", "").substringBefore("&")

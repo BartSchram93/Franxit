@@ -46,7 +46,7 @@ object AmazonPage {
     }
 
     /** "€119,00", "119,00 €", "EUR 1.119,00" as a number. */
-    internal fun euros(text: String): Double? {
+    fun euros(text: String): Double? {
         val digits = text.replace(Regex("""[^0-9.,]"""), "")
         if (digits.isEmpty()) return null
         val normal = if (digits.contains(',')) digits.replace(".", "").replace(',', '.') else digits

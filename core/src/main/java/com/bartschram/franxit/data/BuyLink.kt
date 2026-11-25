@@ -9,7 +9,7 @@ import java.net.URI
  * ("Buy at Gladi.nl" opened bol.com: vergelijk.be's cheapest instead of the button's shop).
  * Repository reads the pages and saved links; the choices are here.
  */
-internal object BuyLink {
+object BuyLink {
 
     /** The shop the button names: the one asked for, else the cheapest in the app. */
     fun shop(seller: String?, offers: List<ShopOffer>): String? = seller ?: Offers.cheapest(offers)?.seller

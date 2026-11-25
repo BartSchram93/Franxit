@@ -1,7 +1,5 @@
 package com.bartschram.franxit.data
 
-import android.content.Context
-import androidx.core.content.edit
 import java.text.Normalizer
 
 /**
@@ -14,10 +12,10 @@ import java.text.Normalizer
  */
 object TrustedShops {
 
-    private const val PREFS = "trusted_shops"
 
     /** Well-known shops selling in Belgium, as [key]s. */
-    private val KNOWN = setOf(
+    /** The fixed list's shops, by [key]. */
+    val KNOWN = setOf(
         // Electronics and general
         "bol", "amazon", "coolblue", "mediamarkt", "fnac", "vandenborre", "krefel", "cameranu", "dreamland", "x2o",
         "alternate", "megekko", "azerty", "centralpoint", "informatique", "exellent", "artencraft",
@@ -70,25 +68,10 @@ object TrustedShops {
 
     fun isTrusted(shop: String, learned: Set<String>): Boolean = name(shop, learned) != null
 
-    fun name(context: Context, shop: String): String? = name(shop, learned(context))
-
-    fun isTrusted(context: Context, shop: String): Boolean = isTrusted(shop, learned(context))
-
     /** Whether two names are the same shop ("Bax Music BEFR" and "Bax-shop.be"). */
     fun same(a: String, b: String, learned: Set<String> = emptySet()): Boolean {
         fun canonical(s: String) = key(name(s, learned) ?: s)
         return canonical(a).let { it.isNotEmpty() && it == canonical(b) }
     }
 
-    /** Remembers the shops vergelijk.be lists (and a page's own shop), so Google may show them too. */
-    fun learn(context: Context, shops: Collection<String>) {
-        val learned = learned(context)
-        val new = shops.map(::key).filter { it.isNotEmpty() && it !in learned && it !in KNOWN }
-        if (new.isEmpty()) return
-        prefs(context).edit { putStringSet("keys", learned + new) }
-    }
-
-    private fun learned(context: Context): Set<String> = prefs(context).getStringSet("keys", null).orEmpty()
-
-    private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 }

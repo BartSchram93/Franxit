@@ -7,7 +7,7 @@ import com.bartschram.franxit.scrape.Matching
  * so the cases that went wrong are tested (Pampers: the short name lost "138 Luierbroekjes", and a pack of 160
  * passed for it).
  */
-internal object SearchNames {
+object SearchNames {
 
     private val CODE = Regex("""[A-Za-z0-9][A-Za-z0-9./-]{3,}""")
     private val SPEC = Regex("""\d\s?(cm|inch|"|gb|mb|tb|mm|hz|mah|w|x)\b|^[\d.\s]+$""", RegexOption.IGNORE_CASE)

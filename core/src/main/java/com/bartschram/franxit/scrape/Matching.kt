@@ -38,7 +38,7 @@ object Matching {
      * pieces ("60 stuks" isn't "100 stuks", "110 wasbeurten" isn't "200"). A count only counts when both name
      * one: a title without a count could be either.
      */
-    internal fun otherPack(title: String, wanted: String): Boolean {
+    fun otherPack(title: String, wanted: String): Boolean {
         if (multipliers(title) != multipliers(wanted)) return true
         val want = counts(wanted)
         val have = counts(title)
@@ -152,7 +152,7 @@ object Matching {
     )
 
     /** Whether [title] names an edition [wanted] doesn't ("Patchwork Express" for "Patchwork"). */
-    internal fun otherEdition(title: String, wanted: String): Boolean {
+    fun otherEdition(title: String, wanted: String): Boolean {
         val want = EDITION.findAll(wanted).map { it.value.lowercase() }.toSet()
         // "RAM-uitbreiding", "geheugenuitbreiding", "expandable storage": a device's memory, not an expansion of a game
         // (Amazon's "TCL-NXTPAPER-Octa-Core-RAM-uitbreiding-geheugen" was passed over as another edition).
@@ -193,7 +193,7 @@ object Matching {
     fun colourWords(text: String): List<String> = words(text).filter { it in COLOURS }
 
     /** True when both name a colour and have none in common: the same model, another colour. */
-    internal fun otherColour(title: String, wanted: String): Boolean {
+    fun otherColour(title: String, wanted: String): Boolean {
         val w = colours(wanted)
         val t = colours(title)
         return w.isNotEmpty() && t.isNotEmpty() && w.none { it in t }
@@ -247,7 +247,7 @@ object Matching {
     private val TIERS = setOf("ultra", "pro", "max", "plus", "mini", "lite")
 
     /** True when one names a tier word ([TIERS]) the other doesn't have. */
-    internal fun otherTier(title: String, wanted: String): Boolean {
+    fun otherTier(title: String, wanted: String): Boolean {
         val t = words(title).filter { it in TIERS }.toSet()
         val w = words(wanted).filter { it in TIERS }.toSet()
         return t != w
@@ -267,7 +267,7 @@ object Matching {
      * True when both name a model code and none is the same: "Epiphone ES-335" is not the "Epiphone DG-335" (Dave
      * Grohl's signature model), though they share the brand and the number.
      */
-    internal fun otherModelCode(title: String, wanted: String): Boolean {
+    fun otherModelCode(title: String, wanted: String): Boolean {
         val w = modelCodes(wanted)
         val t = modelCodes(title)
         return w.isNotEmpty() && t.isNotEmpty() && w.none { it in t }
@@ -297,7 +297,7 @@ object Matching {
         otherColour(title, wanted) || otherTier(title, wanted) || otherSpecs(title, wanted) ||
             otherModelCode(title, wanted) || otherEdition(title, wanted)
 
-    internal fun otherSpecs(title: String, wanted: String): Boolean {
+    fun otherSpecs(title: String, wanted: String): Boolean {
         val tg = gigabytes(title)
         val wg = gigabytes(wanted)
         if (tg.isNotEmpty() && wg.isNotEmpty() && tg.none { it in wg }) return true

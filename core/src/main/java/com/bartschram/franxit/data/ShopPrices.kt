@@ -7,7 +7,7 @@ import com.bartschram.franxit.scrape.Scraper
  * How a product's shops come together from its sources, without anything Android, so it can be tested with
  * real cases (Dash, Interprox, Pampers). Repository reads the sources and stores the result; the choices are here.
  */
-internal object ShopPrices {
+object ShopPrices {
 
     /**
      * The shops to show, one offer each.

@@ -13,7 +13,7 @@ object VergelijkSearch {
      * A photo address from vergelijk.be's search, which leaves the size open: "//pc.vergelijk.be/{{size}}/1.webp".
      * The size its product pages use. Null when there is none.
      */
-    internal fun photo(template: String?): String? =
+    fun photo(template: String?): String? =
         template?.trim()?.takeIf { it.isNotEmpty() && it != "null" }
             ?.replace("{{size}}", "500x500")
             ?.let { if (it.startsWith("//")) "https:$it" else it }
@@ -57,7 +57,7 @@ object VergelijkSearch {
      * word, that word. Not one shared colour ("Blanc"), nor two chance words of a long name (gloves "Aqua … 10"
      * for "Dreame Aqua 10 Ultrarol Blanc").
      */
-    internal fun fits(hits: List<Hit>, query: String): Boolean {
+    fun fits(hits: List<Hit>, query: String): Boolean {
         val wanted = words(query).toSet()
         if (wanted.isEmpty()) return hits.isNotEmpty()
         return hits.take(5).any { hit ->
@@ -74,7 +74,7 @@ object VergelijkSearch {
      * the variant ("Rowenta RO3134EA" as "Rowenta RO3134", shops often leave it out), the brand with the words up
      * to the first number ("Dreame Aqua 10"), the name without its brand ("Aqua 10 Ultrarol Blanc"), the code alone.
      */
-    internal fun looser(query: String): List<String> {
+    fun looser(query: String): List<String> {
         // "DREAME-AQUA" as read on a tag: a dash between two words of letters parts them.
         val words = query.trim().replace(Regex("""(?<=\p{L})[-–](?=\p{L}{3})"""), " ")
             .split(Regex("\\s+")).filter { it.isNotEmpty() && it != "-" && it != "–" }
@@ -93,7 +93,7 @@ object VergelijkSearch {
      * (capitals, dashes, spaces). The first (the more precise suggestion) stays. Titles that differ
      * in any word, colour or size are different products and all stay.
      */
-    internal fun withoutDuplicates(hits: List<Hit>): List<Hit> =
+    fun withoutDuplicates(hits: List<Hit>): List<Hit> =
         hits.distinctBy { productId(it.url) ?: it.url }
             .distinctBy { hit -> hit.title.lowercase().filter { it.isLetterOrDigit() }.ifEmpty { hit.url } }
 

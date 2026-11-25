@@ -26,7 +26,7 @@ jobs:
       - name: Unit tests
         run: |
           chmod +x gradlew
-          ./gradlew testWebDebugUnitTest --console=plain
+          ./gradlew :core:test testWebDebugUnitTest --console=plain
 
       # The Play bundle must compile and package (unsigned here). No APK is built any more.
       - name: Build the Play bundle

@@ -45,7 +45,7 @@ object Scraper {
      * What a check says when a page couldn't be read, so you see why ("Vtechnl.com didn't answer in time") and not
      * Java's words ("Too many follow-up requests: 21"). The app's own messages pass unchanged.
      */
-    internal fun explain(e: Exception, url: String): String {
+    fun explain(e: Exception, url: String): String {
         val shop = shop(url)
         val message = e.message.orEmpty()
         return when {
@@ -107,7 +107,7 @@ object Scraper {
         RegexOption.IGNORE_CASE,
     )
 
-    internal fun isUnavailable(html: String): Boolean = UNAVAILABLE.containsMatchIn(html)
+    fun isUnavailable(html: String): Boolean = UNAVAILABLE.containsMatchIn(html)
 
     private fun shop(url: String) = Shops.name(URL(url).host)
 
@@ -122,7 +122,7 @@ object Scraper {
      * its "challenge-platform" script in ordinary pages, and a contact form its "captcha"; music-vanderheyden.be's
      * product page counted as a check page, even in the browser, and the product never got a name or price.
      */
-    internal fun isBrowserCheck(html: String): Boolean {
+    fun isBrowserCheck(html: String): Boolean {
         val lower = html.lowercase()
         val title = Regex("<title[^>]*>(.*?)</title>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
             .find(html)?.groupValues?.get(1)?.trim().orEmpty()
@@ -135,7 +135,7 @@ object Scraper {
     private const val CHECK_PAGE_SIZE = 60_000
 
     /** Whether a redirect ended on another page than the product's (the query aside). */
-    internal fun movedElsewhere(asked: String, got: String): Boolean {
+    fun movedElsewhere(asked: String, got: String): Boolean {
         fun page(u: String) = runCatching { URL(u) }.getOrNull()?.let { it.host.removePrefix("www.") + it.path.trimEnd('/') }
         val a = page(asked) ?: return false
         val b = page(got) ?: return false
@@ -143,7 +143,7 @@ object Scraper {
     }
 
     /** A page that sends you on with a meta refresh or a script ("location.href = '…'"): where it sends you. */
-    internal fun forwardIn(html: String): String? {
+    fun forwardIn(html: String): String? {
         val meta = Regex("""<meta[^>]+http-equiv=["']?refresh["']?[^>]+content=["'][^"']*url=([^"'>\s]+)""", RegexOption.IGNORE_CASE).find(html)
         val script = Regex("""(?:window\.)?location(?:\.href)?\s*=\s*["'](https?://[^"']+)["']""").find(html)
         return (meta ?: script)?.groupValues?.get(1)?.replace("&amp;", "&")?.takeIf { it.startsWith("http") }
@@ -164,7 +164,7 @@ object Scraper {
         return current
     }
 
-    internal fun download(url: String, accept: String, headers: Map<String, String> = emptyMap(), readTimeoutMs: Int = 30_000): String =
+    fun download(url: String, accept: String, headers: Map<String, String> = emptyMap(), readTimeoutMs: Int = 30_000): String =
         downloadPage(url, accept, headers, readTimeoutMs).first
 
     private const val MAX_REDIRECTS = 10
@@ -208,7 +208,7 @@ object Scraper {
     }
 
     /** The cookies a site set ("name=value; Path=/; …"), by host: only the name and value are kept. */
-    internal fun keepCookies(jar: MutableMap<String, MutableMap<String, String>>, host: String, setCookies: List<String>) {
+    fun keepCookies(jar: MutableMap<String, MutableMap<String, String>>, host: String, setCookies: List<String>) {
         for (line in setCookies) {
             val pair = line.substringBefore(';').trim()
             val name = pair.substringBefore('=', "").trim()
@@ -218,7 +218,7 @@ object Scraper {
     }
 
     /** The Cookie header for [host]: only its own site's cookies ("www.shop.be" and "shop.be" share them). */
-    internal fun cookieHeader(jar: Map<String, Map<String, String>>, host: String): String? =
+    fun cookieHeader(jar: Map<String, Map<String, String>>, host: String): String? =
         jar[siteOf(host)]?.takeIf { it.isNotEmpty() }?.entries?.joinToString("; ") { "${it.key}=${it.value}" }
 
     private fun siteOf(host: String) = host.lowercase().removePrefix("www.")
@@ -261,7 +261,7 @@ object Scraper {
      * those for Facebook or older search engines): music-vanderheyden.be's page, once reached, had no price the app
      * could read. Null without such a price.
      */
-    internal fun fromMeta(html: String): Result? {
+    fun fromMeta(html: String): Result? {
         val raw = (META_PRICE.find(html) ?: ITEMPROP_PRICE.find(html) ?: ITEMPROP_PRICE_TEXT.find(html))?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() } ?: return null
         val currency = META_CURRENCY.find(html)?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.uppercase()
         if (currency != null && currency != "EUR") return null
@@ -283,7 +283,7 @@ object Scraper {
     }
 
     /** schema.org's brand: a name, a Brand or Organization with a name, or a list of those. */
-    internal fun brand(value: Any?): String? = when (value) {
+    fun brand(value: Any?): String? = when (value) {
         is String -> value
         is JSONObject -> value.optString("name")
         is JSONArray -> (0 until value.length()).firstNotNullOfOrNull { brand(value.opt(it)) }
