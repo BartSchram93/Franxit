@@ -53,6 +53,8 @@ import com.bartschram.franxit.scrape.VergelijkSearch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import com.bartschram.franxit.scrape.ProductSearch
@@ -74,6 +76,8 @@ fun SearchScreen(
     discover: suspend (String) -> List<ProductSearch.Product>,
     /** Search words while typing. */
     suggest: suspend (String) -> List<String>,
+    /** A found product's photo, from its own page when the search gave none; null when it has none. */
+    photoOf: suspend (ProductSearch.Product) -> String?,
     titleFromLink: suspend (String) -> String?,
     /** [title] is the product's name when the result has one (a typed or shared link has none). */
     onPick: (url: String, title: String?) -> Unit,
@@ -141,10 +145,18 @@ fun SearchScreen(
             }
             if (!now) delay(DISCOVER_DELAY_MS)
             searching = true
-            val found = runCatching { discover(q).filter { it.imageUrl != null } }
+            val found = runCatching { discover(q) }
             failed = found.isFailure
             limitReached = found.exceptionOrNull() is ProductSearch.LimitReached
-            products = found.getOrDefault(emptyList())
+            // Only products with a photo, shown with it: those the search gave one at once, the others once their
+            // own page gave one (Coolblue's, Amazon's), in the search's order.
+            val all = found.getOrDefault(emptyList())
+            val photos = all.associate { it.url to it.imageUrl }.toMutableMap()
+            fun shown() = all.mapNotNull { p -> photos[p.url]?.let { p.copy(imageUrl = it) } }
+            products = shown()
+            all.filter { it.imageUrl == null }.map { p ->
+                async { photoOf(p)?.let { photos[p.url] = it; products = shown() } }
+            }.awaitAll()
             searching = false
         }
     }

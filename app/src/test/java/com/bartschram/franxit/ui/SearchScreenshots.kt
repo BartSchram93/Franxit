@@ -80,6 +80,12 @@ class SearchScreenshots {
         search = { emptyList() },
         discover = found,
         suggest = { words },
+        // As the app: the search's photo, else the page's own (fetched here; a shop that keeps servers out gives none).
+        photoOf = { p ->
+            p.imageUrl ?: kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { ProductSearch.photoIn(com.bartschram.franxit.scrape.Scraper.download(p.url, "text/html", readTimeoutMs = 8_000), p.url) }.getOrNull()
+            }
+        },
         titleFromLink = titleFromLink,
         onPick = { _, _ -> },
         onBack = {},

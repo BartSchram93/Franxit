@@ -941,6 +941,24 @@ class Repository private constructor(context: Context) {
         found
     }
 
+    /** Photos read from found products' own pages, by address (null: the page showed none). */
+    private val searchPhotos = java.util.concurrent.ConcurrentHashMap<String, java.util.Optional<String>>()
+    private val searchPhotoReads = Semaphore(6)
+
+    /**
+     * A found product's photo: the search's, else its own page's (read as any shop page, briefly). Null when there is
+     * none: such a result isn't shown.
+     */
+    suspend fun photoOf(product: ProductSearch.Product): String? = withContext(Dispatchers.IO) {
+        product.imageUrl?.let { return@withContext it }
+        searchPhotos[product.url]?.let { return@withContext it.orElse(null) }
+        val photo = searchPhotoReads.withPermit {
+            runCatching { ProductSearch.photoIn(Scraper.download(product.url, "text/html,application/xhtml+xml", readTimeoutMs = 8_000), product.url) }.getOrNull()
+        }
+        searchPhotos[product.url] = java.util.Optional.ofNullable(photo)
+        photo
+    }
+
     /** Search words for what you typed so far; none when the service can't be reached (they're only a help). */
     suspend fun suggest(prefix: String): List<String> = withContext(Dispatchers.IO) {
         runCatching { ProductSearch.suggest(prefix) }.getOrDefault(emptyList())

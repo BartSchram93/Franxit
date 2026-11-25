@@ -144,4 +144,17 @@ class ProductSearchTest {
         assertEquals(listOf("Dyson Cyclone V10 Origin", "Dyson Big Ball Parquet 2 stofzuiger zonder zak", "Sony Playstation 5 Pro 2TB"), found.map { it.title })
         assertEquals(listOf<String?>(null, null, null), found.map { it.imageUrl })
     }
+
+    @Test
+    fun aPagesProductPhotoIsReadWhenTheSearchGaveNone() {
+        val amazon = """<div id="imgTagWrapperId"><img id="landingImage" data-old-hires="https://m.media-amazon.com/images/I/61ps5pro._AC_SL1500_.jpg" src="https://m.media-amazon.com/images/I/61ps5pro._AC_SX425_.jpg"></div>"""
+        assertEquals("https://m.media-amazon.com/images/I/61ps5pro._AC_SL1500_.jpg", ProductSearch.photoIn(amazon, "https://www.amazon.com.be/dp/B0DM8SFRJV"))
+        val coolblue = """<html><head><script type="application/ld+json">{"@type":"Product","name":"PlayStation 5 Pro Digital Edition","image":"https://image.coolblue.be/max/500x500/products/2120000.png","offers":{"@type":"Offer","price":"799.00","priceCurrency":"EUR"}}</script></head></html>"""
+        assertEquals("https://image.coolblue.be/max/500x500/products/2120000.png", ProductSearch.photoIn(coolblue, "https://www.coolblue.be/nl/product/954519/playstation-5-pro-digital-edition.html"))
+        val preview = """<meta property="og:image" content="//cdn.shop.be/p/123.jpg">"""
+        assertEquals("https://cdn.shop.be/p/123.jpg", ProductSearch.photoIn(preview, "https://www.shop.be/p/123"))
+        // Only the shop's logo: no photo.
+        assertNull(ProductSearch.photoIn("""<meta property="og:image" content="https://www.molecule.be/media/seo/default/Molecule.jpg">""", "https://www.molecule.be/nl/x-271000937"))
+        assertNull(ProductSearch.photoIn("<html></html>", "https://www.shop.be/p/123"))
+    }
 }

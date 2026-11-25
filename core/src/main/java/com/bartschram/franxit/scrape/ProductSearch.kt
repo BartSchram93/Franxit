@@ -194,6 +194,25 @@ object ProductSearch {
         }
     }
 
+    /**
+     * The product's photo on its page [html] at [url], for a found page without one (the search doesn't always give
+     * Coolblue's or Amazon's): Amazon's main picture, else the page's product data or its preview picture. Null when
+     * the page has none, or only the shop's logo.
+     */
+    fun photoIn(html: String, url: String): String? {
+        // Amazon's largest picture first, then the one it shows.
+        val amazon = listOf(""""hiRes"\s*:\s*"(https://[^"]+)"""", """data-old-hires="(https://[^"]+)"""", """id="landingImage"[^>]*src="(https://[^"]+)"""")
+            .firstNotNullOfOrNull { Regex(it).find(html)?.groupValues?.get(1) }
+        val page = amazon ?: runCatching { Scraper.fromPage(html, url).image }.getOrNull()
+            ?: Regex("""<meta[^>]+(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*content=["']([^"']+)""", RegexOption.IGNORE_CASE)
+                .find(html)?.groupValues?.get(1)
+        val photo = page?.replace("&amp;", "&")?.let { if (it.startsWith("//")) "https:$it" else it } ?: return null
+        return photo.takeIf { it.startsWith("https://") && !LOGO.containsMatchIn(photo) }
+    }
+
+    /** A shop's own picture rather than a product's ("/media/seo/default/Molecule.jpg", "…/logo.png"). */
+    private val LOGO = Regex("""logo|/seo/default/|favicon|placeholder""", RegexOption.IGNORE_CASE)
+
     /** Products for [query], product pages only, best first as the service ranks them. */
     fun search(query: String): List<Product> {
         val q = clean(query) ?: return emptyList()
