@@ -12,10 +12,8 @@ import java.text.Normalizer
  */
 object TrustedShops {
 
-
-    /** Well-known shops selling in Belgium, as [key]s. */
-    /** The fixed list's shops, by [key]. */
-    val KNOWN = setOf(
+    /** The fixed list's shops, by [key]: well-known shops selling in Belgium, and every shop vergelijk.be lists. */
+    val KNOWN = VergelijkShops.NAMES.map(::key).toSet() + setOf(
         // Electronics and general
         "bol", "amazon", "coolblue", "mediamarkt", "fnac", "vandenborre", "krefel", "cameranu", "dreamland", "x2o",
         "alternate", "megekko", "azerty", "centralpoint", "informatique", "exellent", "artencraft",

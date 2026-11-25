@@ -64,4 +64,14 @@ class TrustedShopsTest {
         assertEquals("Gooise-Gitaren.nl", TrustedShops.name("Gooise-Gitaren.nl", emptySet()))
         assertEquals("Gooise Gitaren", TrustedShops.name("Gooise Gitaren", emptySet()))
     }
+
+    @Test
+    fun everyShopVergelijkListsIsKnownOnEveryPhone() {
+        // Without the phone having learned them: from the list made of vergelijk.be's shops.
+        for (shop in listOf("Techinn.com", "Kamera Express", "Fotodevakman", "Nedgame", "Knivesandtools.be")) {
+            assertTrue(shop, TrustedShops.isTrusted(shop, emptySet()))
+        }
+        // A shop neither knows stays out.
+        assertFalse(TrustedShops.isTrusted("Garantie2ans.com", emptySet()))
+    }
 }
