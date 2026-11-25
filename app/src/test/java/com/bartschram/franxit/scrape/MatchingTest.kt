@@ -224,4 +224,15 @@ class MatchingTest {
         assertFalse(Matching.otherSpecs("TCL NXTPAPER 14 tablet", wanted))
         assertFalse(Matching.otherSpecs("TCL NXTPAPER 14,3\" 8 GB / 256 GB", wanted.replace("14 inch", "14,3 inch")))
     }
+
+    @Test
+    fun anotherModelCodeIsAnotherProduct() {
+        assertTrue(Matching.isOtherProduct("Epiphone ES-335 laurier, Vintage Sunburst", "epiphone dg 335"))
+        assertTrue(Matching.isOtherProduct("Epiphone ES-335", "Epiphone Dave Grohl DG-335 Pelham"))
+        assertFalse(Matching.otherModelCode("Epiphone Dave Grohl DG335 - Iconic Electric Guitar", "epiphone dg 335"))
+        assertFalse(Matching.otherModelCode("Canon Selphy CP1500 Zwart", "Canon Selphy CP1500"))
+        assertFalse(Matching.otherModelCode("Rowenta RO3134EA", "Rowenta RO3134"))
+        // Units aren't model codes.
+        assertFalse(Matching.otherModelCode("TCL NXTPAPER 14 256 GB", "TCL NXTPAPER 14 8GB 256GB"))
+    }
 }

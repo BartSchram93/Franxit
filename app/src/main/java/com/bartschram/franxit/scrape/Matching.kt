@@ -221,7 +221,7 @@ object Matching {
      */
     fun isOtherProduct(title: String, wanted: String): Boolean {
         if (title.isBlank()) return false
-        if (otherTier(title, wanted) || otherSpecs(title, wanted)) return true
+        if (otherTier(title, wanted) || otherSpecs(title, wanted) || otherModelCode(title, wanted)) return true
         val want = words(wanted)
         if (want.filter(::isModelCode).any { it in compact(title) }) return false
         // Not by a "+" or an edition word: a shop's title adds a case and stylus to a tablet ("TCL NXTPAPER 14 + Flip
@@ -251,6 +251,26 @@ object Matching {
         val t = words(title).filter { it in TIERS }.toSet()
         val w = words(wanted).filter { it in TIERS }.toSet()
         return t != w
+    }
+
+    /** A model code of a few letters and a number, written together or apart: "DG-335", "ES 335", "CP1500". */
+    private val MODEL_CODE = Regex("""\b([a-z]{1,4})[\s-]?(\d{2,5})(?!\d)""", RegexOption.IGNORE_CASE)
+
+    /** Letters that are units or words before a number, not a model's letters ("256 GB", "nr 5"). */
+    private val NOT_A_MODEL = setOf("gb", "tb", "mb", "kb", "cm", "mm", "m", "kg", "g", "mah", "hz", "khz", "w", "kw", "v", "x", "nr", "no", "ip", "usb", "hd", "uhd", "fhd", "eur", "pk", "pc", "for", "and", "met", "en", "de", "the", "of", "van", "voor")
+
+    private fun modelCodes(text: String) = MODEL_CODE.findAll(text)
+        .filter { it.groupValues[1].lowercase() !in NOT_A_MODEL }
+        .map { it.groupValues[1].lowercase() + it.groupValues[2] }.toSet()
+
+    /**
+     * True when both name a model code and none is the same: "Epiphone ES-335" is not the "Epiphone DG-335" (Dave
+     * Grohl's signature model), though they share the brand and the number.
+     */
+    internal fun otherModelCode(title: String, wanted: String): Boolean {
+        val w = modelCodes(wanted)
+        val t = modelCodes(title)
+        return w.isNotEmpty() && t.isNotEmpty() && w.none { it in t }
     }
 
     private val GIGABYTES = Regex("""(\d+)\s?(gb|tb)\b""", RegexOption.IGNORE_CASE)
