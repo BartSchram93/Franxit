@@ -234,8 +234,9 @@ fun DetailScreen(
                 // Held down: how long each step of the last check took, to see what makes a check slow.
                 var showSteps by remember { mutableStateOf<List<Pair<String, Long>>?>(null) }
                 var shopsLeftOut by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+                // No price before it's certain: it shows once the shop's page confirms it, when it stops being grey.
                 Text(
-                    latest.price.euro(), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
+                    if (cheapestSure) latest.price.euro() else UNSURE_PRICE, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.alpha(sureAlpha(cheapestSure)).pointerInput(Unit) {
                         detectTapGestures(onLongPress = { shopsLeftOut = leftOut(); showSteps = checkSteps() })
                     },
@@ -360,13 +361,14 @@ fun DetailScreen(
                 ),
             ) {
                 val latest = product.latest
+                val buySure = confirmed == null || Offers.cheapest(product.offers)?.let { TrustedShops.key(it.seller) in confirmed } != false
                 // Two lines: the shop, and under it the price, so long shop names never get cut off.
                 @Composable
                 fun Label(shop: String, price: String?) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(t("Buy at %s", shop), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         price?.let {
-                            Text(it, style = MaterialTheme.typography.labelMedium, color = LocalContentColor.current.copy(alpha = 0.7f))
+                            Text(if (buySure) it else UNSURE_PRICE, style = MaterialTheme.typography.labelMedium, color = LocalContentColor.current.copy(alpha = 0.7f))
                         }
                     }
                 }
@@ -645,10 +647,14 @@ private fun ShopsToday(
                 Spacer(Modifier.width(12.dp))
             }
             val percent = Discounts.percentFor(offer.seller, discounts)
+            val sure = confirmed == null || TrustedShops.key(offer.seller) in confirmed
             // The price its page gave, as soon as it's read (the check takes it the same way).
             val offer = confirmed?.get(TrustedShops.key(offer.seller))?.takeIf { it / offer.price in 0.5..1.5 }
                 ?.let { offer.copy(price = it) } ?: offer
-            if (percent == null) {
+            if (!sure) {
+                // No price before the shop's page confirms it (vergelijk.be's can be another product's).
+                Text(UNSURE_PRICE, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+            } else if (percent == null) {
                 Text(offer.price.euro(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             } else {
                 Column(horizontalAlignment = Alignment.End) {
@@ -676,6 +682,9 @@ private fun ShopsToday(
 }
 
 private const val SHOPS_SHOWN = 3
+
+/** Where a price shows that a running check hasn't confirmed yet. */
+private const val UNSURE_PRICE = "€ …"
 
 /**
  * The part of the site's name that the short name doesn't already say ("128GB Wifi" under

@@ -1,2 +1,3 @@
 • Een winkelpagina met meerdere kleuren (zoals bol.com) wordt gelezen in de kleur van die pagina
 • Een winkel die op vergelijk.be een ander product aanbiedt, wordt weggelaten
+• Een prijs verschijnt pas als de winkel gecontroleerd is
