@@ -56,10 +56,14 @@ object DuckDuckGo {
         } + ANY_LINK.findAll(html).map { it.groupValues[1].replace("&amp;", "&") })
             .firstOrNull { url -> isForeignSite(url) && accept(url.substringAfter("//").substringBefore('/').lowercase().removePrefix("www.")) }
 
-    /** Whether [url] is on another country's site (amazon.nl): found by a search, it is no Belgian shop's page. */
-    fun isForeignSite(url: String): Boolean {
+    /**
+     * Whether [url] is on another country's site (amazon.de): found by a search, it is no Belgian shop's page. Dutch
+     * sites count as at home (they ship to Belgium), unless [dutchToo]: for a shop that has a Belgian site of its own
+     * (Coolblue), its Dutch one (coolblue.nl) is not the one for Belgium.
+     */
+    fun isForeignSite(url: String, dutchToo: Boolean = false): Boolean {
         val host = url.substringAfter("//").substringBefore('/').substringBefore('?').lowercase()
-        return FOREIGN_ENDINGS.any { host.endsWith(it) }
+        return FOREIGN_ENDINGS.any { host.endsWith(it) && (dutchToo || it != ".nl") }
     }
 
     /** Whether [url] is a shop's page for another country (Nintendo's UK store for a Belgian shopper). */

@@ -401,7 +401,7 @@ class Repository private constructor(context: Context) {
         val belgianListing = "vergelijk.be" in ownHost
         // Except a shop that has a Belgian site of its own (Coolblue, coolblue.be): for it vergelijk.be's link to its
         // Dutch site isn't taken, its Belgian page is (looked up as for any shop), with its price there.
-        fun belgianSite(seller: String) = GoogleShopping.siteOf(seller)?.takeIf { !DuckDuckGo.isForeignSite("https://$it") }
+        fun belgianSite(seller: String) = GoogleShopping.siteOf(seller)?.takeIf { !DuckDuckGo.isForeignSite("https://$it", dutchToo = true) }
         fun listedHere(seller: String) = belgianListing && own.offers.any { TrustedShops.same(it.seller, seller) } && belgianSite(seller) == null
         val toFollow = mutableListOf<java.util.concurrent.Callable<Unit>>()
         for (offer in offers) {
@@ -418,7 +418,7 @@ class Repository private constructor(context: Context) {
             if (known != null) {
                 // (One remembered before this rule: a landing on another country's site.)
                 // A shop with a Belgian site whose link led abroad: not that page, nor vergelijk.be's link; its Belgian page.
-                if (hasBelgianSite && (known == FOREIGN || (!known.startsWith("-") && DuckDuckGo.isForeignSite(known)))) wrongLandings += offer.seller
+                if (hasBelgianSite && (known == FOREIGN || (!known.startsWith("-") && DuckDuckGo.isForeignSite(known, dutchToo = true)))) wrongLandings += offer.seller
                 else if (!anyCountry && (known == FOREIGN || (!known.startsWith("-") && DuckDuckGo.isForeignSite(known)))) foreign += offer.seller
                 else if (!known.startsWith("-") && otherVersion(known, name, product)) wrongLandings += offer.seller
                 else if (!known.startsWith("-")) landings[offer.seller] = known
@@ -434,7 +434,7 @@ class Repository private constructor(context: Context) {
                     runCatching { BrowserPages.page(appContext, click) }.getOrNull()
                         ?.let { (address, html) -> read = html; DuckDuckGo.belgian(address) } ?: followed
                 } else followed
-                if (!anyCountry && end != null && DuckDuckGo.isForeignSite(end) && ShopCheck.isProductPage(end)) {
+                if (!anyCountry && end != null && DuckDuckGo.isForeignSite(end, dutchToo = hasBelgianSite) && ShopCheck.isProductPage(end)) {
                     ShoppingSettings.saveLanding(appContext, product.id, offer.seller, FOREIGN)
                     if (hasBelgianSite) wrongLandings += offer.seller else foreign += offer.seller
                     return@Callable

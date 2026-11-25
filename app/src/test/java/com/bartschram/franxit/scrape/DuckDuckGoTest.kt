@@ -109,23 +109,29 @@ class DuckDuckGoTest {
     @Test
     fun anotherCountrysSiteIsNoBelgianShopsPage() {
         // "Amazon.be" was found on amazon.nl, a search page at that.
-        assertTrue(DuckDuckGo.isForeignSite("https://www.amazon.nl/canon-selphy-cp1500/s?k=canon+selphy+cp1500"))
-        assertTrue(DuckDuckGo.isForeignSite("https://www.fotodevakman.nl/canon-selphy-cp1500"))
+        assertTrue(DuckDuckGo.isForeignSite("https://www.amazon.de/canon-selphy-cp1500/s?k=canon+selphy+cp1500"))
+        // Dutch sites count as at home (they ship to Belgium), except for a shop with a Belgian site of its own.
+        assertFalse(DuckDuckGo.isForeignSite("https://www.fotodevakman.nl/canon-selphy-cp1500"))
+        assertTrue(DuckDuckGo.isForeignSite("https://www.amazon.nl/canon-selphy-cp1500/s?k=canon+selphy+cp1500", dutchToo = true))
         assertFalse(DuckDuckGo.isForeignSite("https://www.amazon.com.be/dp/B0BF6T86WD"))
         assertFalse(DuckDuckGo.isForeignSite("https://www.bol.com/be/nl/p/x/1/"))
         assertEquals("amazon.com.be", GoogleShopping.siteOf("Amazon.be"))
         assertEquals("amazon.com.be", GoogleShopping.siteOf("Amazon"))
         val page = result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.amazon.nl%2Fdp%2FB0&amp;rut=a") +
             result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.amazon.com.be%2Fdp%2FB0&amp;rut=b")
-        assertEquals("https://www.amazon.com.be/dp/B0", DuckDuckGo.firstResult(page) { it.startsWith("amazon") })
+        assertEquals("https://www.amazon.com.be/dp/B0", DuckDuckGo.firstResult(page) { it == "amazon.com.be" })
     }
 
     @Test
     fun aShopFoundOnlyOnAnotherCountrysSiteIsThatCountrys() {
-        val page = result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.fotodevakman.nl%2Fcanon-selphy-cp1500-black&amp;rut=a")
+        // A Dutch shop's site is a page like any (Dutch shops ship to Belgium).
+        val dutch = result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.fotodevakman.nl%2Fcanon-selphy-cp1500-black&amp;rut=a")
+        assertEquals("https://www.fotodevakman.nl/canon-selphy-cp1500-black", DuckDuckGo.lookup(dutch) { DuckDuckGo.isShopsSite(it, "Fotodevakman") }.page)
+        // A German one isn't: that shop is Germany's.
+        val page = result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.fotodevakman.de%2Fcanon-selphy-cp1500-black&amp;rut=a")
         val found = DuckDuckGo.lookup(page) { DuckDuckGo.isShopsSite(it, "Fotodevakman") }
         assertNull(found.page)
-        assertEquals("https://www.fotodevakman.nl/canon-selphy-cp1500-black", found.foreign)
+        assertEquals("https://www.fotodevakman.de/canon-selphy-cp1500-black", found.foreign)
         // With a Belgian page too, that one counts.
         val both = page + result("//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.kamera-express.be%2Fp%2F1&amp;rut=b")
         assertEquals("https://www.kamera-express.be/p/1", DuckDuckGo.lookup(both) { DuckDuckGo.isShopsSite(it, "Kamera Express") }.page)
