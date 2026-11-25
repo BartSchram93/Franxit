@@ -247,4 +247,14 @@ class MatchingTest {
         assertFalse(Matching.isClearlyOther("SAMSUNG A576 Galaxy A57 5G (6,7 inch - 8/256 GB) grijs", "Samsung Galaxy A57 256GB Grijs 5G"))
         assertTrue(Matching.isClearlyOther("Samsung Galaxy A57 5G - 128GB - Awesome Gray", "Samsung Galaxy A57 256GB Grijs 5G"))
     }
+
+    @Test
+    fun aShadeIsItsColour() {
+        // Olive green is green: not another colour than "Groen", but another than "Zwart".
+        assertFalse(Matching.otherColour("Rugzak 20L Olijfgroen", "Rugzak 20L Groen"))
+        assertTrue(Matching.otherColour("Rugzak 20L Olijfgroen", "Rugzak 20L Zwart"))
+        assertFalse(Matching.otherColour("Rugzak 20L Olive", "Rugzak 20L Groen"))
+        assertFalse(Matching.otherColour("Jas Donkerblauw", "Jas Blauw"))
+        assertTrue(Matching.otherColour("Jas Lichtgrijs", "Jas Blauw"))
+    }
 }

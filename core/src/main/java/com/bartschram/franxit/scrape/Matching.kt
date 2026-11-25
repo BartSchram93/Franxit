@@ -180,7 +180,20 @@ object Matching {
         "geel" to "yellow", "yellow" to "yellow", "jaune" to "yellow",
     )
 
-    private fun colours(text: String): Set<String> = words(text).mapNotNull { COLOURS[it] }.toSet()
+    private fun colours(text: String): Set<String> = words(text).mapNotNull(::colourOf).toSet()
+
+    /**
+     * A word's colour: a colour word itself, or a shade of one ("olijfgroen" is green, "donkerblauw" blue,
+     * "lichtgrijs" grey, "roségoud" gold), and olive as green.
+     */
+    private fun colourOf(word: String): String? {
+        COLOURS[word]?.let { return it }
+        if (word == "olijf" || word == "olive") return "green"
+        return SHADE_ENDINGS.firstOrNull { word.length > it.length + 2 && word.endsWith(it) }?.let { COLOURS[it] }
+    }
+
+    /** Colour words a shade ends in (not "wit", too short to tell apart from other words' endings). */
+    private val SHADE_ENDINGS = listOf("groen", "zwart", "blauw", "grijs", "rood", "geel", "bruin", "roze", "paars", "oranje", "zilver", "goud")
 
     /**
      * Whether [title] adds a bundle or an accessory that [wanted] doesn't name ("… Ocarina of Time + BlueBuilt
@@ -190,7 +203,7 @@ object Matching {
         (isAccessory(title) && !isAccessory(wanted)) || (BUNDLE.containsMatchIn(title) && !BUNDLE.containsMatchIn(wanted))
 
     /** The colour words of a name as it writes them ("zwart"), to search with. */
-    fun colourWords(text: String): List<String> = words(text).filter { it in COLOURS }
+    fun colourWords(text: String): List<String> = words(text).filter { colourOf(it) != null }
 
     /** True when both name a colour and have none in common: the same model, another colour. */
     fun otherColour(title: String, wanted: String): Boolean {
