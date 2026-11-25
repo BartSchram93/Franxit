@@ -1,1 +1,3 @@
-• Een gewone winkelpagina met een captcha-formulier of beveiligingsscript wordt niet meer aangezien voor een controlepagina
+• Nachtelijke controle: geen foutmelding meer als het netwerk van de gsm 's nachts slaapt; ze probeert het later opnieuw
+• Prijzen ook lezen uit de meta-gegevens van een pagina (voor winkels zonder productgegevens)
+• Zelda 40th Anniversary Edition: Coolblue en de Nintendo-winkel worden weer herkend

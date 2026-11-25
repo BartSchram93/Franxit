@@ -17,7 +17,8 @@ class ProductCheckWorker(context: Context, params: WorkerParameters) : Coroutine
             return Result.success()
         }
         // A failed check (no connection) is tried again a few times; a page that changed shows on the product.
-        return if (repo.checkOne(id).isFailure && runAttemptCount < 3) Result.retry() else Result.success()
+        // (Six times, 15 minutes apart and more: the phone's network can sleep for a while at night.)
+        return if (repo.checkOne(id, background = true).isFailure && runAttemptCount < 6) Result.retry() else Result.success()
     }
 
     companion object {

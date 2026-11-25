@@ -1,1 +1,3 @@
-• Une page de boutique normale avec un formulaire captcha ou un script de sécurité n'est plus prise pour une page de contrôle
+• Vérification nocturne : plus de message d'erreur quand le réseau du téléphone dort la nuit ; elle réessaie plus tard
+• Les prix sont aussi lus dans les métadonnées d'une page
+• Zelda 40th Anniversary Edition : Coolblue et la boutique Nintendo sont de nouveau reconnus

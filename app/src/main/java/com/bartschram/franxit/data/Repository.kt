@@ -821,7 +821,10 @@ class Repository private constructor(context: Context) {
      * passed over. The colour is told by the full name, which has it.
      */
     private fun otherVersion(link: String, name: String, product: Product): Boolean =
-        ShopCheck.isElsewhere(link, product.displayName.ifBlank { name }) ||
+        // Elsewhere by both names: next to the short name alone, "…-zelda-40th-anniversary-edition" (Coolblue's and
+        // Nintendo's pages for "Nintendo Switch 2 The Legend of" Zelda 40th Anniversary Edition) counted as another
+        // edition; next to the long one alone, Amazon's "TCL-NXTPAPER-Octa-Core-RAM…" as another product.
+        (ShopCheck.isElsewhere(link, product.displayName.ifBlank { name }) && ShopCheck.isElsewhere(link, name)) ||
             Matching.titleFromLink(link)?.let { Matching.otherColour(it, name) } == true
 
     /**
@@ -923,21 +926,27 @@ class Repository private constructor(context: Context) {
         }
     }
 
-    suspend fun checkOne(id: Long): Result<Unit> = withContext(Dispatchers.IO) {
+    /**
+     * [background]: the nightly check, with the night's longer times (and Google asked afresh), and a failed
+     * connection not shown on the product: the phone's network may be asleep, the check is tried again later.
+     */
+    suspend fun checkOne(id: Long, background: Boolean = false): Result<Unit> = withContext(Dispatchers.IO) {
         checkLock.withLock {
-            val result = runCatching { db.products().first { it.id == id }.let { check(it, LOOKUPS_ONE) { _products.value = db.products() } } }
+            val result = runCatching {
+                db.products().first { it.id == id }.let { check(it, if (background) LOOKUPS_ALL else LOOKUPS_ONE, background = background) { _products.value = db.products() } }
+            }
             changed()
             result.map { }
         }
     }
 
     /** Scrapes one product and stores today's cheapest price. Returns an [Alert] when worth notifying. */
-    private fun check(product: Product, lookups: Int = LOOKUPS_ALL, onFirstResults: (() -> Unit)? = null): Alert? {
+    private fun check(product: Product, lookups: Int = LOOKUPS_ALL, background: Boolean = false, onFirstResults: (() -> Unit)? = null): Alert? {
         _confirmed.update { it + (product.id to emptyMap()) }
         val start = System.currentTimeMillis()
         steps[product.id] = start to mutableListOf()
         try {
-            return checkProduct(product, lookups, onFirstResults)
+            return checkProduct(product, lookups, background, onFirstResults)
         } finally {
             _confirmed.update { it - product.id }
             steps.remove(product.id)?.second?.let { list ->
@@ -946,7 +955,7 @@ class Repository private constructor(context: Context) {
         }
     }
 
-    private fun checkProduct(product: Product, lookups: Int, onFirstResults: (() -> Unit)?): Alert? {
+    private fun checkProduct(product: Product, lookups: Int, background: Boolean, onFirstResults: (() -> Unit)?): Alert? {
         val now = System.currentTimeMillis()
         val query = GoogleShopping.queryOf(product.url)
         // Google Shopping costs a search of your plan: at most once a day per product. The shops' own pages cost
@@ -960,7 +969,10 @@ class Repository private constructor(context: Context) {
         } catch (e: Exception) {
             // Google Shopping used up (or its key refused): not the customer's problem, tried again at the next check.
             if (query != null && e.message in setOf(GoogleShopping.NO_SEARCHES_LEFT, GoogleShopping.BAD_KEY)) return null
-            db.markChecked(product.id, now, null, e.message ?: e.javaClass.simpleName)
+            // At night, no connection says nothing about the product (the phone's network asleep): not shown, the
+            // check is tried again. Every product said "No internet connection" in the morning.
+            val connection = e.message.orEmpty().let { it.startsWith("No internet connection") || it.startsWith("Connection") && "lost" in it }
+            if (!(background && connection)) db.markChecked(product.id, now, null, e.message ?: e.javaClass.simpleName)
             throw e
         }
         step(product.id, "Product page")

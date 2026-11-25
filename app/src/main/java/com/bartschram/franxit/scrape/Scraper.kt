@@ -242,7 +242,40 @@ object Scraper {
             val name = fromSchema?.name ?: product?.optString("name")?.trim().orEmpty()
             return Result(name, shopOffers, fromSchema?.image ?: product?.let { image(it.opt("image"), all) }, product?.let { brand(it.opt("brand")) })
         }
-        return fromSchema ?: throw IOException("No prices found on page")
+        return fromSchema ?: fromMeta(html) ?: throw IOException("No prices found on page")
+    }
+
+    /** `<meta property="product:price:amount" content="…">` or og:price:amount, and microdata's itemprop="price". */
+    private val META_PRICE = Regex("""<meta[^>]+(?:property|name)=["'](?:product|og):price:amount["'][^>]*content=["']([0-9][0-9.,]*)["']|<meta[^>]+content=["']([0-9][0-9.,]*)["'][^>]*(?:property|name)=["'](?:product|og):price:amount["']""", RegexOption.IGNORE_CASE)
+    private val ITEMPROP_PRICE = Regex("""itemprop=["']price["'][^>]*content=["']([0-9][0-9.,]*)["']|content=["']([0-9][0-9.,]*)["'][^>]*itemprop=["']price["']""", RegexOption.IGNORE_CASE)
+    private val META_CURRENCY = Regex("""(?:product|og):price:currency["'][^>]*content=["']([A-Za-z]{3})|itemprop=["']priceCurrency["'][^>]*content=["']([A-Za-z]{3})""", RegexOption.IGNORE_CASE)
+    private val META_STOCK = Regex("""(?:product:availability["'][^>]*content=["']([^"']+)|itemprop=["']availability["'][^>]*(?:href|content)=["']([^"']+))""", RegexOption.IGNORE_CASE)
+    private val OG_TITLE = Regex("""<meta[^>]+property=["']og:title["'][^>]*content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+    private val OG_IMAGE = Regex("""<meta[^>]+property=["']og:image["'][^>]*content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
+
+    /**
+     * A page without schema.org's product data but with the price in its meta tags or microdata (shops that fill
+     * those for Facebook or older search engines): music-vanderheyden.be's page, once reached, had no price the app
+     * could read. Null without such a price.
+     */
+    internal fun fromMeta(html: String): Result? {
+        val raw = (META_PRICE.find(html) ?: ITEMPROP_PRICE.find(html))?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() } ?: return null
+        val currency = META_CURRENCY.find(html)?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.uppercase()
+        if (currency != null && currency != "EUR") return null
+        // "1.299,00", "1,299.00", "1299.00", "1299,00": the last separator before two digits is the decimal one.
+        val price = Regex("""^(.*?)[.,](\d{2})$""").find(raw)?.let { m -> (m.groupValues[1].replace(Regex("[.,]"), "") + "." + m.groupValues[2]).toDoubleOrNull() }
+            ?: raw.replace(Regex("[.,]"), "").toDoubleOrNull()
+        if (price == null || price <= 0) return null
+        val stock = META_STOCK.find(html)?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.lowercase()
+        val inStock = when {
+            stock == null -> null
+            listOf("outofstock", "out of stock", "soldout", "discontinued", "oos").any { it in stock.replace("_", " ").replace("-", " ") || it in stock } -> false
+            else -> true
+        }
+        val title = OG_TITLE.find(html)?.groupValues?.get(1)
+            ?: Regex("<title[^>]*>(.*?)</title>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(html)?.groupValues?.get(1)
+        val name = title.orEmpty().replace("&amp;", "&").replace("&#39;", "'").replace("&quot;", "\"").trim()
+        return Result(name, listOf(Offer("", price, inStock)), OG_IMAGE.find(html)?.groupValues?.get(1))
     }
 
     /** schema.org's brand: a name, a Brand or Organization with a name, or a list of those. */

@@ -1,1 +1,3 @@
-• A normal shop page with a captcha form or a security script is no longer taken for a check page
+• Nightly check: no error when the phone's network sleeps at night; it tries again later
+• Prices are also read from a page's meta data
+• Zelda 40th Anniversary Edition: Coolblue and the Nintendo store are recognised again
