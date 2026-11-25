@@ -29,6 +29,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v5
 
+      # Robolectric's Android (some 200 MB from Maven Central, which answers "too many requests" at times): kept.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
+
       - name: Draw the screens
         env:
           SCREENSHOTS: "1"
