@@ -370,12 +370,53 @@ async function suggest(url, request, env, ctx) {
   return response;
 }
 
+// ---- Bright Data's SERP API: a trial against LiteScrape (speed, and what its answer holds) ----
+
+/**
+ * GET /bd-test?q=…: Google Shopping in Belgium through Bright Data (secrets BRIGHTDATA_KEY, BRIGHTDATA_ZONE), its
+ * answer as it comes and how long it took. As strict as the search: the app's token, 30 fresh a day per IP address,
+ * kept a day. For trying Bright Data out; the app doesn't use it.
+ */
+async function brightDataTest(url, request, env, ctx) {
+  const q = cleanQuery(url.searchParams.get("q"));
+  if (!q) return bad();
+  if (!env.BRIGHTDATA_KEY || !env.BRIGHTDATA_ZONE) return new Response("Not configured", { status: 500 });
+  const cache = caches.default;
+  const cacheKey = new Request(`https://cache.invalid/bd-test?q=${encodeURIComponent(q.toLowerCase())}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  if (!(await countToday(env, ctx, `bd/${ip}`, MAX_FRESH_PER_IP))) return new Response("Too many searches today", { status: 429 });
+  const google = `https://www.google.be/search?${new URLSearchParams({ q, tbm: "shop", hl: "nl", gl: "be", brd_json: "1" })}`;
+  const started = Date.now();
+  let answer;
+  try {
+    answer = await fetch("https://api.brightdata.com/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.BRIGHTDATA_KEY}` },
+      body: JSON.stringify({ zone: env.BRIGHTDATA_ZONE, url: google, format: "raw" }),
+    });
+  } catch {
+    return new Response("Search service error", { status: 502 });
+  }
+  const text = await answer.text();
+  const ms = Date.now() - started;
+  if (!answer.ok) return new Response(`Search service error ${answer.status}: ${text.slice(0, 300)}`, { status: 502 });
+  const response = new Response(JSON.stringify({ ms, answer: text.slice(0, 200000) }), {
+    status: 200,
+    headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
+  });
+  ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  return response;
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (env.APP_TOKEN && request.headers.get("X-Franxit-Token") !== env.APP_TOKEN) {
       return new Response("Forbidden", { status: 403 });
     }
     const url = new URL(request.url);
+    if (url.pathname === "/bd-test") return brightDataTest(url, request, env, ctx);
     if (url.pathname === "/api/suggest") {
       if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
       return suggest(url, request, env, ctx);
