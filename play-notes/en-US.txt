@@ -1,3 +1,4 @@
-• Nightly check: no error when the phone's network sleeps at night; it tries again later
+• Nightly check: no error when the phone's network sleeps at night
+• A new product gets more time for Google Shopping, and is checked again by itself if that was too slow
 • Prices are also read from a page's meta data
 • Zelda 40th Anniversary Edition: Coolblue and the Nintendo store are recognised again

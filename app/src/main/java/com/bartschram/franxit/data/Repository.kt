@@ -206,6 +206,20 @@ class Repository private constructor(context: Context) {
     /** Products whose Google Shopping search was too slow, until when it isn't asked again. */
     private val googleSlowUntil = java.util.concurrent.ConcurrentHashMap<Long, Long>()
     private val GOOGLE_SLOW_PAUSE_MS = 60 * 60_000L
+    private val FIRST_GOOGLE_MS = 60_000L
+
+    /** Products checked again by themselves after Google Shopping was too slow at their first check (once each). */
+    private val retried = java.util.concurrent.ConcurrentHashMap.newKeySet<Long>()
+
+    private fun retryLater(productId: Long) {
+        if (!retried.add(productId)) return
+        background.launch {
+            delay(RETRY_AFTER_MS)
+            runCatching { checkOne(productId) }
+        }
+    }
+
+    private val RETRY_AFTER_MS = 60_000L
 
     private fun extraShops(product: Product, query: String?, reference: Double?, ownShops: Int, waiting: Boolean = false): Extras {
         if (!searchesExtra(query, ownShops)) return Extras(emptyList())
@@ -223,8 +237,11 @@ class Repository private constructor(context: Context) {
         val matchName = matchName(product)
         // The wording that worked last time first, then the product's name, its fuller name, and "kopen".
         val terms = SearchNames.googleTerms(product, ShoppingSettings.extraTerm(appContext, product.id), ShoppingSettings.brand(appContext, product.id))
+        // Never asked for this product (one just added): there's nothing of Google's to show yet, so more time.
+        val first = ShoppingSettings.lastExtraDay(appContext, product.id) == null
         val found = try {
-            searchGoogleShopping(product.id, matchName, terms, reference) { ShoppingSettings.setExtraTerm(appContext, product.id, it) }
+            val search = { searchGoogleShopping(product.id, matchName, terms, reference) { ShoppingSettings.setExtraTerm(appContext, product.id, it) } }
+            if (first) GoogleShopping.within(FIRST_GOOGLE_MS, search) else search()
         } catch (e: Exception) {
             return when (e.message) {
                 // Nothing for this product: asked once a day, not at every refresh.
@@ -234,7 +251,13 @@ class Repository private constructor(context: Context) {
                 }
                 // Too slow: its last shops, and not waited for again for a while.
                 GoogleShopping.TOO_SLOW -> {
-                    googleSlowUntil[product.id] = System.currentTimeMillis() + GOOGLE_SLOW_PAUSE_MS
+                    if (first) {
+                        // A product just added: the search service goes on with it and keeps its answer, so the
+                        // product is checked again by itself in a little while (you had to refresh twice).
+                        retryLater(product.id)
+                    } else {
+                        googleSlowUntil[product.id] = System.currentTimeMillis() + GOOGLE_SLOW_PAUSE_MS
+                    }
                     Extras(last, SILENT)
                 }
                 // Out of searches, a key that doesn't work, no connection: the customer isn't told, it just
