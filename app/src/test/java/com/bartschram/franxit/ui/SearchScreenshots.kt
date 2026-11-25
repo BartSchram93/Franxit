@@ -60,7 +60,7 @@ class SearchScreenshots {
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
         // The photos downloaded from the shops (real results only; the samples have none).
-        Thread.sleep(12_000)
+        Thread.sleep(25_000)
         compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
         // Drawn from the window itself: Compose's own capture waits for a frame Robolectric doesn't send.
@@ -83,7 +83,9 @@ class SearchScreenshots {
         // As the app: the search's photo, else the page's own (fetched here; a shop that keeps servers out gives none).
         photoOf = { p ->
             p.imageUrl ?: kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runCatching { ProductSearch.photoIn(com.bartschram.franxit.scrape.Scraper.download(p.url, "text/html", readTimeoutMs = 8_000), p.url) }.getOrNull()
+                runCatching { ProductSearch.photoIn(com.bartschram.franxit.scrape.Scraper.download(p.url, "text/html", readTimeoutMs = 8_000), p.url) }
+                    .onFailure { println("PHOTO page failed ${p.url}: $it") }.getOrNull()
+                    ?.also { photo -> println("PHOTO ${p.url} -> $photo, loads: ${runCatching { com.bartschram.franxit.data.Images.thumbnail(photo) != null }.getOrElse { e -> e.toString() }}") }
             }
         },
         titleFromLink = titleFromLink,
