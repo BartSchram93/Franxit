@@ -58,4 +58,22 @@ class BrowserCheckTest {
         // Another currency isn't read as euros.
         assertThrows(java.io.IOException::class.java) { Scraper.parse(odoo.replace(">EUR<", ">USD<")) }
     }
+
+    @Test
+    fun thePagesOwnVariantIsReadNotTheFirstListed() {
+        fun product(name: String, id: String, price: String) =
+            """{"@type":"Product","name":"$name","url":"https://www.bol.com/be/nl/p/x/$id/","offers":{"@type":"Offer","price":"$price","priceCurrency":"EUR"}}"""
+        val data = """{"@type":"ProductGroup","name":"Sennheiser HD 599","hasVariant":[""" +
+            product("Sennheiser HD 599 - Koptelefoon - Bruin", "9200000064532561", "129.99") + "," +
+            product("Sennheiser HD 599 SE - Koptelefoon - Zwart", "9300000002888093", "84.91") + "]}"
+        val page = """<html><head><title>bol | Sennheiser HD 599 SE - Koptelefoon - Zwart</title>
+            <link rel="canonical" href="https://www.bol.com/be/nl/p/sennheiser-hd-599-over-ear-koptelefoon-special-edition-zwart/9300000002888093/">
+            <script type="application/ld+json">$data</script></head><body></body></html>"""
+        val read = Scraper.parse(page)
+        assertEquals("Sennheiser HD 599 SE - Koptelefoon - Zwart", read.name)
+        assertEquals(84.91, read.offers.single().price, 0.001)
+        // Without an address to go by, the title tells.
+        val noAddress = page.replace(Regex("<link[^>]*>"), "").replace("/9300000002888093/", "/1/").replace("/9200000064532561/", "/2/")
+        assertEquals("Sennheiser HD 599 SE - Koptelefoon - Zwart", Scraper.parse(noAddress).name)
+    }
 }

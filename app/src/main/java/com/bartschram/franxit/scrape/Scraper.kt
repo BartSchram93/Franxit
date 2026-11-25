@@ -229,7 +229,7 @@ object Scraper {
                     .getOrDefault(emptyList())
             }
             .toList()
-        val products = all.filter { isType(it, "Product") }
+        val products = pageFirst(all.filter { isType(it, "Product") }, html)
         val fromSchema = products.firstNotNullOfOrNull { product ->
             offers(product.opt("offers")).takeIf { it.isNotEmpty() }
                 ?.let { Result(product.optString("name").trim(), it, image(product.opt("image"), all), brand(product.opt("brand"))) }
@@ -306,6 +306,29 @@ object Scraper {
     }
 
     /** Every JSON object in the tree, parents before children. */
+    private val CANONICAL = Regex("""<link[^>]+rel=["']canonical["'][^>]*href=["']([^"']+)|<link[^>]+href=["']([^"']+)["'][^>]*rel=["']canonical["']|<meta[^>]+property=["']og:url["'][^>]*content=["']([^"']+)""", RegexOption.IGNORE_CASE)
+    private val PAGE_TITLE = Regex("""<title[^>]*>(.*?)</title>|<meta[^>]+property=["']og:title["'][^>]*content=["']([^"']+)|<h1[^>]*>(.*?)</h1>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+
+    /**
+     * The page's own product first, among the variants its data lists: bol.com's page of the black Sennheiser
+     * HD 599 SE lists the brown HD 599 too, first. The page's own one is the product at the page's address (its
+     * last number, "/9300000002888093/"), else the one its title names; otherwise the order stays.
+     */
+    private fun pageFirst(products: List<JSONObject>, html: String): List<JSONObject> {
+        if (products.size < 2) return products
+        val address = CANONICAL.findAll(html).flatMap { it.groupValues.drop(1) }.filter { it.isNotEmpty() }.toList()
+        val ids = address.mapNotNull { Regex("""(\d{6,})(?!.*\d{6,})""").find(it.substringBefore('?'))?.groupValues?.get(1) }.toSet()
+        fun urls(p: JSONObject): List<String> = listOfNotNull(p.optString("url"), p.optString("@id"), p.optString("sku"), p.optString("productID")) +
+            (p.optJSONObject("offers")?.optString("url")?.let(::listOf) ?: emptyList())
+        products.firstOrNull { p -> urls(p).any { u -> u.isNotEmpty() && (address.any { a -> a.substringBefore('?').trimEnd('/') == u.substringBefore('?').trimEnd('/') } || ids.any { it in u }) } }
+            ?.let { own -> return listOf(own) + (products - own) }
+        val titles = PAGE_TITLE.findAll(html).flatMap { it.groupValues.drop(1) }.filter { it.isNotBlank() }
+            .map { it.replace(Regex("<[^>]+>"), " ").replace("&amp;", "&").replace(Regex("\\s+"), " ").trim().lowercase() }.toList()
+        products.firstOrNull { p -> p.optString("name").trim().lowercase().let { n -> n.isNotEmpty() && titles.any { n in it } } }
+            ?.let { own -> return listOf(own) + (products - own) }
+        return products
+    }
+
     private fun nodes(value: Any?): List<JSONObject> = when (value) {
         is JSONArray -> (0 until value.length()).flatMap { nodes(value.opt(it)) }
         is JSONObject -> listOf(value) + value.keys().asSequence().toList().flatMap { nodes(value.opt(it)) }

@@ -1,2 +1,1 @@
-• Les boutiques en ligne néerlandaises sont toujours affichées (sauf le site .nl des boutiques qui ont leur propre site belge)
-• Les prix de boutiques comme Music Vanderheyden sont maintenant lus
+• Une page de boutique proposant plusieurs couleurs (comme bol.com) est lue dans la couleur de cette page
