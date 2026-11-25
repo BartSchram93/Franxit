@@ -372,7 +372,7 @@ class Repository private constructor(context: Context) {
      * Zelda Edition, sold out). The page the product was added from is already read ([own]). A page that can't be
      * read, or is of another product, changes nothing.
      */
-    private fun checkShopPages(product: Product, offers: List<ShopOffer>, own: Scraper.Result, lookups: Int): List<ShopOffer> {
+    private fun checkShopPages(product: Product, listed: List<ShopOffer>, own: Scraper.Result, lookups: Int): List<ShopOffer> {
         // One time limit for all of it: following links, asking Google, searching, reading, the browser. Each step had
         // its own (up to three minutes for the browser), and a refresh could take two minutes and more. What isn't
         // done by then waits for the next check; a shop without a page by then isn't shown this time.
@@ -381,6 +381,12 @@ class Repository private constructor(context: Context) {
         fun timeLeft() = System.currentTimeMillis() < deadline - 3_000
         val ownHost = runCatching { URI(product.url).host.removePrefix("www.") }.getOrDefault("")
         val name = own.name.ifBlank { product.displayName }
+        // Shops whose own title on vergelijk.be is another product (Techinn's 11-inch TCL NXTPAPER listed under the
+        // 14-inch one): their price is that product's. Left out, without looking for their page.
+        val otherOnVergelijk = own.offers.mapNotNull { offer ->
+            offer.title?.takeIf { Matching.isClearlyOther(it, name) }?.let { offer.seller to it }
+        }
+        val offers = listed.filter { offer -> otherOnVergelijk.none { TrustedShops.same(it.first, offer.seller) } }
         // Links the version before found itself and kept as if Google gave them: dropped once (a list of ink at 123inkt.be).
         val fromGoogle = if (GoogleShopping.queryOf(product.url) != null) offers.map { it.seller }
             else ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty().map { it.seller }
@@ -701,7 +707,8 @@ class Repository private constructor(context: Context) {
             !goodLink && !viaVergelijk && !TrustedShops.same(offer.seller, ownHost) && landings[offer.seller] == null
         }.map { it.seller }.toSet()
         // Shops left out and why, shown with the check's steps (held price): a shop that isn't listed can't be held down.
-        val leftOut = mutableListOf<Pair<String, String>>()
+        val leftOut = otherOnVergelijk.filter { (seller, _) -> listed.any { TrustedShops.same(it.seller, seller) } }
+            .map { (seller, title) -> seller to "Another product on vergelijk.be\n$title" }.toMutableList()
         val kept = offers.mapNotNull { offer ->
             val why = when {
                 offer.seller in foreign -> "Another country's site"

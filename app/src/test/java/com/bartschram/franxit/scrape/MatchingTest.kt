@@ -235,4 +235,16 @@ class MatchingTest {
         // Units aren't model codes.
         assertFalse(Matching.otherModelCode("TCL NXTPAPER 14 256 GB", "TCL NXTPAPER 14 8GB 256GB"))
     }
+
+    @Test
+    fun aShopsOwnTitleOnVergelijkTellsAnotherProduct() {
+        val name = "TCL NXTPAPER 14 - 14 inch - 8GB RAM 256GB - Grijs + Flip Case & Stylus"
+        // Techinn's offer on vergelijk.be's page of the 14-inch: the 11-inch.
+        assertTrue(Matching.isClearlyOther("Tcl Bundle Nxt Paper 4gb/128gb 11´´ Tablet Transparant . Ervaar de toekomst van comfortabel digitaal kijken met de TCL NXT Paper 11 table...", name))
+        assertFalse(Matching.isClearlyOther("TCL NXTPAPER 14 - 14 inch - 8GB RAM 256GB - Grijs + Flip Case & Stylus", name))
+        // Written otherwise, the same product.
+        assertFalse(Matching.isClearlyOther("Samsung Galaxy A57 5G - 256GB - Awesome Gray", "Samsung Galaxy A57 256GB Grijs 5G"))
+        assertFalse(Matching.isClearlyOther("SAMSUNG A576 Galaxy A57 5G (6,7 inch - 8/256 GB) grijs", "Samsung Galaxy A57 256GB Grijs 5G"))
+        assertTrue(Matching.isClearlyOther("Samsung Galaxy A57 5G - 128GB - Awesome Gray", "Samsung Galaxy A57 256GB Grijs 5G"))
+    }
 }

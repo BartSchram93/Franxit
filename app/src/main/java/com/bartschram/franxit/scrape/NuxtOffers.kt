@@ -60,7 +60,9 @@ object NuxtOffers {
             val link = (deref(offer, "clickoutHash") as? String)?.let {
                 "https://www.vergelijk.be/clickout/register?hash=" + URLEncoder.encode(it, "UTF-8")
             }
-            offers += Scraper.Offer(seller.trim(), price, link = link)
+            // The shop's own title for what it sells ("TCL NXTPAPER 11 4GB/128GB 11´´"): vergelijk.be can list another product.
+            val title = (deref(offer, "offerDescription") as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            offers += Scraper.Offer(seller.trim(), price, link = link, title = title)
         }
         // The same offer appears more than once in the state (e.g. as the "winner").
         return offers.distinctBy { it.seller to it.price }

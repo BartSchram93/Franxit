@@ -1,1 +1,2 @@
 • Une page de boutique proposant plusieurs couleurs (comme bol.com) est lue dans la couleur de cette page
+• Une boutique qui propose un autre produit sur vergelijk.be est écartée

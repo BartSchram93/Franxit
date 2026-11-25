@@ -19,7 +19,8 @@ import javax.net.ssl.SSLException
 object Scraper {
 
     /** [inStock] is null when the page doesn't say. [link] goes straight to the shop, when known. */
-    data class Offer(val seller: String, val price: Double, val inStock: Boolean? = null, val link: String? = null)
+    /** [title]: what the shop calls the product, where the source gives it (vergelijk.be's offers). */
+    data class Offer(val seller: String, val price: Double, val inStock: Boolean? = null, val link: String? = null, val title: String? = null)
 
     /** [brand]: the maker the page names ("999 Games"), when it does. */
     data class Result(val name: String, val offers: List<Offer>, val image: String? = null, val brand: String? = null) {

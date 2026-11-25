@@ -288,6 +288,15 @@ object Matching {
      * True when both name a memory size or a screen size and have none in common: "4GB/128GB 11´´" is not the
      * "14 inch - 8GB RAM 256GB" one (Techinn's 11-inch TCL NXTPAPER next to the 14-inch).
      */
+    /**
+     * Whether a shop's own [title] for its offer is clearly another product than [wanted]: another colour, tier,
+     * memory or screen size, model code or edition. Only those clear signs: a shop writes the same product its own
+     * way ("Awesome Gray" for "grijs").
+     */
+    fun isClearlyOther(title: String, wanted: String): Boolean =
+        otherColour(title, wanted) || otherTier(title, wanted) || otherSpecs(title, wanted) ||
+            otherModelCode(title, wanted) || otherEdition(title, wanted)
+
     internal fun otherSpecs(title: String, wanted: String): Boolean {
         val tg = gigabytes(title)
         val wg = gigabytes(wanted)
