@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
 import com.bartschram.franxit.scrape.ProductSearch
 import com.bartschram.franxit.ui.theme.FranxitTheme
@@ -78,6 +79,7 @@ class SearchScreenshots {
     ) = SearchScreen(
         search = { emptyList() },
         discover = found,
+        suggest = { listOf("playstation 5 pro", "playstation 5 slim", "playstation 5 digital edition") },
         // As the app: the search's photo, else the page's own (fetched here; a shop that keeps servers out gives none).
         // As the app: a photo that loads, the search's or else the page's (fetched here; a shop that keeps servers out
         // gives none).
@@ -151,5 +153,17 @@ class SearchScreenshots {
     @Test
     fun l_realDyson() = shoot("12-echt-dyson") {
         Search("dyson snoerloze stofzuiger", found = { real("dyson-stofzuiger.json") })
+    }
+
+    @Test
+    fun m_suggestionsWhileTyping() {
+        compose.setContent { FranxitTheme { Search("") } }
+        compose.onNode(androidx.compose.ui.test.hasSetTextAction()).performTextReplacement("playstation 5")
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        val view = compose.activity.window.decorView
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        view.draw(android.graphics.Canvas(bitmap))
+        File(out, "0-suggesties.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 }

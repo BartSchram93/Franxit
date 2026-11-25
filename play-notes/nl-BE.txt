@@ -1,1 +1,2 @@
 • Zoeken toont alleen producten waarvan de app de prijs op de winkelpagina kan lezen
+• Zoeksuggesties in een lijstje onder het zoekveld terwijl je typt

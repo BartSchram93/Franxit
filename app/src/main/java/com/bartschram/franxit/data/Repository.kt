@@ -942,6 +942,11 @@ class Repository private constructor(context: Context) {
         return match
     }
 
+    /** Search words for what you typed so far; none when the service can't be reached (they're only a help). */
+    suspend fun suggest(prefix: String): List<String> = withContext(Dispatchers.IO) {
+        runCatching { ProductSearch.suggest(prefix) }.getOrDefault(emptyList())
+    }
+
     /** Recent product searches, by their words: the same search again (back and forth) costs nothing. */
     private val discovered = object : LinkedHashMap<String, Pair<Long, List<ProductSearch.Product>>>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, List<ProductSearch.Product>>>) = size > 30

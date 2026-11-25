@@ -273,6 +273,35 @@ object ProductSearch {
         return relevant(productPages(parse(post("/api/product-search", Request(q).toJson())).products), q)
     }
 
+    /**
+     * Search words for what you typed so far ("hjc f1" → "hjc f100 bios"): words to search, never products. Only
+     * those with every word you typed (not "play sports" for "play"), not what you typed itself.
+     */
+    fun suggest(prefix: String): List<String> {
+        val q = clean(prefix) ?: return emptyList()
+        return parseSuggestions(request("/api/suggest?q=" + java.net.URLEncoder.encode(q, "UTF-8"), null), q)
+    }
+
+    fun parseSuggestions(json: String, typed: String): List<String> {
+        val list = JSONObject(json).optJSONArray("suggestions") ?: return emptyList()
+        // The last word typed may be half a word ("f1" for "f100"); the others are whole.
+        val words = plain(typed).split(' ').filter { it.isNotEmpty() }
+        return (0 until list.length()).mapNotNull { list.optString(it).trim().takeIf { s -> s.isNotEmpty() } }
+            .filter { s ->
+                val have = plain(s).split(' ')
+                plain(s) != plain(typed) && words.dropLast(1).all { it in have } && have.any { it.startsWith(words.last()) }
+            }
+            .distinctBy { plain(it) }
+            .take(MAX_SUGGESTIONS)
+    }
+
+    private const val MAX_SUGGESTIONS = 6
+
+    /** Words as written alike: small letters, no accents, Turkish "ı" as "i" (Google wrote "stofzuıger"). */
+    private fun plain(text: String): String =
+        java.text.Normalizer.normalize(text.trim().lowercase().replace('ı', 'i'), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "").replace(Regex("\\s+"), " ")
+
     private fun post(path: String, body: String): String = request(path, body)
 
     private fun request(path: String, body: String?): String {

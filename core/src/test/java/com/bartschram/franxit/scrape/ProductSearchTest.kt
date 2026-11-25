@@ -205,4 +205,14 @@ class ProductSearchTest {
             ProductSearch.Product("Console - Game Shock", "https://www.game-shock.nl/playstation-5/playstation-5-nieuw/console/"))))
         assertEquals("HJC F100 Bios Zwart / Grijs L", ProductSearch.cleanTitle("Koop de HJC F100 Bios Zwart / Grijs L - Motorwinkel.nl", "www.motorwinkel.nl"))
     }
+
+    @Test
+    fun suggestionsHaveEveryWordTyped() {
+        val json = """{"suggestions":["playstation 5","PlayStation 5","play","playstation 5 pro","play sports","playstore"," "]}"""
+        assertEquals(listOf("playstation 5", "playstation 5 pro", "play sports", "playstore"), ProductSearch.parseSuggestions(json, "play"))
+        assertEquals(listOf("playstation 5 pro"), ProductSearch.parseSuggestions(json, "playstation 5"))
+        // What you typed, written by Google with a Turkish "ı", is no suggestion.
+        assertEquals(emptyList<String>(), ProductSearch.parseSuggestions("""{"suggestions":["dyson snoerloze stofzuıger"]}""", "dyson snoerloze stofzuiger"))
+        assertEquals(listOf("hjc f100 bios"), ProductSearch.parseSuggestions("""{"suggestions":["hjc f100 bios","hjc rpha 71"]}""", "hjc f1"))
+    }
 }

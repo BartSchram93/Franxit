@@ -70,6 +70,8 @@ import androidx.compose.material3.TextButton
 fun SearchScreen(
     /** vergelijk.be's search: for a picked or pasted shop link, the same product there with all its shops. */
     search: suspend (String) -> List<VergelijkSearch.Hit>,
+    /** Search words while typing (Google's), shown in a list under the field. */
+    suggest: suspend (String) -> List<String>,
     /** Products on the web for typed words. */
     discover: suspend (String) -> List<ProductSearch.Product>,
     /** A found product's photo, when its own page shows a price the app reads; null otherwise (then it isn't shown). */
@@ -88,6 +90,7 @@ fun SearchScreen(
     var failed by remember { mutableStateOf(false) }
     // Products found on the web for the typed words.
     var products by remember { mutableStateOf<List<ProductSearch.Product>>(emptyList()) }
+    var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var limitReached by remember { mutableStateOf(false) }
     // Words searched when asked (Enter): not while typing. Counted, so each asks once.
     // A name the screen opens with (a price tag's) is searched at once too.
@@ -124,6 +127,7 @@ fun SearchScreen(
         if (link != null || q.length < 2) {
             results = emptyList()
             products = emptyList()
+            suggestions = emptyList()
             return@LaunchedEffect
         }
         results = emptyList()
@@ -134,8 +138,12 @@ fun SearchScreen(
                 failed = false
                 limitReached = false
                 searched = false
+                // Search words for what's typed so far, once typing pauses (free; a new letter cancels).
+                delay(SUGGEST_DELAY_MS)
+                suggestions = suggest(q)
                 return@coroutineScope
             }
+            suggestions = emptyList()
             searched = true
             searching = true
             val found = runCatching { discover(q) }
@@ -227,6 +235,21 @@ fun SearchScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                } else if (query.trim().length >= 2 && !searched && suggestions.isNotEmpty()) {
+                    // Search words while typing: picked, searched at once.
+                    items(suggestions, key = { "s:$it" }) { words ->
+                        Surface(
+                            onClick = { query = words; searchNow++ },
+                            color = MaterialTheme.colorScheme.background,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.width(14.dp))
+                                androidx.compose.material3.Text(words, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
                 } else if (query.trim().length >= 2 && !searched) {
                     item {
                         Text(
@@ -269,6 +292,9 @@ fun SearchScreen(
     }
 }
 
+
+/** How long typing must pause before search words are suggested. */
+private const val SUGGEST_DELAY_MS = 250L
 
 @Composable
 private fun ResultRow(title: String, subtitle: String?, price: Double?, image: String? = null, onClick: () -> Unit) {
