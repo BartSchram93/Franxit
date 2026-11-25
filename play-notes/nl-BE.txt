@@ -1,4 +1,1 @@
-• Producten die 's nachts niet gecontroleerd konden worden, worden vanzelf vernieuwd als je de app die dag voor het eerst opent
-• Nachtelijke controle: geen foutmelding meer als het netwerk van de gsm 's nachts slaapt
-• Een nieuw product krijgt meer tijd voor Google Shopping, en wordt vanzelf opnieuw gecontroleerd als dat te traag was
-• Prijzen ook lezen uit de meta-gegevens van een pagina
+• Een ander geheugen of schermformaat (bv. 11 inch 128GB naast 14 inch 256GB) telt als een ander product

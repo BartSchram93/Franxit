@@ -1,4 +1,1 @@
-• Les produits que la nuit n'a pas pu vérifier sont actualisés tout seuls à la première ouverture de la journée
-• Vérification nocturne : plus de message d'erreur quand le réseau du téléphone dort
-• Un nouveau produit a plus de temps pour Google Shopping
-• Les prix sont aussi lus dans les métadonnées d'une page
+• Une autre mémoire ou taille d'écran (p. ex. 11 pouces 128 Go à côté de 14 pouces 256 Go) compte comme un autre produit

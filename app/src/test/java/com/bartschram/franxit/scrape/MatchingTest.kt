@@ -213,4 +213,15 @@ class MatchingTest {
         val wanted = "Dreame Aqua 10 Roller"
         assertTrue(Matching.score("Dreame Aqua 10 Roller - Robotstofzuiger - Wit", wanted) > Matching.score("Dreame Aqua 10 Ultra Roller Complete - Robotstofzuiger - Wit", wanted))
     }
+
+    @Test
+    fun anotherSizeOrMemoryIsAnotherProduct() {
+        val wanted = "TCL NXTPAPER 14 - 14 inch - 8GB RAM 256GB - Grijs + Flip Case & Stylus"
+        assertTrue(Matching.isOtherProduct("TCL Bundle NXT Paper 4GB/128GB 11´´ tablet", wanted))
+        assertTrue(Matching.isOtherProduct("tcl bundle nxt paper 4gb 128gb 11 tablet", wanted))
+        // The same tablet with only some of its specs named stays the same.
+        assertFalse(Matching.otherSpecs("TCL NXTPAPER 14 256GB grijs", wanted))
+        assertFalse(Matching.otherSpecs("TCL NXTPAPER 14 tablet", wanted))
+        assertFalse(Matching.otherSpecs("TCL NXTPAPER 14,3\" 8 GB / 256 GB", wanted.replace("14 inch", "14,3 inch")))
+    }
 }

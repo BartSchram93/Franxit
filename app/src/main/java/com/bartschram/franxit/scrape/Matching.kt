@@ -221,7 +221,7 @@ object Matching {
      */
     fun isOtherProduct(title: String, wanted: String): Boolean {
         if (title.isBlank()) return false
-        if (otherTier(title, wanted)) return true
+        if (otherTier(title, wanted) || otherSpecs(title, wanted)) return true
         val want = words(wanted)
         if (want.filter(::isModelCode).any { it in compact(title) }) return false
         // Not by a "+" or an edition word: a shop's title adds a case and stylus to a tablet ("TCL NXTPAPER 14 + Flip
@@ -251,6 +251,30 @@ object Matching {
         val t = words(title).filter { it in TIERS }.toSet()
         val w = words(wanted).filter { it in TIERS }.toSet()
         return t != w
+    }
+
+    private val GIGABYTES = Regex("""(\d+)\s?(gb|tb)\b""", RegexOption.IGNORE_CASE)
+    private val INCHES = Regex("""(\d{1,2}(?:[.,]\d)?)\s?(?:inch|in\b|"|''|´´|”|″|-inch)""", RegexOption.IGNORE_CASE)
+
+    // (A terabyte as 1000 and as 1024 gigabytes: shops write "1TB" and "1024GB" for the same.)
+    private fun gigabytes(text: String) = GIGABYTES.findAll(text).flatMap { m ->
+        val n = m.groupValues[1].toIntOrNull() ?: 0
+        if (m.groupValues[2].equals("tb", ignoreCase = true)) listOf(n * 1000, n * 1024) else listOf(n)
+    }.toSet()
+
+    private fun inches(text: String) = INCHES.findAll(text).mapNotNull { it.groupValues[1].replace(',', '.').toDoubleOrNull() }.toSet()
+
+    /**
+     * True when both name a memory size or a screen size and have none in common: "4GB/128GB 11´´" is not the
+     * "14 inch - 8GB RAM 256GB" one (Techinn's 11-inch TCL NXTPAPER next to the 14-inch).
+     */
+    internal fun otherSpecs(title: String, wanted: String): Boolean {
+        val tg = gigabytes(title)
+        val wg = gigabytes(wanted)
+        if (tg.isNotEmpty() && wg.isNotEmpty() && tg.none { it in wg }) return true
+        val ti = inches(title)
+        val wi = inches(wanted)
+        return ti.isNotEmpty() && wi.isNotEmpty() && ti.none { t -> wi.any { kotlin.math.abs(it - t) < 0.15 } }
     }
 
     private val BUNDLE = Regex("""\s\+\s|\bbundel\b|\bbundle\b|\bset met\b|\bincl\.?\b|\binclusief\b""", RegexOption.IGNORE_CASE)

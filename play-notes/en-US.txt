@@ -1,4 +1,1 @@
-• Products the night couldn't check are refreshed by themselves the first time you open the app that day
-• Nightly check: no error when the phone's network sleeps
-• A new product gets more time for Google Shopping
-• Prices are also read from a page's meta data
+• Another memory or screen size (e.g. 11 inch 128GB next to 14 inch 256GB) counts as another product
