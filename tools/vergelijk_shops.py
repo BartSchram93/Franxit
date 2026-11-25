@@ -8,7 +8,6 @@ pages, some 750 pages a site), and adds the shops it finds to the ones already i
 
     python3 tools/vergelijk_shops.py                            # both sites
     python3 tools/vergelijk_shops.py https://www.vergelijk.nl   # one
-    python3 tools/vergelijk_shops.py --domains                  # only the Worker's shop sites, from the file
 """
 import json, re, subprocess, sys, time, pathlib
 
@@ -16,31 +15,7 @@ SITES = ["https://www.vergelijk.be", "https://www.vergelijk.nl"]
 
 UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36"
 OUT = pathlib.Path(__file__).resolve().parent.parent / "core/src/main/java/com/bartschram/franxit/data/VergelijkShops.kt"
-WORKER = pathlib.Path(__file__).resolve().parent.parent / "worker/search-proxy.js"
 WRAPPERS = {"ShallowReactive", "Reactive", "ShallowRef", "Ref"}
-DOMAIN = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)*\.(be|nl|com|eu|de|fr|net|shop)$")
-# Shops the lists name without their site ("Bol.", "MediaMarkt", "Kamera Express"), and the big ones' other sites.
-EXTRA_DOMAINS = [
-    "bol.com", "amazon.com.be", "amazon.nl", "coolblue.be", "mediamarkt.be", "mediamarkt.nl", "fnac.be", "nl.fnac.be",
-    "krefel.be", "vandenborre.be", "kamera-express.be", "cameranu.be", "bax-shop.be", "hema.be", "lego.com",
-    "samsung.com", "lg.com", "philips.be", "sony.be", "dreamland.be", "x2o.be", "galaxus.be", "decathlon.be",
-    "ikea.com", "zalando.be", "gamemania.be", "store.nintendo.com", "gear4music.be", "conrad.be",
-    "gooise-gitaren.nl", "music-vanderheyden.be",
-]
-
-
-def write_domains(names):
-    """The shops' sites, for the product search (Exa) in the Worker: between its SHOP_DOMAINS markers."""
-    domains = {n.lower().removeprefix("www.") for n in names if DOMAIN.match(n.lower().removeprefix("www."))} | set(EXTRA_DOMAINS)
-    # Not a shop's Dutch site when it has a Belgian one (coolblue.nl, amazon.nl): the search finds its Belgian pages.
-    belgian = {d.removesuffix(".be") for d in domains if d.endswith(".be")} | {"amazon"}
-    domains = sorted(d for d in domains if not (d.endswith(".nl") and d.removesuffix(".nl") in belgian))
-    text = WORKER.read_text()
-    start, end = text.index("// SHOP_DOMAINS-START"), text.index("// SHOP_DOMAINS-END")
-    head = text[start:].split("\n", 1)[0]
-    body = "const SHOP_DOMAINS = [\n" + "".join(f'  "{d}",\n' for d in domains) + "];\n"
-    WORKER.write_text(text[:start] + head + "\n" + body + text[end:])
-    return len(domains)
 
 
 def get(site, path):
@@ -75,10 +50,6 @@ def shops(page):
 
 
 def main():
-    if sys.argv[1:] == ["--domains"]:
-        names = re.findall(r'^\s*"((?:[^"\\]|\\.)*)",$', OUT.read_text(), re.M)
-        print(f"{write_domains(names)} sites for the product search")
-        return
     known = set(re.findall(r'^\s*"((?:[^"\\]|\\.)*)",$', OUT.read_text(), re.M)) if OUT.exists() else set()
     found = set()
     for site in sys.argv[1:] or SITES:
@@ -106,7 +77,7 @@ object VergelijkShops {{
     )
 }}
 ''')
-    print(f"{len(names)} shops ({len(names) - len(known)} new), {write_domains(names)} sites for the product search")
+    print(f"{len(names)} shops ({len(names) - len(known)} new)")
 
 
 if __name__ == "__main__":

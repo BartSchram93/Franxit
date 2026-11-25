@@ -188,4 +188,14 @@ class ProductSearchTest {
         assertNull(kept("https://www.asus.com/us/laptops/for-gaming/tuf-gaming/2021-asus-tuf-gaming-f15/", "2021 ASUS TUF Gaming F15 ｜ Laptops For Gaming ｜ ASUS USA"))
         assertEquals("ASUS TUF Gaming F16 (2024)", ProductSearch.cleanTitle("ASUS TUF Gaming F16 (2024) ｜ Laptops For Gaming ｜ ASUS Global", "www.asus.com"))
     }
+
+    @Test
+    fun belgianDutchOrTrustedShopsOnly() {
+        fun kept(url: String) = ProductSearch.productPages(listOf(ProductSearch.Product(Matching.titleFromLink(url) ?: "x", url))).singleOrNull()?.url
+        // A Dutch shop no list knows: kept (bikeroutfit.nl's HJC F100 Bios).
+        assertEquals("https://www.bikeroutfit.nl/nl/hjc-f100-bios-helm.html", kept("https://www.bikeroutfit.nl/nl/hjc-f100-bios-helm.html"))
+        // A trusted shop elsewhere: kept; an unknown shop abroad: not.
+        assertEquals("https://www.techinn.com/techinn/nl/tcl-nxtpaper-14-tablet/140012345/p", kept("https://www.techinn.com/techinn/nl/tcl-nxtpaper-14-tablet/140012345/p"))
+        assertNull(kept("https://www.cheap-helmets-outlet.com/hjc-f100-bios-helmet-sale"))
+    }
 }

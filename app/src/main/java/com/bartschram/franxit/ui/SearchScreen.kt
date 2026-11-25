@@ -271,10 +271,9 @@ fun SearchScreen(
                 }
                 items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null, hit.image) { onPick(hit.url, hit.title) } }
                 // Products found on the web with their photo (only those that have one: a page without a photo of the
-                // product is often no product's page). Picked, the product is tracked, found across all shops first (as
-                // a pasted shop link), so its price is compared.
+                // product is often no product's page). Picked, it is tracked at once; its check finds the other shops.
                 if (link == null) items(products, key = { "p:" + it.url }) { product ->
-                    ResultRow(product.title, null, null, product.imageUrl) { query = product.url }
+                    ResultRow(product.title, null, null, product.imageUrl) { onPick(product.url, product.title) }
                 }
                 if (google != null && !googleFirst) {
                     item(key = "google") {

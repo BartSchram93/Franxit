@@ -87,6 +87,9 @@ object ProductSearch {
         when {
             !ShopCheck.isProductPage(url) || ShopCheck.isElsewhere(url, p.title) -> null
             DuckDuckGo.isForeignSite(url) -> null
+            // A Belgian or Dutch shop, or one the app trusts elsewhere (bol.com, techinn.com): not an unknown web shop
+            // abroad, which may be a fake one.
+            !host.endsWith(".be") && !host.endsWith(".nl") && !com.bartschram.franxit.data.TrustedShops.isTrusted(host, emptySet()) -> null
             // Another country's pages of a site ("lego.com/en-us/"); on a Belgian site those letters are a language.
             !host.endsWith(".be") && DuckDuckGo.isOtherCountry(url) -> null
             // A site for another country by its first part ("es.nbb.com"); "nl.fnac.be" and "fr.zalando.be" are Belgian.

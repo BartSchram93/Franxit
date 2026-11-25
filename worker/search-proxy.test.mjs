@@ -8,7 +8,7 @@ globalThis.fetch = async (url, init) => {
   if (String(url).startsWith("https://api.exa.ai/search")) {
     const body = JSON.parse(init.body);
     assert.equal(init.headers["x-api-key"], "KEY");
-    assert.ok(body.includeDomains.includes("coolblue.be"));
+    assert.ok(body.excludeDomains.includes("youtube.com"));
     if (body.query === "fail") return new Response("no credits", { status: 402 });
     return Response.json({ results: [
       { url: "https://www.coolblue.be/nl/product/123/ps5.html?utm_source=x#top", title: " PlayStation 5  Slim ", score: 0.8, image: "https://img/1.jpg", highlights: ["De PS5 Slim met disc."] },
