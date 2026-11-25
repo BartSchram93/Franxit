@@ -8,6 +8,8 @@ import java.io.File
 class TranslationsTest {
 
     private val sources = File("src/main/java/com/bartschram/franxit")
+    /** The shared module's code: its messages (a shop that keeps apps out, …) are shown in the app too. */
+    private val coreSources = File("../core/src/main/java/com/bartschram/franxit")
 
     private val languages = mapOf("Dutch" to DUTCH_TEXTS, "French" to FRENCH_TEXTS)
 
@@ -28,9 +30,9 @@ class TranslationsTest {
 
     @Test
     fun everyTextTheAppSaysHasItsTranslations() {
-        assertTrue("sources not found from ${File(".").absolutePath}", sources.exists())
+        assertTrue("sources not found from ${File(".").absolutePath}", sources.exists() && coreSources.exists())
         val missing = sortedSetOf<String>()
-        sources.walkTopDown().filter { it.extension == "kt" && !it.name.endsWith("Texts.kt") }.forEach { file ->
+        (sources.walkTopDown() + coreSources.walkTopDown()).filter { it.extension == "kt" && !it.name.endsWith("Texts.kt") }.forEach { file ->
             val code = file.readText()
             // t("…") and the app's own Text("…"), but not Glance's (the widget calls t() itself).
             val calls = Regex("""\bt\(\s*"((?:[^"\\\n]|\\.)*)"""").findAll(code).map { it.groupValues[1] } +
@@ -63,7 +65,7 @@ class TranslationsTest {
     @Test
     fun theAlertSuggestionsAreTranslated() {
         // Their texts live in the data layer, so the source scan doesn't see them.
-        val code = File("src/main/java/com/bartschram/franxit/data/Suggestions.kt").readText()
+        val code = File("../core/src/main/java/com/bartschram/franxit/data/Suggestions.kt").readText()
         val texts = Regex("""add\("([^"]+)",[^"]*"([^"]+)"\)""").findAll(code).flatMap { listOf(it.groupValues[1], it.groupValues[2]) }.toList()
         assertTrue("found no suggestions in $code", texts.size >= 6)
         for ((language, translations) in languages) {
