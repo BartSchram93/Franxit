@@ -54,11 +54,17 @@ class SearchScreenshots {
         L10n.set(ApplicationProvider.getApplicationContext(), L10n.Choice.DUTCH)
     }
 
-    private fun shoot(name: String, content: @Composable () -> Unit) {
+    private fun shoot(name: String, photos: Boolean = false, content: @Composable () -> Unit) {
         compose.setContent { FranxitTheme { content() } }
         // Past the waits for typing to pause.
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
+        // Real results: their photos downloaded from the shops (some don't answer: then none, as in the app).
+        if (photos) {
+            Thread.sleep(15_000)
+            compose.mainClock.advanceTimeBy(500)
+            compose.waitForIdle()
+        }
         // Drawn from the window itself: Compose's own capture waits for a frame Robolectric doesn't send.
         val view = compose.activity.window.decorView
         val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
@@ -112,4 +118,31 @@ class SearchScreenshots {
     @Test
     @Config(qualifiers = "w800dp-h1280dp-night-xhdpi")
     fun h_tablet() = shoot("8-tablet") { Search("playstation 5") }
+
+    /** What the search service answered for a real search (saved from Exa), as the app filters it. */
+    private fun real(file: String): List<ProductSearch.Product> =
+        ProductSearch.productPages(ProductSearch.parse(javaClass.getResource("/search/$file")!!.readText()).products)
+
+    @Test
+    fun i_realPlayStation() = shoot("9-echt-playstation-5-pro", photos = true) {
+        Search("playstation 5 pro console", found = { real("playstation-5-pro.json") },
+            words = listOf("playstation 5 pro console - 2tb", "playstation 5 pro console - 30th anniversary limited edition", "playstation 5 pro console bundle"))
+    }
+
+    @Test
+    fun j_realHeadphones() = shoot("10-echt-koptelefoon", photos = true) {
+        Search("betaalbare draadloze koptelefoon", found = { real("draadloze-koptelefoon.json") },
+            words = listOf("beste betaalbare draadloze koptelefoon", "goede betaalbare draadloze koptelefoon"))
+    }
+
+    @Test
+    fun k_realNike() = shoot("11-echt-nike-air-max-90", photos = true) {
+        Search("nike air max 90 heren", found = { real("nike-air-max-90.json") },
+            words = listOf("nike air max 90 heren wit", "nike air max 90 heren zwart", "nike air max 90 heren sale"))
+    }
+
+    @Test
+    fun l_realDyson() = shoot("12-echt-dyson", photos = true) {
+        Search("dyson snoerloze stofzuiger", found = { real("dyson-stofzuiger.json") }, words = emptyList())
+    }
 }

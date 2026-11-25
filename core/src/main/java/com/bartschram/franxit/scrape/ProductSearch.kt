@@ -153,12 +153,17 @@ object ProductSearch {
     fun parseSuggestions(json: String, typed: String): List<String> {
         val list = JSONObject(json).optJSONArray("suggestions") ?: return emptyList()
         return (0 until list.length()).mapNotNull { list.optString(it).trim().takeIf { s -> s.isNotEmpty() } }
-            .filter { !it.equals(typed.trim(), ignoreCase = true) }
-            .distinctBy { it.lowercase() }
+            .filter { plain(it) != plain(typed) }
+            .distinctBy { plain(it) }
             .take(MAX_SUGGESTIONS)
     }
 
     private const val MAX_SUGGESTIONS = 6
+
+    /** Words as written alike: in small letters, without accents, Turkish "ı" as "i" (Google wrote "stofzuıger"). */
+    private fun plain(text: String): String =
+        java.text.Normalizer.normalize(text.trim().lowercase().replace('ı', 'i'), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "").replace(Regex("\\s+"), " ")
 
     private fun get(path: String): String = request(path, null)
 

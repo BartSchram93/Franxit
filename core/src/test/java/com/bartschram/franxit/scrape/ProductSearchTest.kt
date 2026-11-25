@@ -57,6 +57,8 @@ class ProductSearchTest {
         val json = """{"suggestions":["playstation 5","PlayStation 5","play","playstation 5 pro"," "]}"""
         assertEquals(listOf("playstation 5", "playstation 5 pro"), ProductSearch.parseSuggestions(json, "play"))
         assertEquals(emptyList<String>(), ProductSearch.parseSuggestions("{}", "play"))
+        // What you typed, written with a Turkish "ı" by Google, is no suggestion either.
+        assertEquals(emptyList<String>(), ProductSearch.parseSuggestions("""{"suggestions":["dyson snoerloze stofzuıger"]}""", "dyson snoerloze stofzuiger"))
     }
 
     @Test
