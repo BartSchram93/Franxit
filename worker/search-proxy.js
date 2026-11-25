@@ -20,7 +20,7 @@
 //   nothing on a workers.dev address, so bind LIMITS there).
 
 const DAY = 86400;
-const MAX_FRESH_PER_IP = 30;      // fresh searches per IP address per day
+const MAX_FRESH_PER_IP = 50;      // fresh Google Shopping searches per IP address per day
 
 const MAX_RECOGNIZE_PER_IP = 5;   // photos recognised per IP address per day
 const MAX_PHOTO_BYTES = 500_000;  // SerpApi's Image API takes at most 500 KB
@@ -374,7 +374,7 @@ async function suggest(url, request, env, ctx) {
 
 /**
  * GET /bd-test?q=…: Google Shopping in Belgium through Bright Data (secrets BRIGHTDATA_KEY, BRIGHTDATA_ZONE), its
- * answer as it comes and how long it took. As strict as the search: the app's token, 30 fresh a day per IP address,
+ * answer as it comes and how long it took. As strict as the search: the app's token, 50 fresh a day per IP address,
  * kept a day. For trying Bright Data out; the app doesn't use it.
  */
 async function brightDataTest(url, request, env, ctx) {
