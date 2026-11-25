@@ -56,8 +56,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import com.bartschram.franxit.scrape.ProductSearch
-import com.bartschram.franxit.data.Shops
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.foundation.lazy.LazyRow
@@ -76,8 +74,6 @@ fun SearchScreen(
     discover: suspend (String) -> List<ProductSearch.Product>,
     /** Search words while typing. */
     suggest: suspend (String) -> List<String>,
-    /** A found product's price, read from its own page; null when it shows none the app can read. */
-    priceOf: suspend (ProductSearch.Product) -> Double?,
     titleFromLink: suspend (String) -> String?,
     /** [title] is the product's name when the result has one (a typed or shared link has none). */
     onPick: (url: String, title: String?) -> Unit,
@@ -261,9 +257,10 @@ fun SearchScreen(
                     }
                 }
                 items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null, hit.image) { onPick(hit.url, hit.title) } }
-                // Products found on the web: picked, the product is looked up across all shops (as a pasted link).
+                // Products found on the web, shown as vergelijk.be's were: picked, the product is tracked, found across
+                // all shops first (as a pasted shop link), so its price is compared.
                 if (link == null) items(products, key = { "p:" + it.url }) { product ->
-                    ProductCard(product, priceOf) { query = product.url }
+                    ResultRow(product.title, null, null, product.imageUrl) { query = product.url }
                 }
                 if (google != null && !googleFirst) {
                     item(key = "google") {
@@ -283,48 +280,6 @@ fun SearchScreen(
 /** How long typing must pause before search words are suggested, and before products are searched. */
 private const val SUGGEST_DELAY_MS = 250L
 private const val DISCOVER_DELAY_MS = 600L
-
-/**
- * A product found on the web: its photo, name and shop as the source gave them, and its price once its own page
- * was read (nothing when it showed none: a price is never guessed). Tapped: tracked; "Open": the shop's page.
- */
-@Composable
-private fun ProductCard(product: ProductSearch.Product, priceOf: suspend (ProductSearch.Product) -> Double?, onPick: () -> Unit) {
-    val uri = LocalUriHandler.current
-    val price by produceState<Double?>(null, product.url) { value = priceOf(product) }
-    Surface(
-        onClick = onPick,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            val image = product.imageUrl
-            if (image != null) {
-                val photo by produceState<ImageBitmap?>(null, image) {
-                    value = withContext(Dispatchers.IO) { runCatching { Images.thumbnail(image)?.asImageBitmap() }.getOrNull() }
-                }
-                ProductPhoto(photo, ThumbnailSize, 12.dp)
-                Spacer(Modifier.width(ThumbnailGap))
-            }
-            Column(Modifier.weight(1f)) {
-                androidx.compose.material3.Text(product.title, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                product.retailer?.let {
-                    Spacer(Modifier.height(2.dp))
-                    androidx.compose.material3.Text(
-                        Shops.name(it), style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                price?.let {
-                    Spacer(Modifier.height(4.dp))
-                    androidx.compose.material3.Text(it.euro(), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                }
-            }
-            TextButton(onClick = { uri.openUri(product.url) }) { Text("Open") }
-        }
-    }
-}
 
 @Composable
 private fun ResultRow(title: String, subtitle: String?, price: Double?, image: String? = null, onClick: () -> Unit) {

@@ -228,7 +228,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             search = { repo.search(it) },
             discover = { repo.discover(it) },
             suggest = { repo.suggest(it) },
-            priceOf = { repo.verifiedPrice(it) },
             titleFromLink = { repo.productTitleFor(it) },
             onPick = { url, title -> searching = false; searchStart = ""; add(url, "search", title) },
             onBack = { searching = false; searchStart = "" },

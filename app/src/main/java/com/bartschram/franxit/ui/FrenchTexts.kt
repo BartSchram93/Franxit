@@ -92,7 +92,6 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "No products found." to "Aucun produit trouvé.",
     "Looking for products at the shops…" to "Recherche de produits dans les boutiques…",
     "Too many searches today. Try again tomorrow." to "Trop de recherches aujourd'hui. Réessaie demain.",
-    "Open" to "Ouvrir",
     "Type a product name, or paste a link to a product page." to "Tape le nom d'un produit, ou colle un lien vers une page de produit.",
     "Track via Google Shopping: \"%s\"" to "Suivre via Google Shopping : « %s »",
     "Checked once a day" to "Vérifié une fois par jour",

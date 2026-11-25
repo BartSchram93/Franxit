@@ -42,8 +42,6 @@ class SearchScreenshots {
         product("DualSense draadloze controller – Midnight Black", "fnac.be", "/a17234561/Sony-DualSense"),
         product("PlayStation 5 Pro – 2 TB", "krefel.be", "/nl/p/43001234-playstation-5-pro"),
     )
-    // Prices as the app reads them from each page: some pages show none it can read, and then none is shown.
-    private val prices = mapOf(ps5[0].url to 449.99, ps5[1].url to 399.0, ps5[2].url to 799.99, ps5[4].url to 64.99)
 
     private val headphones = listOf(
         product("Sony WH-CH720N draadloze koptelefoon – Zwart", "coolblue.be", "/nl/product/930001/sony-wh-ch720n-zwart.html"),
@@ -58,7 +56,7 @@ class SearchScreenshots {
 
     private fun shoot(name: String, content: @Composable () -> Unit) {
         compose.setContent { FranxitTheme { content() } }
-        // Past the waits for typing to pause, and the prices read.
+        // Past the waits for typing to pause.
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
         // Drawn from the window itself: Compose's own capture waits for a frame Robolectric doesn't send.
@@ -78,7 +76,6 @@ class SearchScreenshots {
         search = { emptyList() },
         discover = found,
         suggest = { words },
-        priceOf = { prices[it.url] },
         titleFromLink = titleFromLink,
         onPick = { _, _ -> },
         onBack = {},

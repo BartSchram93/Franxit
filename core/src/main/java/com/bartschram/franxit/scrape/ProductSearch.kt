@@ -13,8 +13,8 @@ import java.net.URLEncoder
  * The search runs in Franxit's search service (the Worker at [GoogleShopping.PROXY]), which asks Exa and holds its key;
  * the app only knows the service's own format, so the provider behind it can change without an app update.
  *
- * Only what the source gives is kept: a product without a price, photo or shop stays without one. The app reads a
- * price from the product's page itself ([com.bartschram.franxit.data.Repository.verifiedPrice]), never from here.
+ * Only what the source gives is kept: a product without a price, photo or shop stays without one. The search screen
+ * shows a found product's name and photo; its price is read when it's tracked, from the shops' pages as for any.
  */
 object ProductSearch {
 
