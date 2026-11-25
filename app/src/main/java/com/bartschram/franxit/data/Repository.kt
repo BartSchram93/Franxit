@@ -961,11 +961,6 @@ class Repository private constructor(context: Context) {
         photo
     }
 
-    /** Search words for what you typed so far; none when the service can't be reached (they're only a help). */
-    suspend fun suggest(prefix: String): List<String> = withContext(Dispatchers.IO) {
-        runCatching { ProductSearch.suggest(prefix) }.getOrDefault(emptyList())
-    }
-
     /**
      * What a shop link is for, to find it on vergelijk.be: the page's full product title (colour
      * and all, to match the right version), or the link's words.

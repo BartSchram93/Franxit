@@ -15,8 +15,6 @@
 //   availability, score}]}. Only what Exa returns: no price, stock or shop is ever made up (the app reads prices from
 //   the pages themselves). Kept a day per query and shared (a search someone made today costs nothing); 20 fresh
 //   searches per user (the app's anonymous id) per day.
-// - GET /api/suggest?q=…: search words while typing ("play" → "playstation 5"), from Google's suggestions. Words
-//   only, never products.
 // - Limits per day are counted in Workers KV (binding LIMITS) when it is bound; the cache otherwise (which does
 //   nothing on a workers.dev address, so bind LIMITS there).
 
@@ -29,7 +27,6 @@ const MAX_PHOTO_BYTES = 500_000;  // SerpApi's Image API takes at most 500 KB
 
 const MAX_DISCOVER_PER_USER = 20;  // product searches (Exa) per app (its anonymous X-Franxit-Install id) per day
 const MAX_DISCOVER_PER_IP = 200;   // and per IP address: an app that makes up new ids is stopped there
-const MAX_SUGGEST_PER_IP = 600;    // suggestions per IP address per day (free, but not unlimited)
 const DISCOVER_RESULTS = 25;       // asked of Exa; the app shows the product pages among them
 const MAX_QUERY = 150;
 
@@ -231,7 +228,7 @@ function liteStatus(status) {
   return 502;
 }
 
-// ---- Product search (Exa) and suggestions ----
+// ---- Product search (Exa) ----
 
 // SHOP_DOMAINS-START (made by tools/vergelijk_shops.py: the sites of the shops vergelijk.be and vergelijk.nl list)
 const SHOP_DOMAINS = [
@@ -610,35 +607,6 @@ async function productSearch(request, env, ctx) {
   return response;
 }
 
-/** GET /api/suggest?q=…: Google's suggested search words for what you typed, in Dutch for Belgium. */
-async function suggest(url, request, env, ctx) {
-  const q = cleanQuery(url.searchParams.get("q"));
-  if (!q) return bad();
-  const cache = caches.default;
-  const cacheKey = new Request(`https://cache.invalid/api/suggest?q=${encodeURIComponent(q.toLowerCase())}`);
-  const hit = await cache.match(cacheKey);
-  if (hit) return hit;
-  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  if (!(await countToday(env, ctx, `suggest/${ip}`, MAX_SUGGEST_PER_IP))) return new Response("Too many searches today", { status: 429 });
-  const params = new URLSearchParams({ client: "firefox", hl: "nl", gl: "be", q });
-  let words = [];
-  try {
-    const answer = await fetch(`https://suggestqueries.google.com/complete/search?${params}`);
-    if (!answer.ok) return new Response("Suggestion service error", { status: 502 });
-    const data = JSON.parse(new TextDecoder("utf-8").decode(await answer.arrayBuffer()));
-    words = (Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [])
-      .filter((w) => typeof w === "string" && w.trim()).map((w) => w.trim()).slice(0, 8);
-  } catch {
-    return new Response("Suggestion service error", { status: 502 });
-  }
-  const response = new Response(JSON.stringify({ suggestions: words }), {
-    status: 200,
-    headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
-  });
-  ctx.waitUntil(cache.put(cacheKey, response.clone()));
-  return response;
-}
-
 export default {
   async fetch(request, env, ctx) {
     if (env.APP_TOKEN && request.headers.get("X-Franxit-Token") !== env.APP_TOKEN) {
@@ -648,10 +616,6 @@ export default {
     if (url.pathname === "/api/product-search") {
       if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
       return productSearch(request, env, ctx);
-    }
-    if (url.pathname === "/api/suggest") {
-      if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
-      return suggest(url, request, env, ctx);
     }
     if (url.pathname === "/recognize") {
       if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });

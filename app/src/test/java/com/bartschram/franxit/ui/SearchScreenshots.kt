@@ -74,12 +74,10 @@ class SearchScreenshots {
     private fun Search(
         query: String,
         found: suspend (String) -> List<ProductSearch.Product> = { ps5 },
-        words: List<String> = listOf("playstation 5 pro", "playstation 5 slim", "playstation 5 digital", "playstation 5 controller"),
         titleFromLink: suspend (String) -> String? = { null },
     ) = SearchScreen(
         search = { emptyList() },
         discover = found,
-        suggest = { words },
         // As the app: the search's photo, else the page's own (fetched here; a shop that keeps servers out gives none).
         // As the app: a photo that loads, the search's or else the page's (fetched here; a shop that keeps servers out
         // gives none).
@@ -100,21 +98,21 @@ class SearchScreenshots {
     )
 
     @Test
-    fun a_resultsWithSuggestions() = shoot("1-resultaten") { Search("playstation 5") }
+    fun a_results() = shoot("1-resultaten") { Search("playstation 5") }
 
     @Test
     fun b_aQuestionInPlainWords() = shoot("2-gewone-taal") {
-        Search("goedkope draadloze koptelefoon", found = { headphones }, words = listOf("goedkope draadloze koptelefoon met noise cancelling", "goedkope draadloze koptelefoon sport"))
+        Search("goedkope draadloze koptelefoon", found = { headphones })
     }
 
     @Test
-    fun c_searching() = shoot("3-zoeken") { Search("nike air max", found = { awaitCancellation() }, words = listOf("nike air max 90", "nike air max dn", "nike air max plus")) }
+    fun c_searching() = shoot("3-zoeken") { Search("nike air max", found = { awaitCancellation() }) }
 
     @Test
-    fun d_nothingFound() = shoot("4-niets-gevonden") { Search("xqzv kleerhanger 3000", found = { emptyList() }, words = emptyList()) }
+    fun d_nothingFound() = shoot("4-niets-gevonden") { Search("xqzv kleerhanger 3000", found = { emptyList() }) }
 
     @Test
-    fun e_limitReached() = shoot("5-limiet") { Search("iphone 17 pro", found = { throw ProductSearch.LimitReached() }, words = listOf("iphone 17 pro max")) }
+    fun e_limitReached() = shoot("5-limiet") { Search("iphone 17 pro", found = { throw ProductSearch.LimitReached() }) }
 
     @Test
     fun f_pickedProductComparedAcrossShops() = shoot("6-gekozen-product") {
@@ -134,24 +132,21 @@ class SearchScreenshots {
 
     @Test
     fun i_realPlayStation() = shoot("9-echt-playstation-5-pro") {
-        Search("playstation 5 pro console", found = { real("playstation-5-pro.json") },
-            words = listOf("playstation 5 pro console - 2tb", "playstation 5 pro console - 30th anniversary limited edition", "playstation 5 pro console bundle"))
+        Search("playstation 5 pro console", found = { real("playstation-5-pro.json") })
     }
 
     @Test
     fun j_realHeadphones() = shoot("10-echt-koptelefoon") {
-        Search("betaalbare draadloze koptelefoon", found = { real("draadloze-koptelefoon.json") },
-            words = listOf("beste betaalbare draadloze koptelefoon", "goede betaalbare draadloze koptelefoon"))
+        Search("betaalbare draadloze koptelefoon", found = { real("draadloze-koptelefoon.json") })
     }
 
     @Test
     fun k_realNike() = shoot("11-echt-nike-air-max-90") {
-        Search("nike air max 90 heren", found = { real("nike-air-max-90.json") },
-            words = listOf("nike air max 90 heren wit", "nike air max 90 heren zwart", "nike air max 90 heren sale"))
+        Search("nike air max 90 heren", found = { real("nike-air-max-90.json") })
     }
 
     @Test
     fun l_realDyson() = shoot("12-echt-dyson") {
-        Search("dyson snoerloze stofzuiger", found = { real("dyson-stofzuiger.json") }, words = emptyList())
+        Search("dyson snoerloze stofzuiger", found = { real("dyson-stofzuiger.json") })
     }
 }

@@ -1,4 +1,4 @@
-// The product search and suggestions of search-proxy.js, with Exa and Google stood in for: node worker/search-proxy.test.mjs
+// The product search of search-proxy.js, with Exa stood in for: node worker/search-proxy.test.mjs
 import assert from "node:assert/strict";
 const store = new Map();
 globalThis.caches = { default: { match: async (r) => store.get(r.url)?.clone(), put: async (r, res) => { store.set(r.url, res); } } };
@@ -18,7 +18,6 @@ globalThis.fetch = async (url, init) => {
       { url: "https://www.fnac.be/a1", title: "" },
     ] });
   }
-  if (String(url).startsWith("https://suggestqueries.google.com/")) return new Response(JSON.stringify(["play", ["playstation 5", "playstation 5 pro", 3, ""]]));
   throw new Error("unexpected " + url);
 };
 const { default: worker } = await import("./search-proxy.js");
@@ -52,8 +51,6 @@ await Promise.all(waits);
 assert.equal((await user(a, "q3x")).status, 200);
 r = await worker.fetch(new Request("https://w/api/product-search", { headers: { "X-Franxit-Token": "T" } }), env, ctx);
 assert.equal(r.status, 405);
-r = await worker.fetch(new Request("https://w/api/suggest?q=play", { headers: { "X-Franxit-Token": "T" } }), env, ctx);
-assert.deepEqual(await r.json(), { suggestions: ["playstation 5", "playstation 5 pro"] });
 r = await worker.fetch(new Request("https://w/api/product-search", { method: "POST", headers: { "X-Franxit-Token": "T" }, body: JSON.stringify({ query: "ps5" }) }), { APP_TOKEN: "T" }, ctx);
 assert.equal(r.status, 500);
 console.log("worker tests ok");

@@ -55,12 +55,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
 import com.bartschram.franxit.scrape.ProductSearch
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.foundation.lazy.LazyRow
 
 /**
  * Search for a product, or paste any product link, and pick what to track. Typed words (or a question: "cheap
@@ -74,8 +71,6 @@ fun SearchScreen(
     search: suspend (String) -> List<VergelijkSearch.Hit>,
     /** Products on the web for typed words. */
     discover: suspend (String) -> List<ProductSearch.Product>,
-    /** Search words while typing. */
-    suggest: suspend (String) -> List<String>,
     /** A found product's photo, from its own page when the search gave none; null when it has none. */
     photoOf: suspend (ProductSearch.Product) -> String?,
     titleFromLink: suspend (String) -> String?,
@@ -94,11 +89,10 @@ fun SearchScreen(
     var failed by remember { mutableStateOf(false) }
     // What to search Google Shopping for: the typed words, or the product name behind a shop link.
     var shoppingQuery by remember { mutableStateOf<String?>(null) }
-    // Products found on the web for the typed words, and search words to pick while typing.
+    // Products found on the web for the typed words.
     var products by remember { mutableStateOf<List<ProductSearch.Product>>(emptyList()) }
-    var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var limitReached by remember { mutableStateOf(false) }
-    // Words searched at once (Enter, or a suggestion picked): no wait for typing to pause. Counted, so each asks once.
+    // Words searched when asked (Enter): not while typing. Counted, so each asks once.
     // A name the screen opens with (a price tag's) is searched at once too.
     var searchNow by remember { mutableStateOf(if (initialQuery.isNotBlank()) 1 else 0) }
     val searchedNow = remember { intArrayOf(0) }
@@ -134,19 +128,13 @@ fun SearchScreen(
         if (link != null || q.length < 2) {
             results = emptyList()
             products = emptyList()
-            suggestions = emptyList()
             if (shopLink == null) shoppingQuery = null
             return@LaunchedEffect
         }
         results = emptyList()
         shoppingQuery = q
         coroutineScope {
-            // Search words while typing (free); products only when asked (Search, a suggestion picked): each search
-            // counts towards the user's 20 a day. A new letter cancels both.
-            launch {
-                delay(SUGGEST_DELAY_MS)
-                suggestions = suggest(q)
-            }
+            // Products only when asked (Search): each search counts towards the user's 20 a day.
             if (!now) {
                 products = emptyList()
                 failed = false
@@ -200,21 +188,6 @@ fun SearchScreen(
                 ),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).focusRequester(focus),
             )
-            // Search words to pick while typing: words, not products (those are below).
-            if (link == null && query.trim().length >= 2 && suggestions.isNotEmpty()) {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                ) {
-                    items(suggestions, key = { it }) { words ->
-                        SuggestionChip(
-                            onClick = { query = words; searchNow++ },
-                            label = { androidx.compose.material3.Text(words, maxLines = 1) },
-                        )
-                    }
-                }
-            }
             LazyColumn(
                 contentPadding = PaddingValues(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -249,7 +222,7 @@ fun SearchScreen(
                 } else if (query.trim().length >= 2 && !searched) {
                     item {
                         Text(
-                            "Press search or pick a suggestion.",
+                            "Press search to find products.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -309,8 +282,6 @@ fun SearchScreen(
     }
 }
 
-/** How long typing must pause before search words are suggested. */
-private const val SUGGEST_DELAY_MS = 250L
 
 @Composable
 private fun ResultRow(title: String, subtitle: String?, price: Double?, image: String? = null, onClick: () -> Unit) {

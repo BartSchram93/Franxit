@@ -92,7 +92,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "No products found." to "Geen producten gevonden.",
     "Looking for products at the shops…" to "Producten zoeken bij de winkels…",
     "You've reached your daily limit of 20 searches. You can search again tomorrow." to "Je hebt je dagelijkse limiet van 20 zoekopdrachten bereikt. Morgen kan je opnieuw zoeken.",
-    "Press search or pick a suggestion." to "Druk op zoeken of kies een suggestie.",
+    "Press search to find products." to "Druk op zoeken om producten te vinden.",
     "Type a product name, or paste a link to a product page." to "Typ een productnaam, of plak een link naar een productpagina.",
     "Track via Google Shopping: \"%s\"" to "Volgen via Google Shopping: \"%s\"",
     "Checked once a day" to "Eén keer per dag gecontroleerd",

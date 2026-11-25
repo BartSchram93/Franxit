@@ -6,7 +6,6 @@ import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
-import java.net.URLEncoder
 
 /**
  * Finding products on the web for what you type: words ("PlayStation 5") or a question ("cheap wireless headphones").
@@ -249,30 +248,6 @@ object ProductSearch {
         val q = clean(query) ?: return emptyList()
         return productPages(parse(post("/api/product-search", Request(q).toJson())).products)
     }
-
-    /** Search words for what you typed so far ("play" → "playstation 5"): words to search, never products. */
-    fun suggest(prefix: String): List<String> {
-        val q = clean(prefix) ?: return emptyList()
-        return parseSuggestions(get("/api/suggest?q=" + URLEncoder.encode(q, "UTF-8")), q)
-    }
-
-    /** The suggestions in the service's answer, without the words you typed yourself. */
-    fun parseSuggestions(json: String, typed: String): List<String> {
-        val list = JSONObject(json).optJSONArray("suggestions") ?: return emptyList()
-        return (0 until list.length()).mapNotNull { list.optString(it).trim().takeIf { s -> s.isNotEmpty() } }
-            .filter { plain(it) != plain(typed) }
-            .distinctBy { plain(it) }
-            .take(MAX_SUGGESTIONS)
-    }
-
-    private const val MAX_SUGGESTIONS = 6
-
-    /** Words as written alike: in small letters, without accents, Turkish "ı" as "i" (Google wrote "stofzuıger"). */
-    private fun plain(text: String): String =
-        java.text.Normalizer.normalize(text.trim().lowercase().replace('ı', 'i'), java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "").replace(Regex("\\s+"), " ")
-
-    private fun get(path: String): String = request(path, null)
 
     private fun post(path: String, body: String): String = request(path, body)
 
