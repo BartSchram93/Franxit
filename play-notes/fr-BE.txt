@@ -1,4 +1,4 @@
-• Vérification nocturne : plus de message d'erreur quand le réseau du téléphone dort la nuit
-• Un nouveau produit a plus de temps pour Google Shopping, et est revérifié tout seul si c'était trop lent
+• Les produits que la nuit n'a pas pu vérifier sont actualisés tout seuls à la première ouverture de la journée
+• Vérification nocturne : plus de message d'erreur quand le réseau du téléphone dort
+• Un nouveau produit a plus de temps pour Google Shopping
 • Les prix sont aussi lus dans les métadonnées d'une page
-• Zelda 40th Anniversary Edition : Coolblue et la boutique Nintendo sont de nouveau reconnus

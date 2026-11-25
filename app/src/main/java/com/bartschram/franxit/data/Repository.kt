@@ -926,9 +926,18 @@ class Repository private constructor(context: Context) {
         runCatching { readPage(url).name }.getOrNull()?.takeIf { it.isNotBlank() } ?: Names.fromUrl(url)
     }
 
-    suspend fun checkAll(): CheckSummary = withContext(Dispatchers.IO) {
+    /**
+     * The products the night didn't check (not checked today, or with a failed check): checked now, as when you
+     * refresh them all. For the first time the app is opened in a day.
+     */
+    suspend fun checkMissed(): CheckSummary {
+        val today = LocalDate.now()
+        return checkAll { product -> product.latest?.day != today || product.lastError != null }
+    }
+
+    suspend fun checkAll(only: (Product) -> Boolean = { true }): CheckSummary = withContext(Dispatchers.IO) {
         checkLock.withLock {
-            val products = db.products()
+            val products = db.products().filter(only)
             val done = AtomicInteger()
             _progress.value = 0 to products.size
             // A few products at once: a check mostly waits on the network, so one after the other

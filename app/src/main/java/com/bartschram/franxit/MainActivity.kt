@@ -197,6 +197,20 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
 
     LaunchedEffect(Unit) {
         repo.reload()
+        // The first time the app is opened in a day: the products the night didn't check (the phone's network
+        // asleep, a check that failed) are checked now, by themselves.
+        val today = java.time.LocalDate.now().toString()
+        if (prefs.getString("missed_checked_day", null) != today) {
+            prefs.edit { putString("missed_checked_day", today) }
+            scope.launch {
+                refreshing = true
+                try {
+                    repo.checkMissed()
+                } finally {
+                    refreshing = false
+                }
+            }
+        }
         if (Build.VERSION.SDK_INT >= 33 && !notificationsOn) requestNotifications()
     }
     val uriHandler = LocalUriHandler.current

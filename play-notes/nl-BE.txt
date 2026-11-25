@@ -1,4 +1,4 @@
-• Nachtelijke controle: geen foutmelding meer als het netwerk van de gsm 's nachts slaapt; ze probeert het later opnieuw
+• Producten die 's nachts niet gecontroleerd konden worden, worden vanzelf vernieuwd als je de app die dag voor het eerst opent
+• Nachtelijke controle: geen foutmelding meer als het netwerk van de gsm 's nachts slaapt
 • Een nieuw product krijgt meer tijd voor Google Shopping, en wordt vanzelf opnieuw gecontroleerd als dat te traag was
 • Prijzen ook lezen uit de meta-gegevens van een pagina
-• Zelda 40th Anniversary Edition: Coolblue en de Nintendo-winkel worden weer herkend
