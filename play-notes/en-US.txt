@@ -1,1 +1,2 @@
 • Dutch web shops are always shown (except the .nl site of shops with a Belgian site of their own)
+• Prices of shops like Music Vanderheyden are now read

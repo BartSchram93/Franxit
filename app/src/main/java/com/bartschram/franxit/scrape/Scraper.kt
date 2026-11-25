@@ -248,7 +248,9 @@ object Scraper {
     /** `<meta property="product:price:amount" content="…">` or og:price:amount, and microdata's itemprop="price". */
     private val META_PRICE = Regex("""<meta[^>]+(?:property|name)=["'](?:product|og):price:amount["'][^>]*content=["']([0-9][0-9.,]*)["']|<meta[^>]+content=["']([0-9][0-9.,]*)["'][^>]*(?:property|name)=["'](?:product|og):price:amount["']""", RegexOption.IGNORE_CASE)
     private val ITEMPROP_PRICE = Regex("""itemprop=["']price["'][^>]*content=["']([0-9][0-9.,]*)["']|content=["']([0-9][0-9.,]*)["'][^>]*itemprop=["']price["']""", RegexOption.IGNORE_CASE)
-    private val META_CURRENCY = Regex("""(?:product|og):price:currency["'][^>]*content=["']([A-Za-z]{3})|itemprop=["']priceCurrency["'][^>]*content=["']([A-Za-z]{3})""", RegexOption.IGNORE_CASE)
+    /** Odoo's shops (music-vanderheyden.be): `<span itemprop="price" style="display:none;">799.0</span>`, the price as text. */
+    private val ITEMPROP_PRICE_TEXT = Regex("""itemprop=["']price["'][^>]*>\s*([0-9][0-9.,]*)\s*<""", RegexOption.IGNORE_CASE)
+    private val META_CURRENCY = Regex("""(?:product|og):price:currency["'][^>]*content=["']([A-Za-z]{3})|itemprop=["']priceCurrency["'][^>]*content=["']([A-Za-z]{3})|itemprop=["']priceCurrency["'][^>]*>\s*([A-Za-z]{3})\s*<""", RegexOption.IGNORE_CASE)
     private val META_STOCK = Regex("""(?:product:availability["'][^>]*content=["']([^"']+)|itemprop=["']availability["'][^>]*(?:href|content)=["']([^"']+))""", RegexOption.IGNORE_CASE)
     private val OG_TITLE = Regex("""<meta[^>]+property=["']og:title["'][^>]*content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
     private val OG_IMAGE = Regex("""<meta[^>]+property=["']og:image["'][^>]*content=["']([^"']+)["']""", RegexOption.IGNORE_CASE)
@@ -259,11 +261,12 @@ object Scraper {
      * could read. Null without such a price.
      */
     internal fun fromMeta(html: String): Result? {
-        val raw = (META_PRICE.find(html) ?: ITEMPROP_PRICE.find(html))?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() } ?: return null
+        val raw = (META_PRICE.find(html) ?: ITEMPROP_PRICE.find(html) ?: ITEMPROP_PRICE_TEXT.find(html))?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() } ?: return null
         val currency = META_CURRENCY.find(html)?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.uppercase()
         if (currency != null && currency != "EUR") return null
-        // "1.299,00", "1,299.00", "1299.00", "1299,00": the last separator before two digits is the decimal one.
-        val price = Regex("""^(.*?)[.,](\d{2})$""").find(raw)?.let { m -> (m.groupValues[1].replace(Regex("[.,]"), "") + "." + m.groupValues[2]).toDoubleOrNull() }
+        // "1.299,00", "1,299.00", "1299.00", "1299,00", Odoo's "799.0": the last separator before one or two digits
+        // is the decimal one ("1.299" is a thousand).
+        val price = Regex("""^(.*?)[.,](\d{1,2})$""").find(raw)?.let { m -> (m.groupValues[1].replace(Regex("[.,]"), "") + "." + m.groupValues[2]).toDoubleOrNull() }
             ?: raw.replace(Regex("[.,]"), "").toDoubleOrNull()
         if (price == null || price <= 0) return null
         val stock = META_STOCK.find(html)?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }?.lowercase()

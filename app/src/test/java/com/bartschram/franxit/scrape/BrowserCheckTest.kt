@@ -1,6 +1,7 @@
 package com.bartschram.franxit.scrape
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class BrowserCheckTest {
@@ -42,5 +43,19 @@ class BrowserCheckTest {
             <span itemprop="price" content="1.299,00">€ 1.299,00</span><link itemprop="availability" href="https://schema.org/OutOfStock"></div>"""
         assertEquals(1299.0, Scraper.parse(micro).offers.single().price, 0.001)
         assertEquals(false, Scraper.parse(micro).offers.single().inStock)
+    }
+
+    @Test
+    fun anOdooShopsPriceIsText() {
+        // music-vanderheyden.be: the price in a hidden span, with one decimal.
+        val odoo = """<html><head><title>Epiphone SG Bass EB-3 Cherry | Music Vanderheyden</title></head><body>
+            <div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price">
+            <h3><span data-oe-type="monetary" class="oe_price" style="white-space: nowrap;">€ <span class="oe_currency_value">799,00</span></span>
+            <span itemprop="price" style="display:none;">799.0</span>
+            <span itemprop="priceCurrency" style="display:none;">EUR</span></h3></div></body></html>"""
+        assertEquals(799.0, Scraper.parse(odoo).offers.single().price, 0.001)
+        assertEquals(1299.5, Scraper.parse(odoo.replace(">799.0<", ">1299.5<")).offers.single().price, 0.001)
+        // Another currency isn't read as euros.
+        assertThrows(java.io.IOException::class.java) { Scraper.parse(odoo.replace(">EUR<", ">USD<")) }
     }
 }
