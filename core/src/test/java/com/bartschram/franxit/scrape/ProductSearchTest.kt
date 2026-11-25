@@ -122,6 +122,12 @@ class ProductSearchTest {
         assertEquals("Sony Playstation 5 Pro 2TB Digital, W128992851 (Digital)",
             ProductSearch.cleanTitle("Sony Playstation 5 Pro 2TB Digital, W128992851 (Digital) : Amazon.com.be: Electronics", "www.amazon.com.be"))
         assertEquals("Jabra Move Draadloze koptelefoon", ProductSearch.cleanTitle("Koop Jabra Move Draadloze koptelefoon | 5 Jaar Garantie", "www.hifiklubben.nl"))
+        // Advertising after the name goes; the name stays clear.
+        assertEquals("Sony PlayStation 5 Pro 2TB", ProductSearch.cleanTitle("Sony PlayStation 5 Pro 2TB | Next-Gen Gaming bij PhoneMarket.nl", "www.phonemarket.nl"))
+        assertEquals("Sony PlayStation 5 Pro 2", ProductSearch.cleanTitle("Sony PlayStation 5 Pro 2: Console gaming in 4K Ultra HD, met next-gen graphics en uitzonderlijke prestaties", "www.kaufland.nl"))
+        assertEquals("Fresh 'n Rebel Twins Fuse - Draadloze Oordopjes", ProductSearch.cleanTitle("Fresh 'n Rebel Twins Fuse - Draadloze Oordopjes - 30 Uur Luisterplezier", "www.bol.com"))
+        assertEquals("Soundcore Q20i by Anker", ProductSearch.cleanTitle("Soundcore Q20i by Anker, Draadloze Bluetooth over-ear hoofdtelefoon met hybride actieve noise cancelling", "www.bol.com"))
+        assertEquals("Nike Air Max 90 365 Heren Sneakers - White/White-White-Wolf Grey - Maat 40", ProductSearch.cleanTitle("Nike Air Max 90 365 Heren Sneakers - White/White-White-Wolf Grey - Maat 40 | bol", "www.bol.com"))
         // A name with a dash of its own stays whole.
         assertEquals("Sony WH-CH520 - Draadloze on-ear koptelefoon - Zwart", ProductSearch.cleanTitle("Sony WH-CH520 - Draadloze on-ear koptelefoon - Zwart | bol", "www.bol.com"))
     }

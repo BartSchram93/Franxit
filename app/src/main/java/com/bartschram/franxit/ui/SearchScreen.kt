@@ -257,10 +257,10 @@ fun SearchScreen(
                     }
                 }
                 items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null, hit.image) { onPick(hit.url, hit.title) } }
-                // Products found on the web, shown as vergelijk.be's were: picked, the product is tracked, found across
+                // Products found on the web, by their name only: picked, the product is tracked, found across
                 // all shops first (as a pasted shop link), so its price is compared.
                 if (link == null) items(products, key = { "p:" + it.url }) { product ->
-                    ResultRow(product.title, null, null, product.imageUrl) { query = product.url }
+                    ResultRow(product.title, null, null) { query = product.url }
                 }
                 if (google != null && !googleFirst) {
                     item(key = "google") {

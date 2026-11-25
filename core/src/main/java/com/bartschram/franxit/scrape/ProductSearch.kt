@@ -136,13 +136,24 @@ object ProductSearch {
             val last = t.substring(at + 3).trim()
             if (isShop(last) || SLOGAN.containsMatchIn(last)) t = t.substring(0, at).trim() else break
         }
+        // Advertising after the name: "Sony PlayStation 5 Pro 2: Console gaming in 4K Ultra HD, met next-gen …",
+        // "Fresh 'n Rebel Twins Fuse - Draadloze Oordopjes - 30 Uur Luisterplezier".
+        Regex("""^(.{12,}?):\s+(.+)$""").find(t)?.let { m -> if (m.groupValues[2].split(' ').size >= 5) t = m.groupValues[1] }
+        val parts = t.split(Regex("""\s+[-–]\s+"""))
+        if (parts.size > 1) t = (listOf(parts.first()) + parts.drop(1).filterNot { ADVERTISING.containsMatchIn(it) }).joinToString(" - ")
+        // A long name to its first comma ("Soundcore Q20i by Anker, Draadloze Bluetooth over-ear hoofdtelefoon met …").
+        if (t.length > 60 && t.indexOf(", ") >= 12) t = t.substringBefore(", ")
         t = t.replace(Regex("""^(koop|kopen|buy|acheter)\s+""", RegexOption.IGNORE_CASE), "")
             .replace(Regex("""\s+(kopen|bestellen|buy|acheter)\??$""", RegexOption.IGNORE_CASE), "")
             .trim()
         return t.ifEmpty { title.trim() }
     }
 
-    private val SLOGAN = Regex("""prijs|levering|bezorgd|morgen in huis|gratis|kopen|bestel|garantie|price|delivery|livraison|prix""", RegexOption.IGNORE_CASE)
+    private val ADVERTISING = Regex(
+        """\buur\b|\bhours?\b|luisterplezier|plezier|gaming in|next-gen|beste|snelle|ideaal|ideal|perfect|ervaar|geniet|experience""",
+        RegexOption.IGNORE_CASE,
+    )
+    private val SLOGAN =Regex("""prijs|levering|bezorgd|morgen in huis|gratis|kopen|bestel|garantie|price|delivery|livraison|prix""", RegexOption.IGNORE_CASE)
     private val AMAZON_PATH = Regex("""/(dp|gp/product)/[A-Z0-9]{10}(/|$)""")
 
     private val OTHER_COUNTRIES = setOf("es", "de", "it", "uk", "us", "gb", "at", "ch", "pl", "dk", "se", "pt")
