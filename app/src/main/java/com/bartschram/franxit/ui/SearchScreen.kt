@@ -72,15 +72,13 @@ fun SearchScreen(
     search: suspend (String) -> List<VergelijkSearch.Hit>,
     /** Products on the web for typed words. */
     discover: suspend (String) -> List<ProductSearch.Product>,
-    /** A found product's photo, from its own page when the search gave none; null when it has none. */
+    /** A found product's photo, when its own page shows a price the app reads; null otherwise (then it isn't shown). */
     photoOf: suspend (ProductSearch.Product) -> String?,
     titleFromLink: suspend (String) -> String?,
     /** [title] is the product's name when the result has one (a typed or shared link has none). */
     onPick: (url: String, title: String?) -> Unit,
     onBack: () -> Unit,
     initialQuery: String = "",
-    /** Track via Google Shopping instead; null without a SerpApi key. */
-    onGoogleShopping: ((query: String) -> Unit)? = null,
     /** The price tag photo button (off in the screenshots, which have no camera). */
     photoSearch: Boolean = true,
 ) {
@@ -88,8 +86,6 @@ fun SearchScreen(
     var results by remember { mutableStateOf<List<VergelijkSearch.Hit>>(emptyList()) }
     var searching by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
-    // What to search Google Shopping for: the typed words, or the product name behind a shop link.
-    var shoppingQuery by remember { mutableStateOf<String?>(null) }
     // Products found on the web for the typed words.
     var products by remember { mutableStateOf<List<ProductSearch.Product>>(emptyList()) }
     var limitReached by remember { mutableStateOf(false) }
@@ -114,7 +110,6 @@ fun SearchScreen(
             searching = true
             val found = runCatching {
                 val title = titleFromLink(shopLink) ?: return@runCatching emptyList<VergelijkSearch.Hit>() to null
-                shoppingQuery = Names.short(title)
                 val hits = search(Names.short(title))
                 Matching.rank(hits, title) to Matching.clearMatch(hits, title)
             }
@@ -129,11 +124,9 @@ fun SearchScreen(
         if (link != null || q.length < 2) {
             results = emptyList()
             products = emptyList()
-            if (shopLink == null) shoppingQuery = null
             return@LaunchedEffect
         }
         results = emptyList()
-        shoppingQuery = q
         coroutineScope {
             // Products only when asked (Search): each search counts towards the user's 20 a day.
             if (!now) {
@@ -262,31 +255,11 @@ fun SearchScreen(
                         )
                     }
                 }
-                // For products vergelijk.be doesn't have: Google Shopping, one search of your plan a day.
-                val google = shoppingQuery?.takeIf { onGoogleShopping != null && !searching && it.length >= 2 }
-                    ?.takeIf { link == null || shopLink != null }
-                // First when nothing found looks like what you searched for (Maltesers on vergelijk.be: Maxi-Cosi
-                // strollers), so the way to follow it isn't below a list of other products.
-                val googleFirst = google != null && shopLink == null && results.isNotEmpty() && !VergelijkSearch.fits(results, google)
-                if (google != null && googleFirst) {
-                    item(key = "google") {
-                        ResultRow(t("Track via Google Shopping: \"%s\"", google), "Not found on comparison sites · checked once a day", null) {
-                            onGoogleShopping?.invoke(google)
-                        }
-                    }
-                }
                 items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null, hit.image) { onPick(hit.url, hit.title) } }
-                // Products found on the web with their photo (only those that have one: a page without a photo of the
-                // product is often no product's page). Picked, it is tracked at once; its check finds the other shops.
+                // Products found on the web whose own page shows a price the app reads, with their photo. Picked, it is
+                // tracked at once; its check finds the other shops.
                 if (link == null) items(products, key = { "p:" + it.url }) { product ->
                     ResultRow(product.title, null, null, product.imageUrl) { onPick(product.url, product.title) }
-                }
-                if (google != null && !googleFirst) {
-                    item(key = "google") {
-                        ResultRow(t("Track via Google Shopping: \"%s\"", google), "Checked once a day", null) {
-                            onGoogleShopping?.invoke(google)
-                        }
-                    }
                 }
                 if (shopLink != null && !searching) {
                     item { ResultRow("Track this link only", shopLink, null) { onPick(shopLink, null) } }

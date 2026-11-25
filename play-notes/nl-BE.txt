@@ -1,1 +1,1 @@
-• Een tint telt als zijn kleur: olijfgroen is groen, donkerblauw is blauw
+• Zoeken toont alleen producten waarvan de app de prijs op de winkelpagina kan lezen

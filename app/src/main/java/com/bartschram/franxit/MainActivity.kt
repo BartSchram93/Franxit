@@ -232,7 +232,6 @@ private fun App(sharedUrl: MutableState<String?>, openProductId: MutableState<Lo
             onPick = { url, title -> searching = false; searchStart = ""; add(url, "search", title) },
             onBack = { searching = false; searchStart = "" },
             initialQuery = searchStart,
-            onGoogleShopping = if (shoppingKey) { query -> searching = false; searchStart = ""; add(GoogleShopping.urlFor(query), "google_shopping", query) } else null,
         )
     } else if (selected != null) {
         BackHandler { selectedId = null }

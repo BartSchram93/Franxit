@@ -1,1 +1,1 @@
-• Une nuance compte comme sa couleur : vert olive est vert, bleu foncé est bleu
+• La recherche ne montre que les produits dont l'appli peut lire le prix sur la page du magasin

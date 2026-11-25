@@ -1,1 +1,1 @@
-• A shade counts as its colour: olive green is green, dark blue is blue
+• Search only shows products whose price the app can read on the shop page

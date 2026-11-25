@@ -86,14 +86,17 @@ class SearchScreenshots {
                 fun loads(url: String?) = url?.takeIf { runCatching { com.bartschram.franxit.data.Images.thumbnail(it) != null }.getOrDefault(false) }
                 // The samples: shown as they are (no real photo).
                 if (p.imageUrl == "https://example.invalid/photo.jpg") return@withContext p.imageUrl
-                loads(p.imageUrl) ?: loads(runCatching { ProductSearch.photoIn(com.bartschram.franxit.scrape.Scraper.download(p.url, "text/html", readTimeoutMs = 8_000), p.url) }.getOrNull())
+                // Only a page that shows a price the app reads.
+                val html = runCatching { com.bartschram.franxit.scrape.Scraper.download(p.url, "text/html", readTimeoutMs = 8_000) }.getOrNull()
+                    ?: return@withContext null
+                val price = runCatching { com.bartschram.franxit.data.ShopCheck.seen(com.bartschram.franxit.scrape.Scraper.fromPage(html, p.url), p.title)?.price }.getOrNull()
+                if (price == null) null else loads(p.imageUrl) ?: loads(ProductSearch.photoIn(html, p.url))
             }
         },
         titleFromLink = titleFromLink,
         onPick = { _, _ -> },
         onBack = {},
         initialQuery = query,
-        onGoogleShopping = {},
         photoSearch = false,
     )
 
