@@ -40,7 +40,16 @@ const before = calls.length;
 r = await post({ query: "playstation 5" });  // cached (case)
 assert.equal(r.status, 200); assert.equal(calls.length, before);
 r = await post({ query: "fail" });
-assert.equal(r.status, 429);
+assert.equal(r.status, 502);
+// 20 fresh searches a day per user (its install id), counted apart from another user on the same address.
+const user = (id, q) => worker.fetch(new Request("https://w/api/product-search", { method: "POST", headers: { "X-Franxit-Token": "T", "CF-Connecting-IP": "5.6.7.8", "X-Franxit-Install": id }, body: JSON.stringify({ query: q }) }), env, ctx);
+const a = "11111111-1111-1111-1111-111111111111", b = "22222222-2222-2222-2222-222222222222";
+for (let i = 0; i < 20; i++) { assert.equal((await user(a, "q" + i + "x")).status, 200); await Promise.all(waits); }
+assert.equal((await user(a, "another one")).status, 429);
+assert.equal((await user(b, "another one")).status, 200);
+await Promise.all(waits);
+// A search made today already costs nothing, also over the limit.
+assert.equal((await user(a, "q3x")).status, 200);
 r = await worker.fetch(new Request("https://w/api/product-search", { headers: { "X-Franxit-Token": "T" } }), env, ctx);
 assert.equal(r.status, 405);
 r = await worker.fetch(new Request("https://w/api/suggest?q=play", { headers: { "X-Franxit-Token": "T" } }), env, ctx);

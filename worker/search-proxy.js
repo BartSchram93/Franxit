@@ -13,7 +13,8 @@
 // - POST /api/product-search {"query": "…"}: products found on the web (Exa, secret EXA_API_KEY) at the shops the app
 //   trusts (SHOP_DOMAINS below), as {"products": [{title, description, url, imageUrl, price, currency, retailer,
 //   availability, score}]}. Only what Exa returns: no price, stock or shop is ever made up (the app reads prices from
-//   the pages themselves). Kept a day per query; limited per IP address and per day in all (Exa's credits).
+//   the pages themselves). Kept a day per query and shared (a search someone made today costs nothing); 20 fresh
+//   searches per user (the app's anonymous id) per day.
 // - GET /api/suggest?q=…: search words while typing ("play" → "playstation 5"), from Google's suggestions. Words
 //   only, never products.
 // - Limits per day are counted in Workers KV (binding LIMITS) when it is bound; the cache otherwise (which does
@@ -26,8 +27,8 @@ const MAX_RECOGNIZE_PER_IP = 5;   // photos recognised per IP address per day
 const MAX_RECOGNIZE_PER_DAY = 8;  // photos recognised per day in all: about 240 a month, SerpApi's free 250
 const MAX_PHOTO_BYTES = 500_000;  // SerpApi's Image API takes at most 500 KB
 
-const MAX_DISCOVER_PER_IP = 60;    // product searches (Exa) per IP address per day
-const MAX_DISCOVER_PER_DAY = 600;  // and in all: Exa's credits
+const MAX_DISCOVER_PER_USER = 20;  // product searches (Exa) per app (its anonymous X-Franxit-Install id) per day
+const MAX_DISCOVER_PER_IP = 200;   // and per IP address: an app that makes up new ids is stopped there
 const MAX_SUGGEST_PER_IP = 600;    // suggestions per IP address per day (free, but not unlimited)
 const DISCOVER_RESULTS = 25;       // asked of Exa; the app shows the product pages among them
 const MAX_QUERY = 150;
@@ -572,8 +573,11 @@ async function productSearch(request, env, ctx) {
   if (hit) return hit;
 
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  if (!(await countToday(env, ctx, `discover/${ip}`, MAX_DISCOVER_PER_IP))) return new Response("Too many searches today", { status: 429 });
-  if (!(await countToday(env, ctx, "discover/all", MAX_DISCOVER_PER_DAY))) return new Response("Too many searches today", { status: 429 });
+  // Per user: the app's anonymous id (a random UUID it made itself), else its IP address.
+  const install = request.headers.get("X-Franxit-Install") || "";
+  const user = /^[0-9a-f-]{36}$/i.test(install) ? `install/${install.toLowerCase()}` : `ip/${ip}`;
+  if (!(await countToday(env, ctx, `discover/${user}`, MAX_DISCOVER_PER_USER))) return new Response("Daily limit reached", { status: 429 });
+  if (!(await countToday(env, ctx, `discover/ip-all/${ip}`, MAX_DISCOVER_PER_IP))) return new Response("Daily limit reached", { status: 429 });
   if (!env.EXA_API_KEY) return new Response("Not configured", { status: 500 });
 
   const search = {
@@ -594,7 +598,8 @@ async function productSearch(request, env, ctx) {
   } catch {
     return new Response("Search service error", { status: 502 });
   }
-  if (!answer.ok) return new Response("Search service error", { status: liteStatus(answer.status) });
+  // Exa's own trouble (credits, its limits) is no user's daily limit: a plain service error.
+  if (!answer.ok) return new Response("Search service error", { status: 502 });
   let data;
   try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
   const response = new Response(JSON.stringify({ products: exaProducts(data) }), {

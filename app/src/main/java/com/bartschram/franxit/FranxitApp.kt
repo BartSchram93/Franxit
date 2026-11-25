@@ -11,6 +11,10 @@ class FranxitApp : Application() {
         super.onCreate()
         // The shared module's search requests carry the build's token (it has no BuildConfig of its own).
         com.bartschram.franxit.scrape.CoreConfig.appToken = BuildConfig.APP_TOKEN
+        // An anonymous id of this installation, made once: the search service counts each user's searches with it.
+        val prefs = getSharedPreferences("install", MODE_PRIVATE)
+        com.bartschram.franxit.scrape.CoreConfig.installId = prefs.getString("id", null)
+            ?: java.util.UUID.randomUUID().toString().also { prefs.edit().putString("id", it).apply() }
         // The language first: the notification channels and texts use it.
         L10n.init(this)
         Notifier.createChannel(this)

@@ -44,7 +44,7 @@ object ProductSearch {
 
     const val MAX_RESULTS = 25
     const val MAX_QUERY = 150
-    const val LIMIT = "Too many searches today. Try again tomorrow."
+    const val LIMIT = "You've reached your daily limit of 20 searches. You can search again tomorrow."
     const val FAILED = "Search failed. Check your connection."
 
     /** A query worth sending: two characters or more, not longer than the service takes. Null otherwise. */
@@ -283,6 +283,8 @@ object ProductSearch {
             conn.readTimeout = 30_000
             conn.setRequestProperty("Accept", "application/json")
             CoreConfig.appToken.takeIf { it.isNotBlank() }?.let { conn.setRequestProperty("X-Franxit-Token", it) }
+            // The app's anonymous id: the service counts each user's searches a day with it.
+            CoreConfig.installId.takeIf { it.isNotBlank() }?.let { conn.setRequestProperty("X-Franxit-Install", it) }
             if (body != null) {
                 conn.requestMethod = "POST"
                 conn.doOutput = true

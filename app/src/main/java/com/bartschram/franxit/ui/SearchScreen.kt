@@ -99,8 +99,11 @@ fun SearchScreen(
     var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var limitReached by remember { mutableStateOf(false) }
     // Words searched at once (Enter, or a suggestion picked): no wait for typing to pause. Counted, so each asks once.
-    var searchNow by remember { mutableStateOf(0) }
+    // A name the screen opens with (a price tag's) is searched at once too.
+    var searchNow by remember { mutableStateOf(if (initialQuery.isNotBlank()) 1 else 0) }
     val searchedNow = remember { intArrayOf(0) }
+    // Whether the products shown are for the words in the field (typing on asks to search again).
+    var searched by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
     val link = query.trim().takeIf { it.startsWith("http://") || it.startsWith("https://") }
     // A link from another shop (e.g. Coolblue): find the same product on vergelijk.be, which
@@ -138,12 +141,20 @@ fun SearchScreen(
         results = emptyList()
         shoppingQuery = q
         coroutineScope {
-            // Search words first (free, quick); the products once typing pauses. A new letter cancels both.
+            // Search words while typing (free); products only when asked (Search, a suggestion picked): each search
+            // counts towards the user's 20 a day. A new letter cancels both.
             launch {
                 delay(SUGGEST_DELAY_MS)
                 suggestions = suggest(q)
             }
-            if (!now) delay(DISCOVER_DELAY_MS)
+            if (!now) {
+                products = emptyList()
+                failed = false
+                limitReached = false
+                searched = false
+                return@coroutineScope
+            }
+            searched = true
             searching = true
             val found = runCatching { discover(q) }
             failed = found.isFailure
@@ -169,7 +180,7 @@ fun SearchScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                 // Search by a photo of a price tag in a shop: its name goes into the search field.
-                actions = { if (photoSearch) PriceTagSearch(onSearch = { query = it }) },
+                actions = { if (photoSearch) PriceTagSearch(onSearch = { query = it; searchNow++ }) },
             )
         },
     ) { padding ->
@@ -235,6 +246,14 @@ fun SearchScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                } else if (query.trim().length >= 2 && !searched) {
+                    item {
+                        Text(
+                            "Press search or pick a suggestion.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 } else if (query.trim().length >= 2 && !searching && products.isEmpty()) {
                     item {
                         Text(
@@ -290,9 +309,8 @@ fun SearchScreen(
     }
 }
 
-/** How long typing must pause before search words are suggested, and before products are searched. */
+/** How long typing must pause before search words are suggested. */
 private const val SUGGEST_DELAY_MS = 250L
-private const val DISCOVER_DELAY_MS = 600L
 
 @Composable
 private fun ResultRow(title: String, subtitle: String?, price: Double?, image: String? = null, onClick: () -> Unit) {

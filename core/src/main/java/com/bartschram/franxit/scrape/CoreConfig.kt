@@ -7,4 +7,8 @@ package com.bartschram.franxit.scrape
 object CoreConfig {
     @Volatile
     var appToken: String = ""
+
+    /** A random id the app made for itself once (a UUID, nothing about you): the search service counts searches by it. */
+    @Volatile
+    var installId: String = ""
 }
