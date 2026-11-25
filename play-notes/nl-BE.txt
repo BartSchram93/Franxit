@@ -1,5 +1,2 @@
-• Een nieuw product toont zijn winkels meteen, één voor één; Google Shopping vult later aan
-• Tijdens het laden verschijnen de winkels één voor één: zodra hun pagina gevonden is, met de prijs zodra die gelezen is
-• Winkels die hun prijzen zonder btw in de pagina zetten (Back in use) worden met btw gelezen
-• Tijdens het laden komen de winkels er één voor één bij, met hun prijs zodra die gecontroleerd is
-• Google Shopping sneller: de eerste winkels verschijnen zodra de zoekopdracht antwoordt, de rest volgt
+• Winkels verschijnen één voor één tijdens het laden, Google Shopping sneller
+• Prijzen zonder btw op de pagina (Back in use) worden met btw gelezen
