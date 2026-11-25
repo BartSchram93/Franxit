@@ -99,6 +99,8 @@ object ProductSearch {
             hasBelgianSite(host) -> null
             NOT_A_PRODUCT.containsMatchIn(path) || path.lowercase().endsWith(".pdf") -> null
             !namesOneProduct(path) -> null
+            // A name of one word ("Console" at Game Shock) is a category's, not a product's.
+            cleanTitle(p.title, host).split(Regex("""\s+""")).size < 2 -> null
             else -> p.copy(url = url, title = cleanTitle(p.title, host))
         }
     }.distinctBy { samePage(it.url) }.let(::withoutCategories).let(::withoutLogos)
@@ -148,7 +150,7 @@ object ProductSearch {
         if (parts.size > 1) t = (listOf(parts.first()) + parts.drop(1).filterNot { ADVERTISING.containsMatchIn(it) }).joinToString(" - ")
         // A long name to its first comma ("Soundcore Q20i by Anker, Draadloze Bluetooth over-ear hoofdtelefoon met …").
         if (t.length > 60 && t.indexOf(", ") >= 12) t = t.substringBefore(", ")
-        t = t.replace(Regex("""^(koop|kopen|buy|acheter)\s+""", RegexOption.IGNORE_CASE), "")
+        t = t.replace(Regex("""^(koop|kopen|buy|acheter)\s+((de|het|een|the|le|la|les)\s+)?""", RegexOption.IGNORE_CASE), "")
             .replace(Regex("""\s+(kopen|bestellen|buy|acheter)\??$""", RegexOption.IGNORE_CASE), "")
             .trim()
         return t.ifEmpty { title.trim() }

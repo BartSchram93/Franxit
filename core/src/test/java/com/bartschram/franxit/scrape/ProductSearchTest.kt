@@ -56,7 +56,7 @@ class ProductSearchTest {
     fun aWebSearchsPagesAreOnlyBelgianProductPages() {
         // What Exa found for real searches: kept (at its Belgian address) or not.
         // Named as the page's address names it, as Exa's titles do.
-        fun kept(url: String) = ProductSearch.productPages(listOf(ProductSearch.Product(Matching.titleFromLink(url) ?: "x", url))).singleOrNull()?.url
+        fun kept(url: String) = ProductSearch.productPages(listOf(ProductSearch.Product(Matching.titleFromLink(url) ?: "Nike Air Max 90", url))).singleOrNull()?.url
         assertEquals("https://www.bol.com/be/nl/p/playstation-5-disc-edition-slim/9300000166374057/",
             kept("https://www.bol.com/nl/nl/p/playstation-5-disc-edition-slim/9300000166374057/"))
         assertEquals("https://www.coolblue.be/en/product/865867/playstation-5-digital-edition.html",
@@ -191,11 +191,18 @@ class ProductSearchTest {
 
     @Test
     fun belgianDutchOrTrustedShopsOnly() {
-        fun kept(url: String) = ProductSearch.productPages(listOf(ProductSearch.Product(Matching.titleFromLink(url) ?: "x", url))).singleOrNull()?.url
+        fun kept(url: String) = ProductSearch.productPages(listOf(ProductSearch.Product(Matching.titleFromLink(url) ?: "Nike Air Max 90", url))).singleOrNull()?.url
         // A Dutch shop no list knows: kept (bikeroutfit.nl's HJC F100 Bios).
         assertEquals("https://www.bikeroutfit.nl/nl/hjc-f100-bios-helm.html", kept("https://www.bikeroutfit.nl/nl/hjc-f100-bios-helm.html"))
         // A trusted shop elsewhere: kept; an unknown shop abroad: not.
         assertEquals("https://www.techinn.com/techinn/nl/tcl-nxtpaper-14-tablet/140012345/p", kept("https://www.techinn.com/techinn/nl/tcl-nxtpaper-14-tablet/140012345/p"))
         assertNull(kept("https://www.cheap-helmets-outlet.com/hjc-f100-bios-helmet-sale"))
+    }
+
+    @Test
+    fun aOneWordNameIsACategoryAndKoopDeGoes() {
+        assertEquals(emptyList<ProductSearch.Product>(), ProductSearch.productPages(listOf(
+            ProductSearch.Product("Console - Game Shock", "https://www.game-shock.nl/playstation-5/playstation-5-nieuw/console/"))))
+        assertEquals("HJC F100 Bios Zwart / Grijs L", ProductSearch.cleanTitle("Koop de HJC F100 Bios Zwart / Grijs L - Motorwinkel.nl", "www.motorwinkel.nl"))
     }
 }
