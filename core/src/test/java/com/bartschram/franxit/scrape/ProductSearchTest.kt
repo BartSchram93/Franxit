@@ -58,4 +58,41 @@ class ProductSearchTest {
         assertEquals(listOf("playstation 5", "playstation 5 pro"), ProductSearch.parseSuggestions(json, "play"))
         assertEquals(emptyList<String>(), ProductSearch.parseSuggestions("{}", "play"))
     }
+
+    @Test
+    fun aWebSearchsPagesAreOnlyBelgianProductPages() {
+        // What Exa found for real searches: kept (at its Belgian address) or not.
+        // Named as the page's address names it, as Exa's titles do.
+        fun kept(url: String) = ProductSearch.productPages(listOf(ProductSearch.Product(Matching.titleFromLink(url) ?: "x", url))).singleOrNull()?.url
+        assertEquals("https://www.bol.com/be/nl/p/playstation-5-disc-edition-slim/9300000166374057/",
+            kept("https://www.bol.com/nl/nl/p/playstation-5-disc-edition-slim/9300000166374057/"))
+        assertEquals("https://www.coolblue.be/en/product/865867/playstation-5-digital-edition.html",
+            kept("https://www.coolblue.be/en/product/865867/playstation-5-digital-edition.html"))
+        for (url in listOf(
+            "https://www.decathlon.be/nl/p/mp/trainingschoenen-nike-air-max-alpha-trainer-5-zwart-wit/6256d9ec-04fb-4fae-9d1a",
+            "https://www.amazon.com.be/dp/B0CGMDSSJN",
+            "https://www.phonemarket.nl/product/sony-playstation-5-slim-digital-edition-825gb/",
+            "https://www.paradigit.nl/sony-wf-c710n-blauw/21864811/product",
+            "https://www.gooise-gitaren.nl/contents/nl/p961_Dave-Grohl-DG-335-Pelham-Blue.html",
+            "https://www.lego.com/nl-be/product/nike-air-max-95-x-lego-set-43025",
+        )) assertEquals(url, kept(url))
+        for (url in listOf(
+            // A shop's Dutch site when it has a Belgian one.
+            "https://www.mediamarkt.nl/nl/product/_sony-wh-ch520-zwart-1751309.html",
+            "https://www.amazon.nl/dp/B0HNXV9MPJ",
+            "https://www.coolblue.nl/en/advice/compare-the-playstation-5-pro-to-the-playstation-5-slim.html",
+            "https://www.sony.nl/store/product/whch720nw.ce7/WH-CH720N-draadloze-koptelefoon-met-Noise-Cancelling",
+            // Another country's.
+            "https://www.thomann.de/intl/epiphone_dave_grohl_dg_335_pelham_blue.htm",
+            "https://www.lego.com/en-us/product/nike-air-max-95-x-lego-big-kids-shoes-5010064",
+            // Lists, categories, themes, advice, news, offers, a pdf.
+            "https://www.bol.com/nl/nl/l/ps5-consoles/74743/",
+            "https://www.krefel.be/nl/c/koptelefoons",
+            "https://www.coolblue.be/nl/consoles/playstation5",
+            "https://www.lego.com/nl-be/themes/nike",
+            "https://www.bax-shop.be/nl/b-stock-aanbiedingen/gitaar?p=7",
+            "https://www.zalando.be/schoenen/?q=nike+air+max",
+            "https://www.bax-shop.be/images/bax_music_magazine_2022.pdf",
+        )) assertNull(url, kept(url))
+    }
 }

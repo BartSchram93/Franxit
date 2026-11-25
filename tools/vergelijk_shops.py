@@ -24,14 +24,17 @@ EXTRA_DOMAINS = [
     "bol.com", "amazon.com.be", "amazon.nl", "coolblue.be", "mediamarkt.be", "mediamarkt.nl", "fnac.be", "nl.fnac.be",
     "krefel.be", "vandenborre.be", "kamera-express.be", "cameranu.be", "bax-shop.be", "hema.be", "lego.com",
     "samsung.com", "lg.com", "philips.be", "sony.be", "dreamland.be", "x2o.be", "galaxus.be", "decathlon.be",
-    "ikea.com", "zalando.be", "gamemania.be", "store.nintendo.com", "thomann.de", "gear4music.be", "conrad.be",
+    "ikea.com", "zalando.be", "gamemania.be", "store.nintendo.com", "gear4music.be", "conrad.be",
     "gooise-gitaren.nl", "music-vanderheyden.be",
 ]
 
 
 def write_domains(names):
     """The shops' sites, for the product search (Exa) in the Worker: between its SHOP_DOMAINS markers."""
-    domains = sorted({n.lower().removeprefix("www.") for n in names if DOMAIN.match(n.lower().removeprefix("www."))} | set(EXTRA_DOMAINS))
+    domains = {n.lower().removeprefix("www.") for n in names if DOMAIN.match(n.lower().removeprefix("www."))} | set(EXTRA_DOMAINS)
+    # Not a shop's Dutch site when it has a Belgian one (coolblue.nl, amazon.nl): the search finds its Belgian pages.
+    belgian = {d.removesuffix(".be") for d in domains if d.endswith(".be")} | {"amazon"}
+    domains = sorted(d for d in domains if not (d.endswith(".nl") and d.removesuffix(".nl") in belgian))
     text = WORKER.read_text()
     start, end = text.index("// SHOP_DOMAINS-START"), text.index("// SHOP_DOMAINS-END")
     head = text[start:].split("\n", 1)[0]

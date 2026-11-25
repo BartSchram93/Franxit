@@ -75,16 +75,54 @@ object ProductSearch {
     }
 
     /**
-     * The product pages among [products]: not a search, a category, a brand's page or the shop's help pages (the
-     * same rules as for a shop's link elsewhere in the app). Only a product's page is ever opened or tracked.
+     * The product pages among [products], each at the shop's Belgian address: not a search, a category, a list or a
+     * page about the shop (the same rules as for a shop's link elsewhere in the app, and some more for what a web
+     * search finds: advice, news, blogs). Not another country's site, nor a shop's Dutch site when it has a Belgian one
+     * (coolblue.nl, amazon.nl): the app is for buying in Belgium. Only a product's page is ever tracked.
      */
-    fun productPages(products: List<Product>): List<Product> = products.filter { p ->
-        ShopCheck.isProductPage(p.url) && !ShopCheck.isElsewhere(p.url, p.title) && hasPath(p.url)
+    fun productPages(products: List<Product>): List<Product> = products.mapNotNull { p ->
+        // bol.com's Dutch store ("/nl/nl/") as its Belgian one.
+        val url = DuckDuckGo.belgian(p.url)
+        val host = runCatching { URI(url).host }.getOrNull().orEmpty().lowercase().removePrefix("www.")
+        val path = runCatching { URI(url).path }.getOrNull().orEmpty()
+        when {
+            !ShopCheck.isProductPage(url) || ShopCheck.isElsewhere(url, p.title) -> null
+            DuckDuckGo.isForeignSite(url) -> null
+            // Another country's pages of a site ("lego.com/en-us/"); on a Belgian site those letters are a language.
+            !host.endsWith(".be") && DuckDuckGo.isOtherCountry(url) -> null
+            hasBelgianSite(host) -> null
+            NOT_A_PRODUCT.containsMatchIn(path) || path.lowercase().endsWith(".pdf") -> null
+            !namesOneProduct(path) -> null
+            else -> p.copy(url = url)
+        }
+    }.distinctBy { it.url }
+
+    /** A Dutch site of a shop that has a Belgian one: "coolblue.nl" (coolblue.be), "amazon.nl" (amazon.com.be). */
+    private fun hasBelgianSite(host: String): Boolean {
+        if (!host.endsWith(".nl")) return false
+        val site = GoogleShopping.siteOf(host) ?: return false
+        return site != host && !DuckDuckGo.isForeignSite("https://$site", dutchToo = true)
     }
 
-    /** A shop's home page ("https://www.coolblue.be/") is no product. */
-    private fun hasPath(url: String): Boolean =
-        runCatching { URI(url).path }.getOrNull().orEmpty().trim('/').isNotEmpty()
+    /** Pages a web search finds at shops that sell nothing themselves: advice, news, a theme, the shop's offers. */
+    private val NOT_A_PRODUCT = Regex(
+        """/(l|c|advice|advies|conseils?|blog|news|nieuws|magazine|aboutus|about-us|themes?|onlineexpert[^/]*|""" +
+            """images|aanbiedingen|b-stock-aanbiedingen|acties|promoties|promotions?)(/|$)""",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /**
+     * Whether an address names one product: a product number (five digits or more, or Amazon's "/dp/B0…"), or a
+     * name of three words or more ("sony-wh-ch520-zwart"). "/hoofdtelefoons/bluetooth" or "/en/playstation5" is a
+     * category or a theme, whatever the search thought of it.
+     */
+    private fun namesOneProduct(path: String): Boolean {
+        if (Regex("""\d{5,}""").containsMatchIn(path)) return true
+        if (Regex("""/(dp|gp/product)/[A-Z0-9]{10}(/|$)""").containsMatchIn(path)) return true
+        return path.split('/').any { segment ->
+            segment.substringBeforeLast('.').split('-', '_').count { it.isNotEmpty() } >= 3
+        }
+    }
 
     /** Products for [query], product pages only, best first as the service ranks them. */
     fun search(query: String): List<Product> {
