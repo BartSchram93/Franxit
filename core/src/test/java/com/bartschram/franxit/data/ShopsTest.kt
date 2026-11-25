@@ -47,4 +47,16 @@ class ShopsTest {
         assertEquals("Amazon.com.be", Shops.name("amazon.be"))
         assertTrue(TrustedShops.same("Amazon.be", "Amazon.com.be"))
     }
+
+    @Test
+    fun aShopsDutchSiteIsItsBelgianOneWhenItHasOne() {
+        // vergelijk.be lists Dyson.be and VandenBorre.be: their Dutch names are shown and read as those.
+        assertEquals("Dyson.be", Shops.name("Dyson.nl"))
+        assertEquals("dyson.be", com.bartschram.franxit.scrape.GoogleShopping.siteOf("Dyson.nl"))
+        assertEquals("coolblue.be", com.bartschram.franxit.scrape.GoogleShopping.siteOf("Coolblue.nl"))
+        assertEquals("Coolblue.be", Shops.name("Coolblue.nl"))
+        // A Dutch shop without a Belgian site stays Dutch.
+        assertEquals("Kabelshop.nl", Shops.name("Kabelshop.nl"))
+        assertEquals("kabelshop.nl", com.bartschram.franxit.scrape.GoogleShopping.siteOf("Kabelshop.nl"))
+    }
 }

@@ -27,6 +27,22 @@ object Shops {
         "gear4music" to "Gear4music.be",
     )
 
+    /**
+     * Shops vergelijk.be lists by their Belgian site ("Coolblue.be", "Dyson.be"), by that name without ".be": a shop
+     * that has a Belgian site of its own. Its Dutch site ("Coolblue.nl", from vergelijk.nl or Google) is the same shop,
+     * shown and read as its Belgian one, at the Belgian price.
+     */
+    private val BELGIAN_SITES: Map<String, String> = VergelijkShops.NAMES
+        .filter { it.lowercase().endsWith(".be") && !it.lowercase().endsWith(".com.be") }
+        .associateBy { it.lowercase().removeSuffix(".be") }
+
+    /** The Belgian site of a shop named by its Dutch one ("coolblue.nl" → "coolblue.be"); null for any other. */
+    fun belgianSiteOf(raw: String): String? {
+        val s = raw.trim().lowercase().removePrefix("www.")
+        if (!s.endsWith(".nl")) return null
+        return BELGIAN_SITES[s.removeSuffix(".nl")]?.lowercase()
+    }
+
     private val DOMAIN = Regex("""^[\w-]+(\.[\w-]+)*\.(be|com|nl|eu|de|fr|net|shop)$""", RegexOption.IGNORE_CASE)
 
     /** Sellers on a shop's marketplace, shown under the shop's own site. */
@@ -46,6 +62,8 @@ object Shops {
         val key = java.text.Normalizer.normalize(trimmed.lowercase(), java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
         SITES[key]?.let { return it }
         PARTNERS[key]?.let { return if (partners) "$it partner" else it }
+        // A shop's Dutch site when it has a Belgian one: shown as the Belgian one ("Coolblue.nl" is Coolblue.be).
+        if (key.endsWith(".nl")) BELGIAN_SITES[key.removeSuffix(".nl")]?.let { return it }
         // Already a website ("coolblue.be", "Techinn.com"): just a capital first letter.
         if (DOMAIN.matches(trimmed)) return trimmed.replaceFirstChar { it.uppercase() }
         // A name in small letters only ("nintendo", as Google Shopping writes some shops): with a capital.

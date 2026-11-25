@@ -32,6 +32,8 @@ object GoogleShopping {
     fun siteOf(shop: String): String? {
         val s = shop.trim().lowercase()
         return BIG_SHOPS.firstOrNull { (name, _) -> s == name || s.startsWith("$name.") || s.startsWith("$name ") }?.second
+            // A shop's Dutch site when it has a Belgian one: the Belgian one ("Dyson.nl" is read at dyson.be).
+            ?: com.bartschram.franxit.data.Shops.belgianSiteOf(s)
             ?: s.removePrefix("www.").takeIf { Regex("""[a-z0-9-]+(\.[a-z0-9-]+)+""").matches(it) }
     }
 
