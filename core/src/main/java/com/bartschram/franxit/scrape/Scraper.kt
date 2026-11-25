@@ -86,7 +86,7 @@ object Scraper {
             if (AmazonPage.isSoldOut(html)) throw IOException("Not available at ${shop(url)} right now")
         }
         return try {
-            parse(html)
+            withVat(parse(html), html)
         } catch (e: IOException) {
             // A check page instead of the product ("Just a moment…"): say the shop keeps apps out,
             // rather than that the page has no prices.
@@ -95,6 +95,30 @@ object Scraper {
             if (isUnavailable(html)) throw IOException("Not available at ${shop(url)} right now")
             throw IOException("${shop(url)}'s page shows no price the app can read")
         }
+    }
+
+    /**
+     * A shop whose product data holds its prices without VAT (Back in use: 354.55 in the data, "€429,01 incl. BTW"
+     * on the page): the price with 21% VAT, when that one shows on the page and the data's price doesn't.
+     */
+    fun withVat(result: Result, html: String): Result {
+        val shown = html.replace(Regex("(?is)<script.*?</script>|<style.*?</style>"), " ").replace(Regex("<[^>]+>"), " ")
+            .replace(Regex("\\s+"), " ")
+        // The price as pages write it, followed by the words that say VAT is in it.
+        fun withVatOnPage(price: Double): Boolean {
+            val cents = String.format(java.util.Locale.ROOT, "%.2f", price)
+            val whole = cents.substringBefore('.').toLong()
+            val written = listOf(cents, cents.replace('.', ','), "%d.%03d,%s".format(java.util.Locale.ROOT, whole / 1000, whole % 1000, cents.substringAfter('.')))
+                .filter { !it.startsWith("0.") }
+            return written.any { Regex("""(?<![\d.,])${Regex.escape(it)}\s*(incl|inclusief|tvac|ttc|btw inbegrepen)""", RegexOption.IGNORE_CASE).containsMatchIn(shown) }
+        }
+        // One price shown with VAT where the data has it without: the shop's data is without VAT, all its versions'
+        // prices too (the page shows only the chosen one's).
+        val withoutVat = result.offers.any { offer ->
+            !withVatOnPage(offer.price) && withVatOnPage(Math.round(offer.price * 121.0) / 100.0)
+        }
+        if (!withoutVat) return result
+        return result.copy(offers = result.offers.map { it.copy(price = Math.round(it.price * 121.0) / 100.0) })
     }
 
     /**

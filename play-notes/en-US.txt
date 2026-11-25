@@ -1,2 +1,3 @@
 • A new product shows its shops at once, one by one; Google Shopping adds more later
 • While loading, shops appear one by one: as soon as their page is found, with the price once it is read
+• Shops that put their prices without VAT in the page (Back in use) are read with VAT

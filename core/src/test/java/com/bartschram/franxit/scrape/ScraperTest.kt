@@ -99,4 +99,23 @@ class ScraperTest {
         val euros = pounds.replace("GBP", "EUR").replace("434.99", "519.99")
         assertEquals(519.99, Scraper.parse(euros).offers.single().price, 0.001)
     }
+
+    @Test
+    fun aPriceWithoutVatInTheDataIsReadWithIt() {
+        // Back in use: the data says 354.55 (without VAT), the page "€429,01 incl. BTW".
+        val data = """<script type="application/ld+json">{"@type":"Product","name":"Playstation 5 Slim Digital Edition | 825GB","offers":[{"@type":"Offer","price":"354.55","priceCurrency":"EUR"}]}</script>"""
+        val page = "<html><head>$data</head><body><span>€599,00</span> <span>€429,01</span> incl. BTW</body></html>"
+        assertEquals(429.01, Scraper.fromPage(page, "https://www.backinuse.be/products/playstation-5-slim-digital-edition-825gb").offers.single().price, 0.001)
+        // Its other version (Premium, 371.07 in the data) with VAT too, though the page shows only the chosen one.
+        val two = page.replace(""""price":"354.55","priceCurrency":"EUR"}]""", """"price":"354.55","priceCurrency":"EUR"},{"@type":"Offer","price":"371.07","priceCurrency":"EUR"}]""")
+        assertEquals(listOf(429.01, 448.99), Scraper.fromPage(two, "https://www.backinuse.be/products/x").offers.map { it.price })
+        // The data's price on the page too, hidden or in a list of versions: still the price with VAT that's shown so.
+        val hidden = "<html><head>$data</head><body><span style=\"display:none\">€-354,55</span><option>Uitstekend - €354,55</option><p>€429,01<sup>incl. BTW</sup></p></body></html>"
+        assertEquals(429.01, Scraper.fromPage(hidden, "https://www.backinuse.be/products/x").offers.single().price, 0.001)
+        // A page showing the data's own price: as it is.
+        val plain = "<html><head>$data</head><body><span>€354,55</span> incl. btw</body></html>"
+        assertEquals(354.55, Scraper.fromPage(plain, "https://www.shop.be/p/1").offers.single().price, 0.001)
+        // A page showing neither: as it is (no guess).
+        assertEquals(354.55, Scraper.fromPage("<html><head>$data</head><body></body></html>", "https://www.shop.be/p/1").offers.single().price, 0.001)
+    }
 }
