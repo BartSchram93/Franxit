@@ -1,1 +1,4 @@
 • New search: type a product or a question ("cheap wireless headphones") and find products at the shops (20 searches a day)
+• Search the whole web; a product found is tracked at once
+• Price history from vergelijk.be, also for products tracked at a shop
+• A search button in the search field

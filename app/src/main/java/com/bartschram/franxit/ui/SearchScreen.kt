@@ -190,7 +190,13 @@ fun SearchScreen(
                 },
                 placeholder = { Text("Search or paste a link") },
                 shape = RoundedCornerShape(16.dp),
-                keyboardOptions = KeyboardOptions(imeAction = if (link != null) ImeAction.Done else ImeAction.Search),
+                // The keyboard's own word suggestions and corrections, said outright: some keyboards leave them off in a
+                // search field unless asked.
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+                    autoCorrectEnabled = true,
+                    imeAction = if (link != null) ImeAction.Done else ImeAction.Search,
+                ),
                 keyboardActions = KeyboardActions(
                     onDone = { link?.let { onPick(it, null) } },
                     onSearch = { searchNow++ },

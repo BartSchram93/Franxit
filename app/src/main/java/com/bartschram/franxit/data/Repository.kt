@@ -926,6 +926,22 @@ class Repository private constructor(context: Context) {
         VergelijkSearch.search(query)
     }
 
+    /**
+     * The same product on vergelijk.be as [product] (named [title] by its own page): one clear match of vergelijk.be's
+     * search, else none. Remembered; when there was none, looked for again a week later.
+     */
+    private fun vergelijkTwin(product: Product, title: String): String? {
+        val known = ShoppingSettings.vergelijkTwin(appContext, product.id)
+        if (known != null && !known.startsWith("none:")) return known
+        val weekAgo = LocalDate.now().minusDays(7).toString()
+        if (known != null && known.removePrefix("none:") > weekAgo) return null
+        val match = runCatching {
+            Matching.clearMatch(VergelijkSearch.search(Names.short(title)), title)?.url
+        }.getOrElse { return null }
+        ShoppingSettings.saveVergelijkTwin(appContext, product.id, match ?: "none:${LocalDate.now()}")
+        return match
+    }
+
     /** Recent product searches, by their words: the same search again (back and forth) costs nothing. */
     private val discovered = object : LinkedHashMap<String, Pair<Long, List<ProductSearch.Product>>>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, List<ProductSearch.Product>>>) = size > 30
@@ -1118,7 +1134,11 @@ class Repository private constructor(context: Context) {
         // day at a time, so once it reaches today a refresh skips it.
         if (product.siteHistory.lastOrNull()?.day != today) {
             step(product.id, "Showing the shops")
-            runCatching { VergelijkHistory.fetch(product.url) }.getOrNull()
+            // A product followed at a shop (from the search or a link) or through Google: the same product's history
+            // on vergelijk.be, when it has that product for sure.
+            val historyPage = if (VergelijkHistory.historyUrl(product.url) != null) product.url
+                else vergelijkTwin(product, result.name.ifBlank { product.displayName })
+            runCatching { historyPage?.let { VergelijkHistory.fetch(it) } }.getOrNull()
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { db.replaceSiteHistory(product.id, it) }
         }

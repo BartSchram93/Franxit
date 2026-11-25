@@ -172,6 +172,16 @@ object ShoppingSettings {
         prefs(context).edit { putString("landings_$productId", all.put(TrustedShops.key(shop), landing).toString()) }
     }
 
+    /**
+     * The same product on vergelijk.be, for a product followed at a shop or through Google: its price history comes
+     * from there. "none:<day>" when there was none that day (looked for again a week later); null: not looked for.
+     */
+    fun vergelijkTwin(context: Context, productId: Long): String? = prefs(context).getString("vergelijk_twin_$productId", null)
+
+    fun saveVergelijkTwin(context: Context, productId: Long, twin: String) {
+        prefs(context).edit { putString("vergelijk_twin_$productId", twin) }
+    }
+
     /** Shop sites whose pages only a browser can read (they keep the app's own requests out): read there at once. */
     fun browserSites(context: Context): Set<String> = prefs(context).getStringSet("browser_sites", emptySet()).orEmpty()
 
