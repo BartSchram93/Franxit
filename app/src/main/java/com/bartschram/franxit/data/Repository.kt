@@ -1182,14 +1182,23 @@ class Repository private constructor(context: Context) {
             store(checkShopPages(named, first, result, lookups))
             onFirstResults()
         }
+        // Each source as soon as it answers: Shoparize mostly does in seconds, Google Shopping can take half a minute. Its
+        // shops are listed and checked (one by one on the screen) while Google is still asked.
+        val shoparize = runCatching { shoparizeLater.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
+        step(product.id, "More shops (Shoparize)")
+        if (onFirstResults != null && !extrasLater.isDone && shoparize.isNotEmpty()) {
+            val soFar = combine(ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty(), shoparize)
+            db.replaceOffers(product.id, soFar)
+            onFirstResults()
+            store(checkShopPages(named, soFar, result, lookups))
+            onFirstResults()
+        }
         val extras = try {
             extrasLater.get()
         } catch (e: java.util.concurrent.ExecutionException) {
             throw e.cause ?: e
         }
         step(product.id, "More shops (Google)")
-        val shoparize = runCatching { shoparizeLater.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
-        step(product.id, "More shops (Shoparize)")
         // Each shop's own page, where its link is known: sold out there, or another price, as the shop says it.
         // Google's and Shoparize's shops on the screen at once, each one shown as its page is found and confirmed as
         // its page is read (one by one, not all at the end). Only the list: no price is stored until checked.
