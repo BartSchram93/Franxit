@@ -986,13 +986,13 @@ class Repository private constructor(context: Context) {
 
     /**
      * The same product on vergelijk.be as [product] (named [title] by its own page): one clear match of vergelijk.be's
-     * search, else none. Remembered; when there was none, looked for again a week later.
+     * search, else none. Remembered; when there was none, looked for again the next day.
      */
     private fun vergelijkTwin(product: Product, title: String): String? {
         val known = ShoppingSettings.vergelijkTwin(appContext, product.id)
         if (known != null && !known.startsWith("none:")) return known
-        val weekAgo = LocalDate.now().minusDays(7).toString()
-        if (known != null && known.removePrefix("none:") > weekAgo) return null
+        // None found: looked for again the next day (vergelijk.be's search is free; it may have the product by then).
+        if (known != null && known.removePrefix("none:") >= LocalDate.now().toString()) return null
         val match = runCatching {
             Matching.clearMatch(VergelijkSearch.search(Names.short(title)), title)?.url
         }.getOrElse { return null }

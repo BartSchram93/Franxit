@@ -338,10 +338,14 @@ object Matching {
      * (vergelijk.be titles are short: "WF-1000XM6 Zwart"), it isn't an accessory, and no other
      * hit fits as well. Null when that's not clear-cut.
      */
+    /** Words that don't tell one model from another: "Pixel 11 Pro 256GB Zwart 5G" is "Google Pixel 11 Pro 256GB Zwart EU". */
+    private val NOT_TELLING_APART = setOf("5g", "4g", "lte", "dual", "sim", "esim", "nano", "wifi", "wi", "fi", "eu", "smartphone", "gsm")
+
     fun clearMatch(hits: List<VergelijkSearch.Hit>, wanted: String): VergelijkSearch.Hit? {
         val want = words(wanted)
         val full = hits.filter { hit ->
-            val have = words(hit.title)
+            // Words every model has that a shop leaves out ("5G", "Dual SIM"): not held against a hit.
+            val have = words(hit.title) - NOT_TELLING_APART
             have.isNotEmpty() && have.all { it in want } && !(isAccessory(hit.title) && !isAccessory(wanted))
         }
         // Several hits fully inside the name (e.g. "WF-1000XM6" and "WF-1000XM6 Zwart"): the one

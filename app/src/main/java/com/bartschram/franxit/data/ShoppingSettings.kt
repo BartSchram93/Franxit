@@ -174,7 +174,7 @@ object ShoppingSettings {
 
     /**
      * The same product on vergelijk.be, for a product followed at a shop or through Google: its price history comes
-     * from there. "none:<day>" when there was none that day (looked for again a week later); null: not looked for.
+     * from there. "none:<day>" when there was none that day (looked for again the next day); null: not looked for.
      */
     fun vergelijkTwin(context: Context, productId: Long): String? = prefs(context).getString("vergelijk_twin_$productId", null)
 

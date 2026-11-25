@@ -257,4 +257,15 @@ class MatchingTest {
         assertFalse(Matching.otherColour("Jas Donkerblauw", "Jas Blauw"))
         assertTrue(Matching.otherColour("Jas Lichtgrijs", "Jas Blauw"))
     }
+
+    @Test
+    fun aPhonesSameModelOnVergelijkDespite5G() {
+        val hits = listOf(
+            VergelijkSearch.Hit("Pixel 11 Pro 256GB Zwart 5G", "https://www.vergelijk.be/gsm/google/pixel_11_pro_6_3_oled_5g_dual_sim_256_gb_obsidian_mat_1293164781/", null),
+            VergelijkSearch.Hit("Pixel 11 Pro 256GB Obsidian", "https://www.vergelijk.be/gsm/google/pixel_11_pro_5g_dual_sim_256_gb_6_3_obsidian_1293351614/", null),
+        )
+        assertEquals(hits[0], Matching.clearMatch(hits, "Google Pixel 11 Pro 256GB Zwart EU"))
+        // Another memory size stays another product.
+        assertEquals(null, Matching.clearMatch(hits, "Google Pixel 11 Pro 512GB Zwart"))
+    }
 }

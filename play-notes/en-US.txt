@@ -1,2 +1,1 @@
-• Shops appear one by one while loading, Google Shopping faster
-• Prices without VAT on the page (Back in use) are read with VAT
+• Price history from vergelijk.be also when its name adds "5G" or "Dual SIM"
