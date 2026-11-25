@@ -239,7 +239,11 @@ class Repository private constructor(context: Context) {
 
     private val RETRY_AFTER_MS = 60_000L
 
-    private fun extraShops(product: Product, query: String?, reference: Double?, ownShops: Int, waiting: Boolean = false): Extras {
+    private fun extraShops(
+        product: Product, query: String?, reference: Double?, ownShops: Int, waiting: Boolean = false,
+        /** Google's first shops (its search's), before its page of the product adds more. */
+        onFirstShops: ((List<ShopOffer>) -> Unit)? = null,
+    ): Extras {
         if (!searchesExtra(query, ownShops)) return Extras(emptyList())
         val today = LocalDate.now().toString()
         ShoppingSettings.extraOffers(appContext, product.id, today)?.let { return Extras(it) }
@@ -258,7 +262,11 @@ class Repository private constructor(context: Context) {
         // Never asked for this product (one just added): there's nothing of Google's to show yet, so more time.
         val first = ShoppingSettings.lastExtraDay(appContext, product.id) == null
         val found = try {
-            val search = { searchGoogleShopping(product.id, matchName, terms, reference) { ShoppingSettings.setExtraTerm(appContext, product.id, it) } }
+            val search = {
+                searchGoogleShopping(product.id, matchName, terms, reference, { ShoppingSettings.setExtraTerm(appContext, product.id, it) }) { first ->
+                    onFirstShops?.invoke(first.offers.map { ShopOffer(it.seller, it.price, it.inStock) })
+                }
+            }
             if (first) GoogleShopping.within(FIRST_GOOGLE_MS, search) else search()
         } catch (e: Exception) {
             return when (e.message) {
@@ -348,10 +356,17 @@ class Repository private constructor(context: Context) {
         terms: List<String> = listOf(query),
         reference: Double? = null,
         onTerm: (String) -> Unit = {},
+        onFirst: ((Scraper.Result) -> Unit)? = null,
     ): Scraper.Result {
         // With the app in French, French pages are welcome too.
         GoogleShopping.allowFrench = com.bartschram.franxit.ui.L10n.lang == com.bartschram.franxit.ui.L10n.Lang.FR
-        val found = GoogleShopping.fetch(query, { TrustedShops.name(appContext, it) }, terms, reference)
+        val found = GoogleShopping.fetch(query, { TrustedShops.name(appContext, it) }, terms, reference) { first ->
+            // The search's shops (and their links) at once; Google's page of the product adds more later.
+            if (onFirst != null) {
+                ShoppingSettings.saveLinks(appContext, productId, first.links)
+                onFirst(first.result)
+            }
+        }
         found.term?.let(onTerm)
         // Every search keeps its best result's photo, for "Use Google Shopping photo".
         found.result.image?.let { Photos.saveGooglePhoto(appContext, productId, it) }
@@ -1170,8 +1185,12 @@ class Repository private constructor(context: Context) {
         // Google Shopping and Shoparize asked at once, in the background: they mostly wait on another server (a new
         // product's first Google search took a minute, and nothing showed until then).
         val shoparizeLater = shopReaders.submit(java.util.concurrent.Callable { shoparizeShops(named, query) })
+        // Google's search answers before its page of the product does (each some ten seconds): its shops then, too.
+        val googleFirst = java.util.concurrent.CompletableFuture<List<ShopOffer>>()
         val extrasLater = googleReaders.submit(java.util.concurrent.Callable {
-            GoogleShopping.within(googleTime(lookups)) { extraShops(named, query, ownCheapest, ownShops, waiting = lookups >= LOOKUPS_ONE) }
+            GoogleShopping.within(googleTime(lookups)) {
+                extraShops(named, query, ownCheapest, ownShops, waiting = lookups >= LOOKUPS_ONE) { googleFirst.complete(it) }
+            }
         })
         // Meanwhile the shops known already (the source's, and what Google and Shoparize found last time) are shown
         // and checked on their own pages: each one shows with its price as soon as its page confirms it.
@@ -1192,6 +1211,17 @@ class Repository private constructor(context: Context) {
             onFirstResults()
             store(checkShopPages(named, soFar, result, lookups))
             onFirstResults()
+        }
+        // Google's search's shops as soon as they're there, while its page of the product is still asked.
+        if (onFirstResults != null) {
+            while (!extrasLater.isDone && !googleFirst.isDone) Thread.sleep(100)
+            if (!extrasLater.isDone && googleFirst.isDone) {
+                val soFar = combine(googleFirst.get(), shoparize)
+                db.replaceOffers(product.id, soFar)
+                onFirstResults()
+                store(checkShopPages(named, soFar, result, lookups))
+                onFirstResults()
+            }
         }
         val extras = try {
             extrasLater.get()

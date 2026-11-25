@@ -2,3 +2,4 @@
 • While loading, shops appear one by one: as soon as their page is found, with the price once it is read
 • Shops that put their prices without VAT in the page (Back in use) are read with VAT
 • While loading, shops are added one by one, with their price once it is checked
+• Faster Google Shopping: the first shops show as soon as the search answers, the rest follows

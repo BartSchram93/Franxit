@@ -67,6 +67,8 @@ object GoogleShopping {
      */
     fun fetch(
         query: String, trusted: (String) -> String?, terms: List<String> = listOf(query), reference: Double? = null,
+        /** The search's shops as soon as it answers, before Google's page of the product adds more (seconds later). */
+        onFirst: ((Found) -> Unit)? = null,
     ): Found {
         // Google's results depend a lot on the wording: "TCL Nxtpaper 14" gets only screen protectors,
         // "TCL Nxtpaper 14 kopen" gets the tablet. When a wording finds nothing, the next is tried
@@ -75,7 +77,7 @@ object GoogleShopping {
         var nothing: IOException? = null
         for (term in wordings.ifEmpty { listOf(query) }) {
             try {
-                return search(term, query, trusted, reference).copy(term = term)
+                return search(term, query, trusted, reference) { onFirst?.invoke(it.copy(term = term)) }.copy(term = term)
             } catch (e: IOException) {
                 if (e.message != NOT_FOUND) throw e
                 nothing = e
@@ -87,9 +89,10 @@ object GoogleShopping {
     private const val MAX_WORDINGS = 3
 
     /** Searches for [term]; the results must be [query] (they may be found under a fuller wording). */
-    private fun search(term: String, query: String, trusted: (String) -> String?, reference: Double?): Found {
+    private fun search(term: String, query: String, trusted: (String) -> String?, reference: Double?, onFirst: (Found) -> Unit = {}): Found {
         val q = URLEncoder.encode(term, "UTF-8")
         val searched = parse(serp("/search?q=$q"), query, reference, trusted)
+        if (searched.result.offers.isNotEmpty()) runCatching { onFirst(searched) }
         val found = searched.token?.let { token ->
             val t = URLEncoder.encode(token, "UTF-8")
             runCatching { addStores(searched, serp("/stores?page_token=$t"), query, reference, trusted) }.getOrNull()
@@ -106,15 +109,21 @@ object GoogleShopping {
      * A shop whose page isn't found keeps its token.
      */
     private fun resolveLinks(found: Found): Found {
-        val links = found.links.toMutableMap()
-        found.result.offers.filter { links[it.seller]?.startsWith(TOKEN) == true }.take(MAX_LOOKUPS).forEach { offer ->
-            val token = links.getValue(offer.seller).removePrefix(TOKEN)
-            val page = runCatching {
-                storeLink(token, offer.seller) { a, b -> com.bartschram.franxit.data.TrustedShops.same(a, b) }
-            }.getOrNull()
-            if (page != null) links[offer.seller] = page
+        val links = java.util.concurrent.ConcurrentHashMap(found.links)
+        // At the same time (each is a search of some seconds), within the same time as the rest of the search.
+        val until = deadline.get()
+        val lookups = found.result.offers.filter { links[it.seller]?.startsWith(TOKEN) == true }.take(MAX_LOOKUPS).map { offer ->
+            Thread {
+                deadline.set(until)
+                val token = links.getValue(offer.seller).removePrefix(TOKEN)
+                val page = runCatching {
+                    storeLink(token, offer.seller) { a, b -> com.bartschram.franxit.data.TrustedShops.same(a, b) }
+                }.getOrNull()
+                if (page != null) links[offer.seller] = page
+            }.also { it.start() }
         }
-        return found.copy(links = links)
+        lookups.forEach { it.join() }
+        return found.copy(links = links.toMap())
     }
 
     /**

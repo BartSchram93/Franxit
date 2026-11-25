@@ -2,3 +2,4 @@
 • Pendant le chargement, les boutiques apparaissent une par une : dès que leur page est trouvée, avec le prix dès qu'il est lu
 • Les boutiques qui mettent leurs prix hors TVA dans la page (Back in use) sont lues TVA comprise
 • Pendant le chargement, les boutiques s'ajoutent une par une, avec leur prix dès qu'il est vérifié
+• Google Shopping plus rapide : les premières boutiques apparaissent dès la réponse de la recherche, le reste suit
