@@ -1,4 +1,1 @@
-• Gooise Gitaren wordt op elke telefoon getoond als Google Shopping het vindt
-• Alle winkels van vergelijk.be worden op elke telefoon vertrouwd, ook als Google Shopping ze vindt
-• Ook de winkels van vergelijk.nl worden vertrouwd
-• Heeft een winkel een Belgische én een Nederlandse site, dan toont de app altijd de Belgische, met de Belgische prijs
+• Nieuw zoeken: typ een product of een vraag ("goedkope draadloze koptelefoon") en vind producten bij de winkels, met suggesties terwijl je typt

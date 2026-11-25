@@ -77,7 +77,11 @@ android {
         buildConfig = true
     }
     testOptions {
+        // Robolectric (the screenshots) needs the app's resources and theme.
+        unitTests.isIncludeAndroidResources = true
         unitTests.all {
+            // The screenshots only when asked (SCREENSHOTS=1, the screenshots workflow): they draw whole screens.
+            if (System.getenv("SCREENSHOTS") != "1") it.filter { excludeTestsMatching("*Screenshots") ; isFailOnNoMatchingTests = false }
             it.testLogging.showStandardStreams = true
             // Full failure messages, so the site check's issue says what broke.
             it.testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
@@ -101,5 +105,9 @@ dependencies {
     implementation(libs.mlkit.text.recognition)
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

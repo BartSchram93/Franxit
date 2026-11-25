@@ -23,6 +23,13 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v5
 
+      # The search service's product search (Exa) and suggestions, with those services stood in for.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Search service tests
+        run: node worker/search-proxy.test.mjs
+
       - name: Unit tests
         run: |
           chmod +x gradlew

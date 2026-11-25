@@ -1,4 +1,1 @@
-• Gooise Gitaren is shown on every phone when Google Shopping finds it
-• Every shop vergelijk.be lists is trusted on every phone, also when Google Shopping finds it
-• Shops listed on vergelijk.nl are trusted too
-• A shop with both a Belgian and a Dutch site is always shown as the Belgian one, at the Belgian price
+• New search: type a product or a question ("cheap wireless headphones") and find products at the shops, with suggestions as you type

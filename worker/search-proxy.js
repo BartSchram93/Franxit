@@ -10,6 +10,12 @@
 //   SerpApi (secret SERPAPI_KEY): uploaded to SerpApi's Image API, then searched; the titles of the pages with the
 //   same product come back ("Theelichthouder - Molly - geglazuurd"). Without that key, Google Cloud Vision's web
 //   detection (secret VISION_KEY) is used. The photo is not kept here.
+// - POST /api/product-search {"query": "…"}: products found on the web (Exa, secret EXA_API_KEY) at the shops the app
+//   trusts (SHOP_DOMAINS below), as {"products": [{title, description, url, imageUrl, price, currency, retailer,
+//   availability, score}]}. Only what Exa returns: no price, stock or shop is ever made up (the app reads prices from
+//   the pages themselves). Kept a day per query; limited per IP address and per day in all (Exa's credits).
+// - GET /api/suggest?q=…: search words while typing ("play" → "playstation 5"), from Google's suggestions. Words
+//   only, never products.
 // - Limits per day are counted in Workers KV (binding LIMITS) when it is bound; the cache otherwise (which does
 //   nothing on a workers.dev address, so bind LIMITS there).
 
@@ -19,6 +25,12 @@ const MAX_FRESH_PER_IP = 30;      // fresh searches per IP address per day
 const MAX_RECOGNIZE_PER_IP = 5;   // photos recognised per IP address per day
 const MAX_RECOGNIZE_PER_DAY = 8;  // photos recognised per day in all: about 240 a month, SerpApi's free 250
 const MAX_PHOTO_BYTES = 500_000;  // SerpApi's Image API takes at most 500 KB
+
+const MAX_DISCOVER_PER_IP = 60;    // product searches (Exa) per IP address per day
+const MAX_DISCOVER_PER_DAY = 600;  // and in all: Exa's credits
+const MAX_SUGGEST_PER_IP = 600;    // suggestions per IP address per day (free, but not unlimited)
+const DISCOVER_RESULTS = 20;       // asked of Exa; the app shows the product pages among them
+const MAX_QUERY = 150;
 
 const bad = () => new Response("Bad request", { status: 400 });
 
@@ -218,12 +230,464 @@ function liteStatus(status) {
   return 502;
 }
 
+// ---- Product search (Exa) and suggestions ----
+
+// SHOP_DOMAINS-START (made by tools/vergelijk_shops.py: the sites of the shops vergelijk.be and vergelijk.nl list)
+const SHOP_DOMAINS = [
+  "123accu.nl",
+  "123inkt.be",
+  "123inkt.nl",
+  "123led.nl",
+  "123schoon.nl",
+  "2dekansje.com",
+  "365rider.com",
+  "acer.be",
+  "acer.nl",
+  "adidas.nl",
+  "agrispeelgoed.nl",
+  "alarmsysteemexpert.nl",
+  "alensa.be",
+  "alltricks.nl",
+  "amac.nl",
+  "amazon.com.be",
+  "amazon.nl",
+  "amigo.nl",
+  "appelhoes.nl",
+  "asus.com",
+  "audiomixonline.be",
+  "audiomixonline.nl",
+  "autodoc.be",
+  "avh-outdoor.nl",
+  "badkamerdepot.be",
+  "badkamerstore.nl",
+  "bagage24.nl",
+  "bataviastore.com",
+  "bax-shop.be",
+  "bax-shop.nl",
+  "beautycos.be",
+  "beautycos.nl",
+  "beautyplaza.com",
+  "bedshop.nl",
+  "bedsupply.eu",
+  "bergfreunde.nl",
+  "bikeinn.com",
+  "bloeddrukmeter.shop",
+  "boekenvoordeel.be",
+  "boekenvoordeel.nl",
+  "boekenwereld.com",
+  "bol.com",
+  "bommelwonen.nl",
+  "bomont.nl",
+  "bonprix.be",
+  "bonprix.nl",
+  "bosmenshop.nl",
+  "boxxer.nl",
+  "braadbaas.nl",
+  "brekz.be",
+  "bricoinn.com",
+  "budgetplan.nl",
+  "bugaboo.com",
+  "burnedsports.com",
+  "cameraland.nl",
+  "cameranu.be",
+  "coffeefriend.nl",
+  "conrad.be",
+  "coolblue.be",
+  "coolblue.nl",
+  "coolsound.nl",
+  "coppenswarenhuis.nl",
+  "decathlon.be",
+  "decoprof.nl",
+  "dekbeddiscounter.nl",
+  "delife.nl",
+  "deloox.nl",
+  "deschoenenfabriek.nl",
+  "deubaxxl.be",
+  "deubaxxl.nl",
+  "direct-running.nl",
+  "diveinn.com",
+  "douglas.be",
+  "dreamland.be",
+  "dressinn.com",
+  "durlinger.com",
+  "dyson.be",
+  "easytoys.be",
+  "electroworld.nl",
+  "emma-matras.be",
+  "emma-sleep.nl",
+  "energiebespaarshop.nl",
+  "esdemarca.com",
+  "expert.nl",
+  "farmaline.be",
+  "fietsgoedkoper.nl",
+  "fitwinkel.be",
+  "fixami.be",
+  "flaconi.be",
+  "flaconi.nl",
+  "fnac.be",
+  "fotodevakman.nl",
+  "fragrance.com",
+  "freshnrebel.com",
+  "fuxtec.nl",
+  "galaxus.be",
+  "gamemania.be",
+  "gear4music.be",
+  "gear4music.nl",
+  "gents.nl",
+  "gereedschapcentrum.nl",
+  "goalinn.com",
+  "gooise-gitaren.nl",
+  "gorillasports.be",
+  "grobet.be",
+  "haarspullen.nl",
+  "haibu.nl",
+  "hardware-experts.nl",
+  "hema.be",
+  "herqua.nl",
+  "hifiklubben.nl",
+  "hipdekbedovertrek.be",
+  "hipdekbedovertrek.nl",
+  "hobo.nl",
+  "horecatraders.com",
+  "hp.com",
+  "huisdieren.nl",
+  "huisdierenbazaar.nl",
+  "hype-cult.com",
+  "ikea.com",
+  "intergard.eu",
+  "intratuin.nl",
+  "irepairshop.be",
+  "jbl.be",
+  "jbl.nl",
+  "jhpfashion.nl",
+  "joybuy.nl",
+  "kabelshop.nl",
+  "kalenderwinkel.nl",
+  "kamera-express.be",
+  "kaufland.nl",
+  "keessmit.nl",
+  "kidinn.com",
+  "kids-world.com",
+  "kippersrijssen.nl",
+  "kleertjes.com",
+  "klompenexpert.nl",
+  "knivesandtools.be",
+  "knivesandtools.nl",
+  "koffiemarkt.be",
+  "koffiestore.nl",
+  "kookexpert.nl",
+  "kookgigant.nl",
+  "krefel.be",
+  "lamnia.com",
+  "lampen24.be",
+  "lampenlicht.be",
+  "lampentotaal.be",
+  "lamptwist.com",
+  "large.be",
+  "large.nl",
+  "lego.com",
+  "leifheit.nl",
+  "levaleva.nl",
+  "levix.nl",
+  "lg.com",
+  "lionbeddenshop.nl",
+  "livin24.com",
+  "louis.be",
+  "lovesexshop.be",
+  "lucovitaal.nl",
+  "macvoorminder.nl",
+  "mandmdirect.com",
+  "manfield.be",
+  "manfield.com",
+  "massamarkt.nl",
+  "mediamarkt.be",
+  "mediamarkt.nl",
+  "medpets.be",
+  "medpets.nl",
+  "megagadgets.be",
+  "megagadgets.nl",
+  "mepal.com",
+  "mijnijzerwaren.nl",
+  "molecule.be",
+  "motardinn.com",
+  "music-vanderheyden.be",
+  "natuurlijkbesteld.nl",
+  "nbb.com",
+  "nedgame.nl",
+  "nicebeauty.com",
+  "nieuwnieuw.com",
+  "nl.fnac.be",
+  "office-deals.be",
+  "omoda.be",
+  "omoda.nl",
+  "onlinekabelshop.nl",
+  "osmoshop.nl",
+  "otrium.be",
+  "otrium.nl",
+  "outdoorsupply.nl",
+  "outletformen.com",
+  "overhemden.com",
+  "paradigit.nl",
+  "parfumania.be",
+  "parfumania.nl",
+  "parfumbella.nl",
+  "parfumerie.be",
+  "parfumerie.nl",
+  "parfumwebshop.nl",
+  "passasports.be",
+  "passasports.nl",
+  "petgamma.com",
+  "pharmamarket.be",
+  "philips.be",
+  "philips.nl",
+  "phonemarket.nl",
+  "pib-home.nl",
+  "pipoos.com",
+  "plasmavisie.nl",
+  "plein.be",
+  "plein.nl",
+  "plutosport.be",
+  "plutosport.nl",
+  "praxis.nl",
+  "printabout.be",
+  "printabout.nl",
+  "proforto.be",
+  "proforto.nl",
+  "refurbed.nl",
+  "retourkoop.nl",
+  "riekeronlineshop.nl",
+  "rowenta.be",
+  "rowenta.nl",
+  "runnerinn.com",
+  "runningxpert.com",
+  "salontopper.nl",
+  "samsung.com",
+  "sanitino.nl",
+  "saniweb.be",
+  "sawiday.be",
+  "sbsupply.be",
+  "scapino.nl",
+  "schaefer-shop.be",
+  "schulteherenmode.nl",
+  "senetic.be",
+  "shoesbyboudewijns.nl",
+  "shopvoorgezondheid.nl",
+  "siltcon.nl",
+  "sissy-boy.be",
+  "sissy-boy.com",
+  "skisport.be",
+  "sleepworld.be",
+  "smartphonehoekje.nl",
+  "smartphonehoesjes.nl",
+  "sneltoner.nl",
+  "snowcountry.nl",
+  "snowinn.com",
+  "snowleader.be",
+  "snowleader.nl",
+  "soellaart.nl",
+  "songmicshome.nl",
+  "sony.be",
+  "sony.nl",
+  "spartoo.be",
+  "spartoo.nl",
+  "spellenrijk.nl",
+  "sport24.com",
+  "stijlvolinhuis.nl",
+  "store.nintendo.com",
+  "suitable.be",
+  "suitableshop.nl",
+  "sweeek.nl",
+  "tandenborstel.com",
+  "techinn.com",
+  "tefal.be",
+  "tefal.nl",
+  "telefoondeal.nl",
+  "telefoongigant.nl",
+  "thomann.de",
+  "tink.be",
+  "tink.nl",
+  "tonecontrol.nl",
+  "tonershop.be",
+  "tonershop.nl",
+  "toolmax.nl",
+  "toolstation.nl",
+  "toolsvoordelig.nl",
+  "top1toys.nl",
+  "topshoe.nl",
+  "toysandgarden.nl",
+  "trail.nl",
+  "traininn.com",
+  "trekkinn.com",
+  "tuincentrumoutlet.com",
+  "tuinmeubelland.nl",
+  "tuinmeubelshop.nl",
+  "unisport.nl",
+  "upgreatest.nl",
+  "vandenborre.be",
+  "verfgroothandel.nl",
+  "verfwebwinkel.nl",
+  "vidaxl.be",
+  "vidaxl.nl",
+  "vikingdirect.nl",
+  "vonroc.be",
+  "vonroc.nl",
+  "vortexvr.be",
+  "vrijbuiter.nl",
+  "wardow.com",
+  "warentuin.nl",
+  "waveinn.com",
+  "wear2work.be",
+  "welhof.com",
+  "wiegersxl.nl",
+  "wmf.com",
+  "x2o.be",
+  "yoursurprise.be",
+  "yumeko.be",
+  "yumeko.nl",
+  "zalando.be",
+  "ziengs.nl",
+];
+// SHOP_DOMAINS-END
+
+/** A query as the app may send it: words, not too few or too many. Null when it isn't one. */
+function cleanQuery(raw) {
+  const q = String(raw ?? "").replace(/\s+/g, " ").trim();
+  if (q.length < 2 || q.length > MAX_QUERY) return null;
+  return q;
+}
+
+/** The same page under another tracking code is the same page: those parameters and the "#…" go. */
+function canonicalUrl(raw) {
+  let u;
+  try { u = new URL(raw); } catch { return null; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  u.hash = "";
+  for (const key of [...u.searchParams.keys()]) {
+    if (/^(utm_|gclid|fbclid|ref|referrer|tag|campaign|cmp|affiliate|aff_|mc_)/i.test(key)) u.searchParams.delete(key);
+  }
+  return u.toString();
+}
+
+/** The shop of a page, from its address only ("www.coolblue.be" → "coolblue.be"): never guessed otherwise. */
+function retailerOf(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
+}
+
+/** Exa's results as products: one per page, with only what Exa gave (no price: Exa doesn't read one). */
+function exaProducts(data) {
+  const seen = new Set();
+  const products = [];
+  for (const r of (data && data.results) || []) {
+    const url = canonicalUrl(r.url);
+    const title = String(r.title || "").replace(/\s+/g, " ").trim();
+    if (!url || !title || seen.has(url)) continue;
+    seen.add(url);
+    const highlight = Array.isArray(r.highlights) ? r.highlights.find((h) => typeof h === "string" && h.trim()) : null;
+    products.push({
+      title,
+      description: highlight ? highlight.replace(/\s+/g, " ").trim().slice(0, 300) : null,
+      url,
+      imageUrl: typeof r.image === "string" && /^https:\/\//.test(r.image) ? r.image : null,
+      price: null,
+      currency: null,
+      retailer: retailerOf(url),
+      availability: null,
+      score: typeof r.score === "number" ? r.score : null,
+    });
+  }
+  return products;
+}
+
+/** POST /api/product-search: Exa's search of the trusted shops' sites, for words or a question in plain language. */
+async function productSearch(request, env, ctx) {
+  let body;
+  try { body = await request.json(); } catch { return bad(); }
+  const query = cleanQuery(body && body.query);
+  if (!query) return bad();
+  const limit = Math.min(Math.max(parseInt(body.limit, 10) || DISCOVER_RESULTS, 1), DISCOVER_RESULTS);
+
+  const cache = caches.default;
+  const cacheKey = new Request(`https://cache.invalid/api/product-search?q=${encodeURIComponent(query.toLowerCase())}&n=${limit}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  if (!(await countToday(env, ctx, `discover/${ip}`, MAX_DISCOVER_PER_IP))) return new Response("Too many searches today", { status: 429 });
+  if (!(await countToday(env, ctx, "discover/all", MAX_DISCOVER_PER_DAY))) return new Response("Too many searches today", { status: 429 });
+  if (!env.EXA_API_KEY) return new Response("Not configured", { status: 500 });
+
+  const search = {
+    query,
+    type: "auto",
+    numResults: limit,
+    userLocation: "BE",
+    contents: { highlights: { numSentences: 2, highlightsPerUrl: 1 } },
+  };
+  if (SHOP_DOMAINS.length) search.includeDomains = SHOP_DOMAINS;
+  let answer;
+  try {
+    answer = await fetch("https://api.exa.ai/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": env.EXA_API_KEY },
+      body: JSON.stringify(search),
+    });
+  } catch {
+    return new Response("Search service error", { status: 502 });
+  }
+  if (!answer.ok) return new Response("Search service error", { status: liteStatus(answer.status) });
+  let data;
+  try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
+  const response = new Response(JSON.stringify({ products: exaProducts(data) }), {
+    status: 200,
+    headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
+  });
+  ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  return response;
+}
+
+/** GET /api/suggest?q=…: Google's suggested search words for what you typed, in Dutch for Belgium. */
+async function suggest(url, request, env, ctx) {
+  const q = cleanQuery(url.searchParams.get("q"));
+  if (!q) return bad();
+  const cache = caches.default;
+  const cacheKey = new Request(`https://cache.invalid/api/suggest?q=${encodeURIComponent(q.toLowerCase())}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  if (!(await countToday(env, ctx, `suggest/${ip}`, MAX_SUGGEST_PER_IP))) return new Response("Too many searches today", { status: 429 });
+  const params = new URLSearchParams({ client: "firefox", hl: "nl", gl: "be", q });
+  let words = [];
+  try {
+    const answer = await fetch(`https://suggestqueries.google.com/complete/search?${params}`);
+    if (!answer.ok) return new Response("Suggestion service error", { status: 502 });
+    const data = JSON.parse(new TextDecoder("utf-8").decode(await answer.arrayBuffer()));
+    words = (Array.isArray(data) && Array.isArray(data[1]) ? data[1] : [])
+      .filter((w) => typeof w === "string" && w.trim()).map((w) => w.trim()).slice(0, 8);
+  } catch {
+    return new Response("Suggestion service error", { status: 502 });
+  }
+  const response = new Response(JSON.stringify({ suggestions: words }), {
+    status: 200,
+    headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
+  });
+  ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  return response;
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (env.APP_TOKEN && request.headers.get("X-Franxit-Token") !== env.APP_TOKEN) {
       return new Response("Forbidden", { status: 403 });
     }
     const url = new URL(request.url);
+    if (url.pathname === "/api/product-search") {
+      if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+      return productSearch(request, env, ctx);
+    }
+    if (url.pathname === "/api/suggest") {
+      if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
+      return suggest(url, request, env, ctx);
+    }
     if (url.pathname === "/recognize") {
       if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
       return recognize(request, env, ctx);

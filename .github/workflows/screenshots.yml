@@ -1,0 +1,43 @@
+# Pictures of screens (SearchScreenshots), drawn on a plain JVM by Robolectric with sample data: to look at a change
+# before a release. Run when the screens or these pictures change on a branch, or by hand; the pictures are the run's
+# "screenshots" artifact.
+name: Screenshots
+
+on:
+  push:
+    branches-ignore: [main]
+    paths:
+      - "app/src/main/java/com/bartschram/franxit/ui/**"
+      - "app/src/test/java/com/bartschram/franxit/ui/*Screenshots.kt"
+      - ".github/workflows/screenshots.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Draw the screens
+        env:
+          SCREENSHOTS: "1"
+        run: |
+          chmod +x gradlew
+          ./gradlew testPlayDebugUnitTest --tests '*Screenshots' --console=plain
+          ls -l app/build/screenshots
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: app/build/screenshots/*.png
+          if-no-files-found: error

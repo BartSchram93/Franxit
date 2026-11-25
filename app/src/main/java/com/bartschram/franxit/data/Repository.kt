@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import com.bartschram.franxit.scrape.DuckDuckGo
 import com.bartschram.franxit.scrape.GoogleShopping
 import com.bartschram.franxit.scrape.Matching
+import com.bartschram.franxit.scrape.ProductSearch
 import com.bartschram.franxit.scrape.Scraper
 import com.bartschram.franxit.scrape.Shoparize
 import com.bartschram.franxit.scrape.VergelijkHistory
@@ -923,6 +924,44 @@ class Repository private constructor(context: Context) {
 
     suspend fun search(query: String): List<VergelijkSearch.Hit> = withContext(Dispatchers.IO) {
         VergelijkSearch.search(query)
+    }
+
+    /** Recent product searches, by their words: the same search again (back and forth) costs nothing. */
+    private val discovered = object : LinkedHashMap<String, Pair<Long, List<ProductSearch.Product>>>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, List<ProductSearch.Product>>>) = size > 30
+    }
+    private val DISCOVER_KEEP_MS = 30 * 60_000L
+
+    /** Products on the web for [query] (words or a question): product pages at the shops the app trusts. */
+    suspend fun discover(query: String): List<ProductSearch.Product> = withContext(Dispatchers.IO) {
+        val key = ProductSearch.clean(query)?.lowercase() ?: return@withContext emptyList()
+        synchronized(discovered) { discovered[key] }?.takeIf { System.currentTimeMillis() - it.first < DISCOVER_KEEP_MS }?.let { return@withContext it.second }
+        val found = ProductSearch.search(query)
+        synchronized(discovered) { discovered[key] = System.currentTimeMillis() to found }
+        found
+    }
+
+    /** Search words for what you typed so far; none when the service can't be reached (they're only a help). */
+    suspend fun suggest(prefix: String): List<String> = withContext(Dispatchers.IO) {
+        runCatching { ProductSearch.suggest(prefix) }.getOrDefault(emptyList())
+    }
+
+    /** Prices read from found products' own pages, by address (null: the page showed none the app could read). */
+    private val searchPrices = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, Double?>>()
+    private val searchPriceReads = kotlinx.coroutines.sync.Semaphore(4)
+
+    /**
+     * The price on [product]'s own page, read the way the app reads any shop's page: only when the page is of that
+     * product, in euros. Null when the page shows none, is another product, or doesn't answer quickly: a price is
+     * only ever shown when the shop's page says so.
+     */
+    suspend fun verifiedPrice(product: ProductSearch.Product): Double? = withContext(Dispatchers.IO) {
+        searchPrices[product.url]?.takeIf { System.currentTimeMillis() - it.first < DISCOVER_KEEP_MS }?.let { return@withContext it.second }
+        val price = searchPriceReads.withPermit {
+            runCatching { ShopCheck.seen(Scraper.fetch(product.url, readTimeoutMs = 10_000), product.title)?.price }.getOrNull()
+        }
+        searchPrices[product.url] = System.currentTimeMillis() to price
+        price
     }
 
     /**

@@ -1,4 +1,1 @@
-• Gooise Gitaren est affiché sur chaque téléphone quand Google Shopping le trouve
-• Toutes les boutiques de vergelijk.be sont reconnues sur chaque téléphone, aussi quand Google Shopping les trouve
-• Les boutiques de vergelijk.nl sont aussi reconnues
-• Une boutique qui a un site belge et un site néerlandais est toujours affichée comme la belge, au prix belge
+• Nouvelle recherche : tape un produit ou une question (« casque sans fil pas cher ») et trouve des produits dans les boutiques, avec des suggestions pendant la saisie
