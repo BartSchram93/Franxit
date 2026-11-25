@@ -110,4 +110,32 @@ class ProductSearchTest {
         // The language of a shop's site, not another country: kept.
         assertEquals("https://nl.fnac.be/a20901133/Sony-Console-PS5-Pro", kept("https://nl.fnac.be/a20901133/Sony-Console-PS5-Pro"))
     }
+
+    @Test
+    fun aPagesTitleIsTheProductsNameWithoutTheShop() {
+        assertEquals("SONY PlayStation 5 Pro 2 TB", ProductSearch.cleanTitle("SONY PlayStation 5 Pro 2 TB | MediaMarkt", "www.mediamarkt.be"))
+        assertEquals("PlayStation 5 Pro", ProductSearch.cleanTitle("PlayStation 5 Pro | bol", "www.bol.com"))
+        assertEquals("PlayStation 5 Pro Digital Edition", ProductSearch.cleanTitle("PlayStation 5 Pro Digital Edition | Coolblue | Consoles", "www.coolblue.be"))
+        assertEquals("Playstation 5 Pro (PlayStation 5)", ProductSearch.cleanTitle("Nedgame gameshop: Playstation 5 Pro (PlayStation 5) kopen", "www.nedgame.nl"))
+        assertEquals("Dyson Steelstofzuiger V15 Detect Absolute", ProductSearch.cleanTitle("Dyson Steelstofzuiger V15 Detect Absolute - Beste prijs, snelle levering", "www.krefel.be"))
+        assertEquals("Dyson Cyclone V10 Origin", ProductSearch.cleanTitle("Dyson Cyclone V10 Origin - Molecule", "www.molecule.be"))
+        assertEquals("Sony Playstation 5 Pro 2TB Digital, W128992851 (Digital)",
+            ProductSearch.cleanTitle("Sony Playstation 5 Pro 2TB Digital, W128992851 (Digital) : Amazon.com.be: Electronics", "www.amazon.com.be"))
+        assertEquals("Jabra Move Draadloze koptelefoon", ProductSearch.cleanTitle("Koop Jabra Move Draadloze koptelefoon | 5 Jaar Garantie", "www.hifiklubben.nl"))
+        // A name with a dash of its own stays whole.
+        assertEquals("Sony WH-CH520 - Draadloze on-ear koptelefoon - Zwart", ProductSearch.cleanTitle("Sony WH-CH520 - Draadloze on-ear koptelefoon - Zwart | bol", "www.bol.com"))
+    }
+
+    @Test
+    fun aShopsCategoriesAndLogosAreLeftOut() {
+        val logo = "https://www.molecule.be/media/seo/default/Molecule.jpg"
+        val found = ProductSearch.productPages(listOf(
+            ProductSearch.Product("Dyson Cyclone V10 Origin - Molecule", "https://www.molecule.be/nl/dyson-cyclone-v10-origin-271000937", imageUrl = logo),
+            ProductSearch.Product("Molecule – Sledestofzuigers zonder zak - Molecule", "https://www.molecule.be/nl/huishouden/schoonmaken/stofzuigers/sledestofzuigers-zonder-zak", imageUrl = logo),
+            ProductSearch.Product("Dyson Big Ball Parquet 2 stofzuiger zonder zak", "https://www.molecule.be/nl/dyson-big-ball-parquet-2-271000555", imageUrl = logo),
+            ProductSearch.Product("Sony Playstation 5 Pro 2TB", "https://www.amazon.com.be/Sony-Playstation-Pro-Digital/dp/B0DM8SFRJV"),
+        ))
+        assertEquals(listOf("Dyson Cyclone V10 Origin", "Dyson Big Ball Parquet 2 stofzuiger zonder zak", "Sony Playstation 5 Pro 2TB"), found.map { it.title })
+        assertEquals(listOf<String?>(null, null, null), found.map { it.imageUrl })
+    }
 }

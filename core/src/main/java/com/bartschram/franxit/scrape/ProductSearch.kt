@@ -95,9 +95,55 @@ object ProductSearch {
             hasBelgianSite(host) -> null
             NOT_A_PRODUCT.containsMatchIn(path) || path.lowercase().endsWith(".pdf") -> null
             !namesOneProduct(path) -> null
-            else -> p.copy(url = url)
+            else -> p.copy(url = url, title = cleanTitle(p.title, host))
         }
-    }.distinctBy { samePage(it.url) }
+    }.distinctBy { samePage(it.url) }.let(::withoutCategories).let(::withoutLogos)
+
+    /**
+     * Pages of a shop whose products have a number in their address ("…-271000937") but not this one: its categories
+     * ("…/sledestofzuigers-zonder-zak" at Molecule), however many words their address has.
+     */
+    private fun withoutCategories(products: List<Product>): List<Product> {
+        val numbered = Regex("""\d{5,}""")
+        fun host(p: Product) = runCatching { URI(p.url).host }.getOrNull().orEmpty().lowercase().removePrefix("www.")
+        fun path(p: Product) = runCatching { URI(p.url).path }.getOrNull().orEmpty()
+        val shopsWithNumbers = products.filter { numbered.containsMatchIn(path(it)) }.map(::host).toSet()
+        return products.filter { host(it) !in shopsWithNumbers || numbered.containsMatchIn(path(it)) || AMAZON_PATH.containsMatchIn(path(it)) }
+    }
+
+    /** A photo on two or more pages of the found ones is the shop's logo (Molecule's), not the product's: left out. */
+    private fun withoutLogos(products: List<Product>): List<Product> {
+        val shared = products.mapNotNull { it.imageUrl }.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+        return products.map { if (it.imageUrl in shared) it.copy(imageUrl = null) else it }
+    }
+
+    /**
+     * A page's title as the product's name, as vergelijk.be's were: without the shop's name and slogans that pages
+     * add ("… | MediaMarkt", "… | Coolblue | Consoles", "Nedgame gameshop: … kopen", "… - Beste prijs, snelle
+     * levering", "… : Amazon.com.be: Electronics"). The title itself when nothing would be left.
+     */
+    fun cleanTitle(title: String, host: String): String {
+        val shop = host.removePrefix("www.").substringBefore('.').lowercase().replace("-", "")
+        fun isShop(part: String) = part.lowercase().replace(Regex("[^a-z0-9]"), "").let { it.isNotEmpty() && (it.startsWith(shop) || shop.startsWith(it)) }
+        var t = title.substringBefore(" | ").trim()
+        t = t.replace(Regex("""\s*:\s*Amazon\.[a-z.]+\s*(:.*)?$""", RegexOption.IGNORE_CASE), "")
+        // "Nedgame gameshop: Playstation 5 Pro …": the shop's name before a colon.
+        Regex("""^([^:]{2,40}):\s+(.+)$""").find(t)?.let { m -> if (m.groupValues[1].split(' ').any(::isShop)) t = m.groupValues[2] }
+        // "… - Molecule", "… - Beste prijs, snelle levering": the last part when it's the shop or a slogan.
+        while (true) {
+            val at = maxOf(t.lastIndexOf(" - "), t.lastIndexOf(" – "))
+            if (at <= 0) break
+            val last = t.substring(at + 3).trim()
+            if (isShop(last) || SLOGAN.containsMatchIn(last)) t = t.substring(0, at).trim() else break
+        }
+        t = t.replace(Regex("""^(koop|kopen|buy|acheter)\s+""", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("""\s+(kopen|bestellen|buy|acheter)\??$""", RegexOption.IGNORE_CASE), "")
+            .trim()
+        return t.ifEmpty { title.trim() }
+    }
+
+    private val SLOGAN = Regex("""prijs|levering|bezorgd|morgen in huis|gratis|kopen|bestel|garantie|price|delivery|livraison|prix""", RegexOption.IGNORE_CASE)
+    private val AMAZON_PATH = Regex("""/(dp|gp/product)/[A-Z0-9]{10}(/|$)""")
 
     private val OTHER_COUNTRIES = setOf("es", "de", "it", "uk", "us", "gb", "at", "ch", "pl", "dk", "se", "pt")
 
@@ -131,7 +177,7 @@ object ProductSearch {
      */
     private fun namesOneProduct(path: String): Boolean {
         if (Regex("""\d{5,}""").containsMatchIn(path)) return true
-        if (Regex("""/(dp|gp/product)/[A-Z0-9]{10}(/|$)""").containsMatchIn(path)) return true
+        if (AMAZON_PATH.containsMatchIn(path)) return true
         return path.split('/').any { segment ->
             segment.substringBeforeLast('.').split('-', '_').count { it.isNotEmpty() } >= 3
         }
