@@ -1,2 +1,1 @@
-• Search only shows products whose price the app can read on the shop page
-• Search suggestions in a list under the search field as you type
+• A new product shows its shops at once, one by one; Google Shopping adds more later

@@ -207,7 +207,8 @@ class Repository private constructor(context: Context) {
     /** Products whose Google Shopping search was too slow, until when it isn't asked again. */
     private val googleSlowUntil = java.util.concurrent.ConcurrentHashMap<Long, Long>()
     private val GOOGLE_SLOW_PAUSE_MS = 60 * 60_000L
-    private val FIRST_GOOGLE_MS = 60_000L
+    // 30 s: a new product's shops already show while Google is asked; when it's slower, it's asked again a minute later.
+    private val FIRST_GOOGLE_MS = 30_000L
 
     /** Products checked again by themselves after Google Shopping was too slow at their first check (once each). */
     private val retried = java.util.concurrent.ConcurrentHashMap.newKeySet<Long>()
@@ -355,6 +356,9 @@ class Repository private constructor(context: Context) {
 
     /** Shop pages read at the same time; a check waits at most [SHOP_CHECK_SECONDS] for all of them. */
     private val shopReaders = java.util.concurrent.Executors.newFixedThreadPool(8)
+
+    /** Google Shopping asked beside the shops already known being checked (a thread each: it mostly waits). */
+    private val googleReaders = java.util.concurrent.Executors.newCachedThreadPool()
     private val SHOP_CHECK_SECONDS = 25L
 
     /** Google Shopping's searches of one check together: one product refreshed (you're waiting), or in the background. */
@@ -1122,13 +1126,26 @@ class Repository private constructor(context: Context) {
         val searchesGoogle = searchesExtra(query, ownShops) &&
             ShoppingSettings.extraOffers(appContext, product.id, today.toString()) == null
         val searchesShoparize = ShoppingSettings.shoparizeOffers(appContext, product.id, today.toString()) == null
+        // Google Shopping and Shoparize asked at once, in the background: they mostly wait on another server (a new
+        // product's first Google search took a minute, and nothing showed until then).
+        val shoparizeLater = shopReaders.submit(java.util.concurrent.Callable { shoparizeShops(named, query) })
+        val extrasLater = googleReaders.submit(java.util.concurrent.Callable {
+            GoogleShopping.within(googleTime(lookups)) { extraShops(named, query, ownCheapest, ownShops, waiting = lookups >= LOOKUPS_ONE) }
+        })
+        // Meanwhile the shops known already (the source's, and what Google and Shoparize found last time) are shown
+        // and checked on their own pages: each one shows with its price as soon as its page confirms it.
         if ((searchesGoogle || searchesShoparize) && onFirstResults != null) {
-            store(combine(ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty(), ShoppingSettings.lastShoparizeOffers(appContext, product.id).orEmpty()))
+            val first = combine(ShoppingSettings.lastExtraOffers(appContext, product.id).orEmpty(), ShoppingSettings.lastShoparizeOffers(appContext, product.id).orEmpty())
+            store(first)
+            onFirstResults()
+            store(checkShopPages(named, first, result, lookups))
             onFirstResults()
         }
-        // Shoparize at the same time as Google Shopping: both mostly wait on another server.
-        val shoparizeLater = shopReaders.submit(java.util.concurrent.Callable { shoparizeShops(named, query) })
-        val extras = GoogleShopping.within(googleTime(lookups)) { extraShops(named, query, ownCheapest, ownShops, waiting = lookups >= LOOKUPS_ONE) }
+        val extras = try {
+            extrasLater.get()
+        } catch (e: java.util.concurrent.ExecutionException) {
+            throw e.cause ?: e
+        }
         step(product.id, "More shops (Google)")
         val shoparize = runCatching { shoparizeLater.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
         step(product.id, "More shops (Shoparize)")

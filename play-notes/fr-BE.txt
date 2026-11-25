@@ -1,2 +1,1 @@
-• La recherche ne montre que les produits dont l'appli peut lire le prix sur la page du magasin
-• Suggestions de recherche dans une liste sous le champ pendant la saisie
+• Un nouveau produit montre ses boutiques tout de suite, une par une ; Google Shopping complète ensuite
