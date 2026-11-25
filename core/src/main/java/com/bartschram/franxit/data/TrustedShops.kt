@@ -25,7 +25,7 @@ object TrustedShops {
         "proximus", "orange", "telenet", "base", "galaxus",
         // Photo and music
         "kamera-express", "kameraexpress", "fotokonijnenberg", "bax-shop", "baxshop", "baxmusic", "thomann", "gear4music",
-        "woodbrass", "keymusic", "michenaud",
+        "woodbrass", "keymusic", "michenaud", "gooise-gitaren",
     ).map(::key).toSet()
 
     /**

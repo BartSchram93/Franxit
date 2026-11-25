@@ -57,4 +57,11 @@ class TrustedShopsTest {
             .result.offers.map { it.seller }
         assertEquals(listOf("Bol.com", "Coolblue.be", "MediaMarkt.be"), shops)
     }
+
+    @Test
+    fun aDutchMusicShopKnownByEveryPhone() {
+        // Found on Google Shopping on one phone, left out on another that hadn't learned it from vergelijk.be.
+        assertEquals("Gooise-Gitaren.nl", TrustedShops.name("Gooise-Gitaren.nl", emptySet()))
+        assertEquals("Gooise Gitaren", TrustedShops.name("Gooise Gitaren", emptySet()))
+    }
 }

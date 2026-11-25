@@ -1,3 +1,1 @@
-• Une page de boutique proposant plusieurs couleurs (comme bol.com) est lue dans la couleur de cette page
-• Une boutique qui propose un autre produit sur vergelijk.be est écartée
-• Un prix n'apparaît qu'une fois la boutique vérifiée
+• Gooise Gitaren est affiché sur chaque téléphone quand Google Shopping le trouve

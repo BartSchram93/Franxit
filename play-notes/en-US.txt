@@ -1,3 +1,1 @@
-• A shop page offering several colours (like bol.com) is read in that page's own colour
-• A shop offering another product on vergelijk.be is left out
-• A price only shows once its shop has been checked
+• Gooise Gitaren is shown on every phone when Google Shopping finds it
