@@ -166,4 +166,26 @@ class ProductSearchTest {
             "iPhone 17 Pro 256GB", "iPhone 17 Pro 512GB",
         ), found.map { it.title })
     }
+
+    @Test
+    fun aModelCodeAskedForMustBeInTheResult() {
+        fun p(title: String, url: String) = ProductSearch.Product(title, url)
+        val found = listOf(
+            p("HJC CALIDO MT GL Urban Helm Zwart", "https://www.bol.com/be/nl/p/hjc-calido-mt-gl/9300000111111111/"),
+            p("2021 ASUS TUF Gaming F15", "https://www.asus.com/be-nl/laptops/tuf-gaming-f15-2021/"),
+            p("HJC F100 Bios helm", "https://www.bikeroutfit.nl/nl/hjc-f100-bios.html"),
+        )
+        assertEquals(listOf("HJC F100 Bios helm"), ProductSearch.relevant(found, "hjc f100 bios helm").map { it.title })
+        // Without a code, nothing is held against the words.
+        assertEquals(3, ProductSearch.relevant(found, "goedkope helm").size)
+        // A code written otherwise is the same code.
+        assertEquals(1, ProductSearch.relevant(listOf(p("Epiphone Dave Grohl DG335", "https://www.shop.be/p/123456")), "epiphone dg-335").size)
+    }
+
+    @Test
+    fun anotherCountrysFolderOrSeparatorIsSeen() {
+        fun kept(url: String, title: String) = ProductSearch.productPages(listOf(ProductSearch.Product(title, url))).singleOrNull()
+        assertNull(kept("https://www.asus.com/us/laptops/for-gaming/tuf-gaming/2021-asus-tuf-gaming-f15/", "2021 ASUS TUF Gaming F15 ｜ Laptops For Gaming ｜ ASUS USA"))
+        assertEquals("ASUS TUF Gaming F16 (2024)", ProductSearch.cleanTitle("ASUS TUF Gaming F16 (2024) ｜ Laptops For Gaming ｜ ASUS Global", "www.asus.com"))
+    }
 }

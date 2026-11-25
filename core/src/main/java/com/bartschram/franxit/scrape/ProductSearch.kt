@@ -91,6 +91,8 @@ object ProductSearch {
             !host.endsWith(".be") && DuckDuckGo.isOtherCountry(url) -> null
             // A site for another country by its first part ("es.nbb.com"); "nl.fnac.be" and "fr.zalando.be" are Belgian.
             host.substringBefore('.') in OTHER_COUNTRIES -> null
+            // ... or by its first folder on a site that isn't Belgian ("asus.com/us/…").
+            !host.endsWith(".be") && path.trim('/').substringBefore('/').lowercase() in OTHER_COUNTRIES -> null
             hasBelgianSite(host) -> null
             NOT_A_PRODUCT.containsMatchIn(path) || path.lowercase().endsWith(".pdf") -> null
             !namesOneProduct(path) -> null
@@ -124,7 +126,8 @@ object ProductSearch {
     fun cleanTitle(title: String, host: String): String {
         val shop = host.removePrefix("www.").substringBefore('.').lowercase().replace("-", "")
         fun isShop(part: String) = part.lowercase().replace(Regex("[^a-z0-9]"), "").let { it.isNotEmpty() && (it.startsWith(shop) || shop.startsWith(it)) }
-        var t = title.substringBefore(" | ").trim()
+        // The name before the shop's part, however the page separates them ("|", "｜", "·").
+        var t = title.split(Regex("""\s+[|｜·]\s+""")).first().trim()
         t = t.replace(Regex("""\s*:\s*Amazon\.[a-z.]+\s*(:.*)?$""", RegexOption.IGNORE_CASE), "")
         // "Nedgame gameshop: Playstation 5 Pro …": the shop's name before a colon.
         Regex("""^([^:]{2,40}):\s+(.+)$""").find(t)?.let { m -> if (m.groupValues[1].split(' ').any(::isShop)) t = m.groupValues[2] }
@@ -243,10 +246,26 @@ object ProductSearch {
 
     private val NOT_TELLING = setOf("sony", "apple", "samsung", "nintendo", "microsoft", "console", "consola", "spelconsole", "spelcomputer", "the", "de", "het")
 
+    /**
+     * Only results that name what you asked for: a model code in your words ("f100", "dg-335", "wh-ch520") must be in
+     * the result's name or address. The search can find a near look-alike ("ASUS TUF F15" for "HJC F100"): no
+     * result is better than another product.
+     */
+    fun relevant(products: List<Product>, query: String): List<Product> {
+        val codes = query.lowercase().split(Regex("""\s+""")).map { it.trim(',', '.', '"', '\'') }
+            .filter { w -> w.length >= 3 && w.any(Char::isDigit) && w.any(Char::isLetter) }
+            .map { it.filter(Char::isLetterOrDigit) }
+        if (codes.isEmpty()) return products
+        return products.filter { p ->
+            val text = (p.title + " " + p.url).lowercase().filter(Char::isLetterOrDigit)
+            codes.all { it in text }
+        }
+    }
+
     /** Products for [query], product pages only, best first as the service ranks them. */
     fun search(query: String): List<Product> {
         val q = clean(query) ?: return emptyList()
-        return productPages(parse(post("/api/product-search", Request(q).toJson())).products)
+        return relevant(productPages(parse(post("/api/product-search", Request(q).toJson())).products), q)
     }
 
     private fun post(path: String, body: String): String = request(path, body)

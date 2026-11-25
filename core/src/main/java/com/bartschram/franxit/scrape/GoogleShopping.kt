@@ -178,8 +178,12 @@ object GoogleShopping {
         e is java.net.SocketTimeoutException -> TOO_SLOW
         e is java.net.UnknownHostException || e is java.net.ConnectException -> NO_CONNECTION
         e is java.net.SocketException -> CONNECTION_LOST
-        e.message == "HTTP 401" -> BAD_KEY
-        e.message == "HTTP 429" -> NO_SEARCHES_LEFT
+        e.message.orEmpty().startsWith("HTTP 401") -> BAD_KEY
+        // The search service's daily limit per connection; its "Search service error" 429 is the plan's searches.
+        e.message.orEmpty().startsWith("HTTP 429") && "Too many" in e.message.orEmpty() -> TOO_MANY_TODAY
+        e.message.orEmpty().startsWith("HTTP 429") -> NO_SEARCHES_LEFT
+        // The search service didn't take the app's token: an older app.
+        e.message.orEmpty().startsWith("HTTP 403") -> REFUSED
         e.message.orEmpty().matches(Regex("""HTTP 5\d\d""")) -> "Google Shopping had a problem, tried again at the next check"
         else -> e.message ?: "Google Shopping couldn't be reached"
     }
@@ -187,6 +191,8 @@ object GoogleShopping {
     const val NOT_FOUND = "Not found on Google Shopping"
     const val BAD_KEY = "Your Google Shopping key doesn't work"
     const val NO_SEARCHES_LEFT = "No Google Shopping searches left this month"
+    const val TOO_MANY_TODAY = "Too many Google Shopping searches from this connection today, tried again tomorrow"
+    const val REFUSED = "The search service didn't accept this version of the app. Update Franxit."
 
     /** A stored link that still has to be looked up: [TOKEN] + Google's product page token. */
     const val TOKEN = "serpapi-token:"

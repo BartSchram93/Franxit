@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -178,7 +179,15 @@ fun SearchScreen(
                 onValueChange = { query = it },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Search, null) },
-                trailingIcon = { if (searching) LoadingDots(dotSize = 5.dp) },
+                // A search button besides the keyboard's: words are only searched when asked (20 a day).
+                trailingIcon = {
+                    when {
+                        searching -> LoadingDots(dotSize = 5.dp)
+                        link == null && query.trim().length >= 2 -> IconButton(onClick = { searchNow++ }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, t("Search"))
+                        }
+                    }
+                },
                 placeholder = { Text("Search or paste a link") },
                 shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(imeAction = if (link != null) ImeAction.Done else ImeAction.Search),
@@ -222,7 +231,7 @@ fun SearchScreen(
                 } else if (query.trim().length >= 2 && !searched) {
                     item {
                         Text(
-                            "Press search to find products.",
+                            "Press the search button to find products.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

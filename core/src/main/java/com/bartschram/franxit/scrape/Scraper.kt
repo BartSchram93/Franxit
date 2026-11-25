@@ -196,6 +196,11 @@ object Scraper {
                     current = URL(address, location).toString()
                     return@repeat
                 }
+                // Franxit's own search service: its answer as it is ("HTTP 429: Too many searches today"), not a shop's.
+                if (code !in 200..299 && current.startsWith(GoogleShopping.PROXY)) {
+                    val said = runCatching { conn.errorStream?.bufferedReader()?.use { it.readText() } }.getOrNull().orEmpty().trim().take(80)
+                    throw IOException("HTTP $code" + if (said.isNotEmpty()) ": $said" else "")
+                }
                 // 403/406/429: the usual answers of shops that keep apps out.
                 if (code == 403 || code == 406 || code == 429) throw IOException("${shop(url)} only allows browsers")
                 if (code !in 200..299) throw IOException("HTTP $code")
