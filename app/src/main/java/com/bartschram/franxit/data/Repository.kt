@@ -1191,7 +1191,14 @@ class Repository private constructor(context: Context) {
         val shoparize = runCatching { shoparizeLater.get(30, java.util.concurrent.TimeUnit.SECONDS) }.getOrDefault(emptyList())
         step(product.id, "More shops (Shoparize)")
         // Each shop's own page, where its link is known: sold out there, or another price, as the shop says it.
-        val (offers, cheapest) = store(checkShopPages(named, combine(extras.offers, shoparize), result, lookups))
+        // Google's and Shoparize's shops on the screen at once, each one shown as its page is found and confirmed as
+        // its page is read (one by one, not all at the end). Only the list: no price is stored until checked.
+        val all = combine(extras.offers, shoparize)
+        if (onFirstResults != null) {
+            db.replaceOffers(product.id, all)
+            onFirstResults()
+        }
+        val (offers, cheapest) = store(checkShopPages(named, all, result, lookups))
         // The shops are in: show them now, before the site's price history is fetched.
         onFirstResults?.invoke()
         if (cheapest == null) return null
