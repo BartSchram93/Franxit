@@ -946,14 +946,16 @@ class Repository private constructor(context: Context) {
     private val searchPhotoReads = Semaphore(6)
 
     /**
-     * A found product's photo: the search's, else its own page's (read as any shop page, briefly). Null when there is
-     * none: such a result isn't shown.
+     * A found product's photo, one that loads (Nedgame's from the search didn't): the search's, else its own page's
+     * (read as any shop page, briefly). Null when there is none: such a result isn't shown.
      */
     suspend fun photoOf(product: ProductSearch.Product): String? = withContext(Dispatchers.IO) {
-        product.imageUrl?.let { return@withContext it }
         searchPhotos[product.url]?.let { return@withContext it.orElse(null) }
+        fun loads(url: String?) = url?.takeIf { runCatching { Images.thumbnail(it) != null }.getOrDefault(false) }
         val photo = searchPhotoReads.withPermit {
-            runCatching { ProductSearch.photoIn(Scraper.download(product.url, "text/html,application/xhtml+xml", readTimeoutMs = 8_000), product.url) }.getOrNull()
+            loads(product.imageUrl) ?: loads(
+                runCatching { ProductSearch.photoIn(Scraper.download(product.url, "text/html,application/xhtml+xml", readTimeoutMs = 8_000), product.url) }.getOrNull()
+            )
         }
         searchPhotos[product.url] = java.util.Optional.ofNullable(photo)
         photo

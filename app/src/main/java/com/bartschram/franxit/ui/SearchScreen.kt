@@ -148,13 +148,13 @@ fun SearchScreen(
             val found = runCatching { discover(q) }
             failed = found.isFailure
             limitReached = found.exceptionOrNull() is ProductSearch.LimitReached
-            // Only products with a photo, shown with it: those the search gave one at once, the others once their
-            // own page gave one (Coolblue's, Amazon's), in the search's order.
+            // Only products with a photo that loads, shown with it as each one's is there (the search's, else its own
+            // page's: Coolblue's, Amazon's), in the search's order, and each product once.
             val all = found.getOrDefault(emptyList())
-            val photos = all.associate { it.url to it.imageUrl }.toMutableMap()
-            fun shown() = all.mapNotNull { p -> photos[p.url]?.let { p.copy(imageUrl = it) } }
-            products = shown()
-            all.filter { it.imageUrl == null }.map { p ->
+            val photos = java.util.concurrent.ConcurrentHashMap<String, String>()
+            fun shown() = ProductSearch.oneOfEach(all.mapNotNull { p -> photos[p.url]?.let { p.copy(imageUrl = it) } })
+            products = emptyList()
+            all.map { p ->
                 async { photoOf(p)?.let { photos[p.url] = it; products = shown() } }
             }.awaitAll()
             searching = false

@@ -157,4 +157,22 @@ class ProductSearchTest {
         assertNull(ProductSearch.photoIn("""<meta property="og:image" content="https://www.molecule.be/media/seo/default/Molecule.jpg">""", "https://www.molecule.be/nl/x-271000937"))
         assertNull(ProductSearch.photoIn("<html></html>", "https://www.shop.be/p/123"))
     }
+
+    @Test
+    fun eachProductOnceWhateverTheShop() {
+        fun p(title: String) = ProductSearch.Product(title, "https://www.shop.be/p/" + title.hashCode())
+        val found = ProductSearch.oneOfEach(listOf(
+            p("SONY PlayStation 5 Pro 2 TB"), p("PlayStation 5 Pro"), p("PlayStation 5 Pro Digital Edition"),
+            p("Playstation 5 Pro (PlayStation 5)"), p("Sony PlayStation 5 Pro 2TB"),
+            p("PS5 Pro Digital 2TB White Console EA Sports FC26"), p("PLAYSTATION 5 Pro 2 TB - EA SPORTS FC26"),
+            p("Sony WH-CH520 - Draadloze on-ear koptelefoon - Zwart"), p("Sony WH-CH520 - Draadloze on-ear koptelefoon - Wit"),
+            p("iPhone 17 Pro 256GB"), p("iPhone 17 Pro 512GB"),
+        ))
+        assertEquals(listOf(
+            "SONY PlayStation 5 Pro 2 TB", "PlayStation 5 Pro Digital Edition",
+            "PS5 Pro Digital 2TB White Console EA Sports FC26", "PLAYSTATION 5 Pro 2 TB - EA SPORTS FC26",
+            "Sony WH-CH520 - Draadloze on-ear koptelefoon - Zwart", "Sony WH-CH520 - Draadloze on-ear koptelefoon - Wit",
+            "iPhone 17 Pro 256GB", "iPhone 17 Pro 512GB",
+        ), found.map { it.title })
+    }
 }

@@ -213,6 +213,37 @@ object ProductSearch {
     /** A shop's own picture rather than a product's ("/media/seo/default/Molecule.jpg", "…/logo.png"). */
     private val LOGO = Regex("""logo|/seo/default/|favicon|placeholder""", RegexOption.IGNORE_CASE)
 
+    /**
+     * Each product once: the same product at another shop says nothing new (tracking it finds all its shops). The
+     * same is the same words, whatever the brand's place, "console" or how a size is written ("SONY PlayStation 5 Pro
+     * 2 TB", "PlayStation 5 Pro", "Sony PlayStation 5 Pro 2TB"); another colour, size, edition or bundle stays.
+     * The first, as the search ranked them, is kept.
+     */
+    fun oneOfEach(products: List<Product>): List<Product> {
+        val kept = mutableListOf<Product>()
+        for (p in products) {
+            if (kept.none { same(it.title, p.title) }) kept += p
+        }
+        return kept
+    }
+
+    private fun same(a: String, b: String): Boolean {
+        if (Matching.otherColour(a, b) || Matching.otherSpecs(a, b) || Matching.otherTier(a, b) || Matching.otherTier(b, a) ||
+            Matching.otherEdition(a, b) || Matching.otherEdition(b, a) || Matching.otherModelCode(a, b) || Matching.otherModelCode(b, a)
+        ) return false
+        return words(a) == words(b)
+    }
+
+    /** A name's words that tell products apart: not its brand's, "console" or a size (compared above). */
+    private fun words(title: String): Set<String> {
+        val t = title.lowercase()
+            .replace(Regex("""\bps(\d)\b"""), "playstation $1")
+            .replace(Regex("""(\d+)\s*(gb|tb)\b"""), "")
+        return t.split(Regex("""[^\p{L}\p{N}]+""")).filter { it.isNotEmpty() && it !in NOT_TELLING }.toSet()
+    }
+
+    private val NOT_TELLING = setOf("sony", "apple", "samsung", "nintendo", "microsoft", "console", "consola", "spelconsole", "spelcomputer", "the", "de", "het")
+
     /** Products for [query], product pages only, best first as the service ranks them. */
     fun search(query: String): List<Product> {
         val q = clean(query) ?: return emptyList()

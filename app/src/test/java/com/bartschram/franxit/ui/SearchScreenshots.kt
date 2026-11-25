@@ -81,11 +81,14 @@ class SearchScreenshots {
         discover = found,
         suggest = { words },
         // As the app: the search's photo, else the page's own (fetched here; a shop that keeps servers out gives none).
+        // As the app: a photo that loads, the search's or else the page's (fetched here; a shop that keeps servers out
+        // gives none).
         photoOf = { p ->
-            p.imageUrl ?: kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runCatching { ProductSearch.photoIn(com.bartschram.franxit.scrape.Scraper.download(p.url, "text/html", readTimeoutMs = 8_000), p.url) }
-                    .onFailure { println("PHOTO page failed ${p.url}: $it") }.getOrNull()
-                    ?.also { photo -> println("PHOTO ${p.url} -> $photo, loads: ${runCatching { com.bartschram.franxit.data.Images.thumbnail(photo) != null }.getOrElse { e -> e.toString() }}") }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                fun loads(url: String?) = url?.takeIf { runCatching { com.bartschram.franxit.data.Images.thumbnail(it) != null }.getOrDefault(false) }
+                // The samples: shown as they are (no real photo).
+                if (p.imageUrl == "https://example.invalid/photo.jpg") return@withContext p.imageUrl
+                loads(p.imageUrl) ?: loads(runCatching { ProductSearch.photoIn(com.bartschram.franxit.scrape.Scraper.download(p.url, "text/html", readTimeoutMs = 8_000), p.url) }.getOrNull())
             }
         },
         titleFromLink = titleFromLink,
