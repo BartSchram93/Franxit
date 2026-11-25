@@ -2,10 +2,8 @@ package com.bartschram.franxit.ui
 
 import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.core.app.ApplicationProvider
 import com.bartschram.franxit.scrape.ProductSearch
 import com.bartschram.franxit.ui.theme.FranxitTheme
@@ -29,7 +27,7 @@ import java.io.File
 class SearchScreenshots {
 
     @get:Rule
-    val compose = createComposeRule()
+    val compose = createAndroidComposeRule<ComponentActivity>()
 
     private val out = File("build/screenshots").apply { mkdirs() }
 
@@ -63,7 +61,10 @@ class SearchScreenshots {
         // Past the waits for typing to pause, and the prices read.
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
-        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+        // Drawn from the window itself: Compose's own capture waits for a frame Robolectric doesn't send.
+        val view = compose.activity.window.decorView
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        view.draw(android.graphics.Canvas(bitmap))
         File(out, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
@@ -83,6 +84,7 @@ class SearchScreenshots {
         onBack = {},
         initialQuery = query,
         onGoogleShopping = {},
+        photoSearch = false,
     )
 
     @Test
