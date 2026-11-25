@@ -32,7 +32,7 @@ class SearchScreenshots {
     private val out = File("build/screenshots").apply { mkdirs() }
 
     private fun product(title: String, shop: String, path: String, description: String? = null) =
-        ProductSearch.Product(title = title, url = "https://www.$shop$path", description = description, retailer = shop)
+        ProductSearch.Product(title = title, url = "https://www.$shop$path", description = description, retailer = shop, imageUrl = "https://example.invalid/photo.jpg")
 
     private val ps5 = listOf(
         product("Sony PlayStation 5 Slim Disc Edition", "coolblue.be", "/nl/product/950001/sony-playstation-5-slim-disc.html"),
@@ -58,6 +58,10 @@ class SearchScreenshots {
         compose.setContent { FranxitTheme { content() } }
         // Past the waits for typing to pause.
         compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        // The photos downloaded from the shops (real results only; the samples have none).
+        Thread.sleep(12_000)
+        compose.mainClock.advanceTimeBy(500)
         compose.waitForIdle()
         // Drawn from the window itself: Compose's own capture waits for a frame Robolectric doesn't send.
         val view = compose.activity.window.decorView

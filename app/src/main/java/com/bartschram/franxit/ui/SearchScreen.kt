@@ -141,7 +141,7 @@ fun SearchScreen(
             }
             if (!now) delay(DISCOVER_DELAY_MS)
             searching = true
-            val found = runCatching { discover(q) }
+            val found = runCatching { discover(q).filter { it.imageUrl != null } }
             failed = found.isFailure
             limitReached = found.exceptionOrNull() is ProductSearch.LimitReached
             products = found.getOrDefault(emptyList())
@@ -257,10 +257,11 @@ fun SearchScreen(
                     }
                 }
                 items(results, key = { it.url }) { hit -> ResultRow(hit.title, null, null, hit.image) { onPick(hit.url, hit.title) } }
-                // Products found on the web, by their name only: picked, the product is tracked, found across
-                // all shops first (as a pasted shop link), so its price is compared.
+                // Products found on the web with their photo (only those that have one: a page without a photo of the
+                // product is often no product's page). Picked, the product is tracked, found across all shops first (as
+                // a pasted shop link), so its price is compared.
                 if (link == null) items(products, key = { "p:" + it.url }) { product ->
-                    ResultRow(product.title, null, null) { query = product.url }
+                    ResultRow(product.title, null, null, product.imageUrl) { query = product.url }
                 }
                 if (google != null && !googleFirst) {
                     item(key = "google") {
