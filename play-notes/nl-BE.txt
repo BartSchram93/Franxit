@@ -1,1 +1,2 @@
 • Een nieuw product toont zijn winkels meteen, één voor één; Google Shopping vult later aan
+• Tijdens het laden verschijnen de winkels één voor één: zodra hun pagina gevonden is, met de prijs zodra die gelezen is

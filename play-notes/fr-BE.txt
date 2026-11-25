@@ -1,1 +1,2 @@
 • Un nouveau produit montre ses boutiques tout de suite, une par une ; Google Shopping complète ensuite
+• Pendant le chargement, les boutiques apparaissent une par une : dès que leur page est trouvée, avec le prix dès qu'il est lu
