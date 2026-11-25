@@ -49,7 +49,7 @@ class ProductSearchTest {
         assertNull(ProductSearch.clean("a"))
         assertNull(ProductSearch.clean("x".repeat(151)))
         assertEquals("cheap wireless headphones", ProductSearch.clean("  cheap   wireless headphones "))
-        assertEquals("""{"query":"PlayStation 5","limit":20}""", ProductSearch.Request("PlayStation 5").toJson())
+        assertEquals("""{"query":"PlayStation 5","limit":25}""", ProductSearch.Request("PlayStation 5").toJson())
     }
 
     @Test
@@ -93,6 +93,19 @@ class ProductSearchTest {
             "https://www.bax-shop.be/nl/b-stock-aanbiedingen/gitaar?p=7",
             "https://www.zalando.be/schoenen/?q=nike+air+max",
             "https://www.bax-shop.be/images/bax_music_magazine_2022.pdf",
+            "https://www.dyson.be/nl_be/stofzuigers/draadloze-stofzuigers/v15-v12-bekijk-alle-modellen",
+            "https://www.dyson.be/nl_be/stofzuigers/draadloos/v12/shop-alle-modellen",
+            "https://www.mediamarkt.be/nl/content/entertainment-mobility/gaming-hardware/verschil-ps5-pro-en-ps5-slim",
+            "https://www.galaxus.be/en/page/sony-presents-the-playstation-5-pro-34674",
+            "https://es.nbb.com/es/p/consola-sony-playstation-5-pro-2-tb-de-memoria-ssd-trazado-de-rayos-ampliado",
         )) assertNull(url, kept(url))
+        // One page in two languages once.
+        val twice = ProductSearch.productPages(listOf(
+            ProductSearch.Product("PlayStation 5 Pro Digital Edition", "https://www.coolblue.be/nl/product/954519/playstation-5-pro-digital-edition.html"),
+            ProductSearch.Product("PlayStation 5 Pro Digital Edition", "https://www.coolblue.be/en/product/954519/playstation-5-pro-digital-edition.html"),
+        ))
+        assertEquals(listOf("https://www.coolblue.be/nl/product/954519/playstation-5-pro-digital-edition.html"), twice.map { it.url })
+        // The language of a shop's site, not another country: kept.
+        assertEquals("https://nl.fnac.be/a20901133/Sony-Console-PS5-Pro", kept("https://nl.fnac.be/a20901133/Sony-Console-PS5-Pro"))
     }
 }

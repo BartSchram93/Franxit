@@ -29,7 +29,7 @@ const MAX_PHOTO_BYTES = 500_000;  // SerpApi's Image API takes at most 500 KB
 const MAX_DISCOVER_PER_IP = 60;    // product searches (Exa) per IP address per day
 const MAX_DISCOVER_PER_DAY = 600;  // and in all: Exa's credits
 const MAX_SUGGEST_PER_IP = 600;    // suggestions per IP address per day (free, but not unlimited)
-const DISCOVER_RESULTS = 20;       // asked of Exa; the app shows the product pages among them
+const DISCOVER_RESULTS = 25;       // asked of Exa; the app shows the product pages among them
 const MAX_QUERY = 150;
 
 const bad = () => new Response("Bad request", { status: 400 });

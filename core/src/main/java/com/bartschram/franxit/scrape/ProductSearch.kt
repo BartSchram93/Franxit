@@ -42,7 +42,7 @@ object ProductSearch {
     /** The service's daily limit was reached (or the provider's credits): not a connection problem. */
     class LimitReached : IOException(LIMIT)
 
-    const val MAX_RESULTS = 20
+    const val MAX_RESULTS = 25
     const val MAX_QUERY = 150
     const val LIMIT = "Too many searches today. Try again tomorrow."
     const val FAILED = "Search failed. Check your connection."
@@ -90,12 +90,23 @@ object ProductSearch {
             DuckDuckGo.isForeignSite(url) -> null
             // Another country's pages of a site ("lego.com/en-us/"); on a Belgian site those letters are a language.
             !host.endsWith(".be") && DuckDuckGo.isOtherCountry(url) -> null
+            // A site for another country by its first part ("es.nbb.com"); "nl.fnac.be" and "fr.zalando.be" are Belgian.
+            host.substringBefore('.') in OTHER_COUNTRIES -> null
             hasBelgianSite(host) -> null
             NOT_A_PRODUCT.containsMatchIn(path) || path.lowercase().endsWith(".pdf") -> null
             !namesOneProduct(path) -> null
             else -> p.copy(url = url)
         }
-    }.distinctBy { it.url }
+    }.distinctBy { samePage(it.url) }
+
+    private val OTHER_COUNTRIES = setOf("es", "de", "it", "uk", "us", "gb", "at", "ch", "pl", "dk", "se", "pt")
+
+    /** One page in two languages is one product: Coolblue's "/nl/product/954519/…" and "/en/product/954519/…". */
+    private fun samePage(url: String): String {
+        val uri = runCatching { URI(url) }.getOrNull() ?: return url
+        return uri.host.orEmpty().lowercase().removePrefix("www.") +
+            uri.path.orEmpty().replaceFirst(Regex("""^/(nl|fr|en|de)([-_](be|nl))?(?=/)""", RegexOption.IGNORE_CASE), "")
+    }
 
     /** A Dutch site of a shop that has a Belgian one: "coolblue.nl" (coolblue.be), "amazon.nl" (amazon.com.be). */
     private fun hasBelgianSite(host: String): Boolean {
@@ -107,7 +118,9 @@ object ProductSearch {
     /** Pages a web search finds at shops that sell nothing themselves: advice, news, a theme, the shop's offers. */
     private val NOT_A_PRODUCT = Regex(
         """/(l|c|advice|advies|conseils?|blog|news|nieuws|magazine|aboutus|about-us|themes?|onlineexpert[^/]*|""" +
-            """images|aanbiedingen|b-stock-aanbiedingen|acties|promoties|promotions?)(/|$)""",
+            """images|aanbiedingen|b-stock-aanbiedingen|acties|promoties|promotions?|content|pages?|inspiratie|inspiration)(/|$)|""" +
+            // A brand's or shop's overview of its models ("v15-v12-bekijk-alle-modellen", "shop-alle-modellen").
+            """(alle-modellen|all-models|bekijk-alle|shop-alle|shop-all|tous-les-modeles)""",
         RegexOption.IGNORE_CASE,
     )
 
