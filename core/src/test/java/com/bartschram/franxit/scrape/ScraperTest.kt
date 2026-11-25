@@ -118,4 +118,13 @@ class ScraperTest {
         // A page showing neither: as it is (no guess).
         assertEquals(354.55, Scraper.fromPage("<html><head>$data</head><body></body></html>", "https://www.shop.be/p/1").offers.single().price, 0.001)
     }
+
+    @Test
+    fun aProductsBarcodesAreRead() {
+        val shop = """<script type="application/ld+json">{"@type":"Product","name":"Google Pixel 11 Pro 256GB Zwart EU","gtin13":"0840353956520","offers":{"@type":"Offer","price":"879.00","priceCurrency":"EUR"}}</script>"""
+        val vergelijk = """<script type="application/ld+json">{"@type":"Product","name":"Pixel 11 Pro","gtin14":["00840353956520"],"offers":{"@type":"AggregateOffer","lowPrice":"899","priceCurrency":"EUR","offers":[{"@type":"Offer","price":"899","priceCurrency":"EUR"}]}}</script>"""
+        // Written in 13 or 14 digits, the same barcode.
+        assertEquals(setOf("840353956520"), Scraper.parse(shop).gtins)
+        assertEquals(Scraper.parse(shop).gtins, Scraper.parse(vergelijk).gtins)
+    }
 }

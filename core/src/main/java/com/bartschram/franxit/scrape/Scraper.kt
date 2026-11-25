@@ -23,7 +23,8 @@ object Scraper {
     data class Offer(val seller: String, val price: Double, val inStock: Boolean? = null, val link: String? = null, val title: String? = null)
 
     /** [brand]: the maker the page names ("999 Games"), when it does. */
-    data class Result(val name: String, val offers: List<Offer>, val image: String? = null, val brand: String? = null) {
+    /** [gtins]: the product's barcodes (EAN/GTIN) its data gives, without leading zeros: to know it elsewhere for sure. */
+    data class Result(val name: String, val offers: List<Offer>, val image: String? = null, val brand: String? = null, val gtins: Set<String> = emptySet()) {
         /** Cheapest offer you can actually buy, falling back to the cheapest one listed. */
         val cheapest: Offer
             get() = offers.filter { it.inStock != false }.minByOrNull { it.price } ?: offers.minBy { it.price }
@@ -262,7 +263,7 @@ object Scraper {
         val products = pageFirst(all.filter { isType(it, "Product") }, html)
         val fromSchema = products.firstNotNullOfOrNull { product ->
             offers(product.opt("offers")).takeIf { it.isNotEmpty() }
-                ?.let { Result(product.optString("name").trim(), it, image(product.opt("image"), all), brand(product.opt("brand"))) }
+                ?.let { Result(product.optString("name").trim(), it, image(product.opt("image"), all), brand(product.opt("brand")), gtins(product)) }
         }
         // vergelijk.be: its app state has the prices after discounts, which schema.org leaves out.
         val shopOffers = NuxtOffers.parse(html)
@@ -270,7 +271,7 @@ object Scraper {
         if (shopOffers.isNotEmpty() && products.isNotEmpty()) {
             val product = products.firstOrNull()
             val name = fromSchema?.name ?: product?.optString("name")?.trim().orEmpty()
-            return Result(name, shopOffers, fromSchema?.image ?: product?.let { image(it.opt("image"), all) }, product?.let { brand(it.opt("brand")) })
+            return Result(name, shopOffers, fromSchema?.image ?: product?.let { image(it.opt("image"), all) }, product?.let { brand(it.opt("brand")) }, product?.let(::gtins).orEmpty())
         }
         return fromSchema ?: fromMeta(html) ?: throw IOException("No prices found on page")
     }
@@ -309,6 +310,25 @@ object Scraper {
             ?: Regex("<title[^>]*>(.*?)</title>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)).find(html)?.groupValues?.get(1)
         val name = title.orEmpty().replace("&amp;", "&").replace("&#39;", "'").replace("&quot;", "\"").trim()
         return Result(name, listOf(Offer("", price, inStock)), OG_IMAGE.find(html)?.groupValues?.get(1))
+    }
+
+    /**
+     * A product's barcodes in schema.org's data ("gtin13": "4549292197246", "gtin14": ["00840353956520"], also in its
+     * offers), as digits without leading zeros: an EAN written in 13 or 14 digits is the same one.
+     */
+    fun gtins(product: JSONObject): Set<String> {
+        fun values(o: JSONObject?): List<String> = if (o == null) emptyList() else listOf("gtin", "gtin8", "gtin12", "gtin13", "gtin14", "ean").flatMap { key ->
+            when (val v = o.opt(key)) {
+                is JSONArray -> (0 until v.length()).map { v.optString(it) }
+                null -> emptyList()
+                else -> listOf(v.toString())
+            }
+        }
+        val offers = product.opt("offers").let { o -> when (o) { is JSONArray -> (0 until o.length()).mapNotNull { o.optJSONObject(it) }; is JSONObject -> listOf(o); else -> emptyList() } }
+        return (values(product) + offers.flatMap(::values))
+            .map { it.filter(Char::isDigit).trimStart('0') }
+            .filter { it.length >= 8 }
+            .toSet()
     }
 
     /** schema.org's brand: a name, a Brand or Organization with a name, or a list of those. */

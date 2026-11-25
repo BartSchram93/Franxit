@@ -988,13 +988,19 @@ class Repository private constructor(context: Context) {
      * The same product on vergelijk.be as [product] (named [title] by its own page): one clear match of vergelijk.be's
      * search, else none. Remembered; when there was none, looked for again the next day.
      */
-    private fun vergelijkTwin(product: Product, title: String): String? {
+    private fun vergelijkTwin(product: Product, title: String, gtins: Set<String> = emptySet()): String? {
         val known = ShoppingSettings.vergelijkTwin(appContext, product.id)
         if (known != null && !known.startsWith("none:")) return known
         // None found: looked for again the next day (vergelijk.be's search is free; it may have the product by then).
         if (known != null && known.removePrefix("none:") >= LocalDate.now().toString()) return null
         val match = runCatching {
-            Matching.clearMatch(VergelijkSearch.search(Names.short(title)), title)?.url
+            val hits = VergelijkSearch.search(Names.short(title))
+            Matching.clearMatch(hits, title)?.url
+                // Not clear by name ("Zwart EU" at the shop, "Obsidian" there): the best few's pages, the one with the
+                // shop page's barcode, which is the product for sure.
+                ?: if (gtins.isEmpty()) null else Matching.rank(hits, title).take(3).firstOrNull { hit ->
+                    runCatching { Scraper.fetch(hit.url).gtins.any { it in gtins } }.getOrDefault(false)
+                }?.url
         }.getOrElse { return null }
         ShoppingSettings.saveVergelijkTwin(appContext, product.id, match ?: "none:${LocalDate.now()}")
         return match
@@ -1251,7 +1257,7 @@ class Repository private constructor(context: Context) {
             // A product followed at a shop (from the search or a link) or through Google: the same product's history
             // on vergelijk.be, when it has that product for sure.
             val historyPage = if (VergelijkHistory.historyUrl(product.url) != null) product.url
-                else vergelijkTwin(product, result.name.ifBlank { product.displayName })
+                else vergelijkTwin(product, result.name.ifBlank { product.displayName }, result.gtins)
             runCatching { historyPage?.let { VergelijkHistory.fetch(it) } }.getOrNull()
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { db.replaceSiteHistory(product.id, it) }
