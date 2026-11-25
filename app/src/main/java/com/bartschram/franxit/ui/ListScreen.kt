@@ -489,10 +489,11 @@ private fun ProductCard(
                     Box(Modifier.padding(start = indent)) { SearchingWords("Looking up the product…") }
                     return@Column
                 }
+                val error = product.lastError
                 Text(
-                    if (product.lastError != null) t("Couldn't read price: %s", tMessage(product.lastError)) else "Not checked yet · pull down to check",
+                    if (error != null) t("Couldn't read price: %s", tMessage(error)) else "Not checked yet · pull down to check",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (product.lastError != null) PriceUp else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (error != null) PriceUp else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = indent),
                 )
                 return@Column
