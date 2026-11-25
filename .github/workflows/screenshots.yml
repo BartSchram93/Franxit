@@ -7,7 +7,8 @@ on:
   push:
     branches-ignore: [main]
     paths:
-      - "app/src/main/java/com/bartschram/franxit/ui/**"
+      - "app/src/main/java/**"
+      - "core/src/main/java/**"
       - "app/src/test/java/com/bartschram/franxit/ui/*Screenshots.kt"
       - ".github/workflows/screenshots.yml"
   workflow_dispatch:
