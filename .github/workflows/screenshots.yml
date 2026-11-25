@@ -36,6 +36,13 @@ jobs:
           ./gradlew testPlayDebugUnitTest --tests '*Screenshots' --console=plain
           ls -l app/build/screenshots
 
+      # Also in the log, as text (base64), for where the artifact can't be downloaded.
+      - name: Pictures in the log
+        run: |
+          for f in app/build/screenshots/*.png; do
+            echo "SHOT $(basename "$f") $(base64 -w0 "$f")"
+          done
+
       - uses: actions/upload-artifact@v4
         with:
           name: screenshots
