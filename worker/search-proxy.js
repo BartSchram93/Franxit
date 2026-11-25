@@ -306,8 +306,10 @@ async function productSearch(request, env, ctx) {
   if (!(await countToday(env, ctx, `discover/ip-all/${ip}`, MAX_DISCOVER_PER_IP))) return new Response("Daily limit reached", { status: 429 });
   if (!env.EXA_API_KEY) return new Response("Not configured", { status: 500 });
 
+  // Asked as a purchase in Belgium: Exa then finds shops' pages in Belgium and the Netherlands rather than reviews
+  // and shops abroad ("hjc f100 bios helm" alone gave British and Australian shops; with these words, Biker Outfit).
   const search = {
-    query,
+    query: /\b(kopen|acheter|buy)\b/i.test(query) ? query : `${query} kopen België`,
     type: "auto",
     numResults: limit,
     userLocation: "BE",

@@ -9,7 +9,9 @@ globalThis.fetch = async (url, init) => {
     const body = JSON.parse(init.body);
     assert.equal(init.headers["x-api-key"], "KEY");
     assert.ok(body.excludeDomains.includes("youtube.com"));
-    if (body.query === "fail") return new Response("no credits", { status: 402 });
+    if (body.query.startsWith("fail")) return new Response("no credits", { status: 402 });
+    // Asked as a purchase in Belgium, unless the words say so already.
+    if (body.query.startsWith("PlayStation 5")) assert.equal(body.query, "PlayStation 5 kopen België");
     return Response.json({ results: [
       { url: "https://www.coolblue.be/nl/product/123/ps5.html?utm_source=x#top", title: " PlayStation 5  Slim ", score: 0.8, image: "https://img/1.jpg", highlights: ["De PS5 Slim met disc."] },
       { url: "https://www.coolblue.be/nl/product/123/ps5.html", title: "Duplicate", score: 0.7 },
