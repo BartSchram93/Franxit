@@ -1,1 +1,1 @@
-• La recherche lit aussi les magasins qui bloquent les applis (comme Galaxus et Amazon) et trouve plus de magasins belges
+• Les longues suggestions de recherche sont désormais entièrement lisibles
