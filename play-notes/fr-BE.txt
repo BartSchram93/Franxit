@@ -1,2 +1,1 @@
-• La recherche trouve plus de magasins (comme Galaxus) et plus de tests
-• Rien trouvé ? Collez le lien de la page du produit dans un magasin
+• La recherche lit aussi les magasins qui bloquent les applis (comme Galaxus et Amazon) et trouve plus de magasins belges

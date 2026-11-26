@@ -1031,6 +1031,12 @@ class Repository private constructor(context: Context) {
     private val searchPhotos = java.util.concurrent.ConcurrentHashMap<String, java.util.Optional<String>>()
     private val searchPhotoReads = Semaphore(6)
 
+    /** How long a found product's page may take in the browser: you're waiting for the results. */
+    private val SEARCH_BROWSER_MS = 12_000L
+
+    /** Found products' pages in the browser at the same time: each is a whole browser page. */
+    private val searchBrowserReads = Semaphore(3)
+
     /**
      * A found product's photo, when the product can be followed: its own page (read as any shop page, briefly) shows
      * a price the app reads, of this product (Chromeburner's showed none). The search's photo or else the page's, one
@@ -1040,11 +1046,17 @@ class Repository private constructor(context: Context) {
         searchPhotos[product.url]?.let { return@withContext it.orElse(null) }
         fun loads(url: String?) = url?.takeIf { runCatching { Images.thumbnail(it) != null }.getOrDefault(false) }
         val photo = searchPhotoReads.withPermit {
-            runCatching {
-                val html = Scraper.download(product.url, "text/html,application/xhtml+xml", readTimeoutMs = 8_000)
-                val price = runCatching { ShopCheck.seen(Scraper.fromPage(html, product.url), product.title)?.price }.getOrNull()
-                if (price == null) null else loads(product.imageUrl) ?: loads(ProductSearch.photoIn(html, product.url))
-            }.getOrNull()
+            fun priced(html: String) =
+                runCatching { ShopCheck.seen(Scraper.fromPage(html, product.url), product.title)?.price }.getOrNull() != null
+            fun photo(html: String) = loads(product.imageUrl) ?: loads(ProductSearch.photoIn(html, product.url))
+            val html = runCatching { Scraper.download(product.url, "text/html,application/xhtml+xml", readTimeoutMs = 8_000) }.getOrNull()
+            when {
+                html != null && priced(html) -> photo(html)
+                // A shop that keeps apps out (Galaxus, Amazon) or shows its price with scripts: read in a browser, as
+                // when it's tracked.
+                else -> searchBrowserReads.withPermit { runCatching { BrowserPages.html(appContext, product.url, waitMs = SEARCH_BROWSER_MS) }.getOrNull() }
+                    ?.takeIf(::priced)?.let(::photo)
+            }
         }
         searchPhotos[product.url] = java.util.Optional.ofNullable(photo)
         photo

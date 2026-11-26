@@ -1,2 +1,1 @@
-• Search finds more shops (such as Galaxus) and no more reviews
-• Nothing found? Paste the link to the product page at a shop
+• Search also reads shops that keep apps out (such as Galaxus and Amazon) and finds more Belgian shops

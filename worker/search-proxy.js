@@ -315,7 +315,7 @@ const BELGIAN_SHOPS = [
   "mediamarkt.be", "coolblue.be", "bol.com", "krefel.be", "vandenborre.be", "fnac.be", "amazon.com.be", "galaxus.be",
   "alternate.be", "dreamland.be", "brico.be", "hubo.be", "decathlon.be", "zalando.be", "torfs.be",
 ];
-const MIN_BELGIAN = 5;  // fewer Belgian shops' pages than this: the big shops are searched too
+const MIN_BELGIAN = 5;  // fewer Belgian shops than this: the big shops are searched too
 const isBelgian = (url) => {
   const host = retailerOf(url) || "";
   return host.endsWith(".be") || host === "bol.com" || host.endsWith(".bol.com");
@@ -417,7 +417,8 @@ async function productSearch(request, env, ctx) {
   let data = await exa(search);
   if (!data) return new Response("Search service error", { status: 502 });
   // Few Belgian shops among them: the big Belgian shops searched as well (a second search), their pages first.
-  if (((data.results) || []).filter((r) => isBelgian(r.url)).length < MIN_BELGIAN) {
+  // Belgian shops, not pages: Galaxus four times is one shop.
+  if (new Set(((data.results) || []).filter((r) => isBelgian(r.url)).map((r) => retailerOf(r.url))).size < MIN_BELGIAN) {
     const belgian = await exa({
       query: search.query, type: "auto", numResults: 10, userLocation: "BE", includeDomains: BELGIAN_SHOPS,
       contents: search.contents,
