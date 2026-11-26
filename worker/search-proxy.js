@@ -453,17 +453,20 @@ async function brightDataTest(url, request, env, ctx) {
  * GET /sa-test?q=… (a search) or /sa-test?token=<immersive_product_page_token> (Google's page of that product, its
  * shops): through SerpApi (secret SERPAPI_KEY), with how long it took and how many results. As strict as the search:
  * the app's token, 50 fresh a day per IP address, kept a day. For trying SerpApi out; the app doesn't use it.
+ * &raw=1 gives SerpApi's whole answer (to run the app's own reading on it); &more=1 asks a product's page for more shops.
  */
 async function serpApiTest(url, request, env, ctx) {
   const q = cleanQuery(url.searchParams.get("q"));
   const token = url.searchParams.get("token") || "";
   if (!q && (token.length < 10 || token.length > 4000)) return bad();
   if (!serpKeys(env).length) return new Response("Not configured", { status: 500 });
+  const raw = url.searchParams.get("raw") === "1";
   const params = q
     ? new URLSearchParams({ engine: "google_shopping", q, gl: "be", hl: "nl", google_domain: "google.be" })
     : new URLSearchParams({ engine: "google_immersive_product", page_token: token, gl: "be", hl: "nl" });
+  if (!q && url.searchParams.get("more") === "1") params.set("more_stores", "true");
   const cache = caches.default;
-  const cacheKey = new Request(`https://cache.invalid/sa-test?${params.toString().toLowerCase()}`);
+  const cacheKey = new Request(`https://cache.invalid/sa-test?raw=${raw}&${params.toString().toLowerCase()}`);
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -491,6 +494,11 @@ async function serpApiTest(url, request, env, ctx) {
     tokens: results.map((r) => r.immersive_product_page_token).filter(Boolean).slice(0, 3),
     sample: (q ? results : stores).slice(0, 5).map((r) => ({ title: r.title || r.name, source: r.source || r.name, price: r.price || r.extracted_price, link: r.link || null })),
   };
+  if (raw) {
+    delete body.sample;
+    const { search_metadata, search_parameters, ...rest } = data;
+    body.answer = rest;
+  }
   const response = new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` } });
   // An error isn't kept: asked again next time.
   if (!data.error) ctx.waitUntil(cache.put(cacheKey, response.clone()));
