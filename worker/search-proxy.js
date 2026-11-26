@@ -373,21 +373,34 @@ async function suggest(url, request, env, ctx) {
 // ---- Bright Data's SERP API: a trial against LiteScrape (speed, and what its answer holds) ----
 
 /**
- * GET /bd-test?q=…: Google Shopping in Belgium through Bright Data (secrets BRIGHTDATA_KEY, BRIGHTDATA_ZONE), its
- * answer as it comes and how long it took. As strict as the search: the app's token, 50 fresh a day per IP address,
- * kept a day. For trying Bright Data out; the app doesn't use it.
+ * GET /bd-test?q=… (a search) or /bd-test?product=<Google's product link from a search's answer> (Google's page of
+ * that product: its shops): Google Shopping in Belgium through Bright Data (secrets BRIGHTDATA_KEY, BRIGHTDATA_ZONE),
+ * its answer without the pictures it embeds, and how long it took. As strict as the search: the app's token, 50 fresh
+ * a day per IP address, kept a day. For trying Bright Data out; the app doesn't use it.
  */
 async function brightDataTest(url, request, env, ctx) {
-  const q = cleanQuery(url.searchParams.get("q"));
-  if (!q) return bad();
+  let google;
+  const product = url.searchParams.get("product") || "";
+  if (product) {
+    let u;
+    try { u = new URL(product); } catch { return bad(); }
+    if (u.protocol !== "https:" || !/^www\.google\.(com|be)$/.test(u.hostname) || u.pathname !== "/search") return bad();
+    u.searchParams.set("hl", "nl");
+    u.searchParams.set("gl", "be");
+    u.searchParams.set("brd_json", "1");
+    google = u.toString();
+  } else {
+    const q = cleanQuery(url.searchParams.get("q"));
+    if (!q) return bad();
+    google = `https://www.google.be/search?${new URLSearchParams({ q, tbm: "shop", hl: "nl", gl: "be", brd_json: "1" })}`;
+  }
   if (!env.BRIGHTDATA_KEY || !env.BRIGHTDATA_ZONE) return new Response("Not configured", { status: 500 });
   const cache = caches.default;
-  const cacheKey = new Request(`https://cache.invalid/bd-test?q=${encodeURIComponent(q.toLowerCase())}`);
+  const cacheKey = new Request(`https://cache.invalid/bd-test?u=${encodeURIComponent(google.toLowerCase())}`);
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   if (!(await countToday(env, ctx, `bd/${ip}`, MAX_FRESH_PER_IP))) return new Response("Too many searches today", { status: 429 });
-  const google = `https://www.google.be/search?${new URLSearchParams({ q, tbm: "shop", hl: "nl", gl: "be", brd_json: "1" })}`;
   const started = Date.now();
   let answer;
   try {
@@ -402,7 +415,9 @@ async function brightDataTest(url, request, env, ctx) {
   const text = await answer.text();
   const ms = Date.now() - started;
   if (!answer.ok) return new Response(`Search service error ${answer.status}: ${text.slice(0, 300)}`, { status: 502 });
-  const response = new Response(JSON.stringify({ ms, answer: text.slice(0, 200000) }), {
+  // The pictures Google's page embeds (logos, photos as data): left out, they're most of the answer.
+  const slim = text.replace(/data:image\/[a-z+]+;base64,[A-Za-z0-9+\/=]+/g, "");
+  const response = new Response(JSON.stringify({ ms, size: text.length, answer: slim }), {
     status: 200,
     headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
   });
