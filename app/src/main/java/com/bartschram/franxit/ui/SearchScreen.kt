@@ -246,7 +246,8 @@ fun SearchScreen(
                             Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(Modifier.width(14.dp))
-                                androidx.compose.material3.Text(words, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                // Whole, over more lines when long: suggestions often differ only at their end.
+                                androidx.compose.material3.Text(words, style = MaterialTheme.typography.bodyLarge, maxLines = 3, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
