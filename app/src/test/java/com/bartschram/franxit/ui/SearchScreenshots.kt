@@ -156,6 +156,11 @@ class SearchScreenshots {
     }
 
     @Test
+    fun n_realTcl() = shoot("13-echt-tcl-nxtpaper-14") {
+        Search("TCL nxtpaper 14", found = { ProductSearch.oneOfEach(ProductSearch.relevant(real("tcl-nxtpaper-14.json"), "TCL nxtpaper 14")) })
+    }
+
+    @Test
     fun m_suggestionsWhileTyping() {
         compose.setContent { FranxitTheme { Search("") } }
         compose.onNode(androidx.compose.ui.test.hasSetTextAction()).performTextReplacement("playstation 5")

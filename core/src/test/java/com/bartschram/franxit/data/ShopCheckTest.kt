@@ -78,6 +78,8 @@ class ShopCheckTest {
         assertFalse(ShopCheck.isElsewhere("https://www.bax-shop.be/keyboardbanken/hercules-kb200b-keyboardbank", bench))
         assertFalse(ShopCheck.isElsewhere("https://www.fnac.be/a12345/Hercules-KB200B-Keyboardbank", bench))
         assertFalse(ShopCheck.isElsewhere("https://www.bol.com/be/nl/p/hercules-hckb-200b/9300000012345/", bench))
+        // Galaxus' product pages are in a folder like a search's ("/s1/").
+        assertFalse(ShopCheck.isElsewhere("https://www.galaxus.be/nl/s1/product/tcl-nxtpaper-14-1430-256-gb-grijs-tablet-49026982", "TCL NxtPaper 14 (14.30\", 256 GB, Grijs)"))
         assertFalse(ShopCheck.isElsewhere("https://www.kamera-express.be/product/12422729/canon-selphy-cp1500-black", "Canon Selphy CP1500 Zwart"))
         // A page of another product leaves the shop out too.
         assertNull(ShopCheck.apply(ShopOffer("Fnac.be", 135.0, null), ShopCheck.ELSEWHERE))

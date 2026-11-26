@@ -37,6 +37,15 @@ class ProductSearchTest {
     }
 
     @Test
+    fun galaxusIsKeptAndAReviewIsNot() {
+        val found = ProductSearch.parse("""{"products":[
+            {"title":"TCL NxtPaper 14 (14.30\", 256 GB, Grijs) - kopen bij Galaxus","url":"https://www.galaxus.be/nl/s1/product/tcl-nxtpaper-14-1430-256-gb-grijs-tablet-49026982"},
+            {"title":"TCL NXTPAPER 14: kijkt als een tablet, leest als papier | Totaal TV","url":"https://www.totaaltv.nl/tests/tcl-nxtpaper-14-kijkt-als-een-tablet-leest-als-papier/"}
+        ]}""").products
+        assertEquals(listOf("www.galaxus.be"), ProductSearch.productPages(found).map { java.net.URI(it.url).host })
+    }
+
+    @Test
     fun onlyProductPagesAreKept() {
         val pages = ProductSearch.productPages(ProductSearch.parse(answer).products)
         // Not a category, a search, Fnac's theme page or a home page: products only (an accessory is a product too).

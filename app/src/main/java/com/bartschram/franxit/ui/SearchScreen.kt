@@ -264,7 +264,7 @@ fun SearchScreen(
                             when {
                                 limitReached -> ProductSearch.LIMIT
                                 failed -> ProductSearch.FAILED
-                                else -> "No products found."
+                                else -> "No products found. Paste the link to the product's page at a shop to track it."
                             },
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

@@ -89,7 +89,7 @@ internal val DUTCH_TEXTS: Map<String, String> = mapOf(
     "Pick it to compare prices across all shops:" to "Kies het om de prijzen van alle winkels te vergelijken:",
     "Track this link" to "Deze link volgen",
     "Search failed. Check your connection." to "Zoeken mislukt. Controleer je verbinding.",
-    "No products found." to "Geen producten gevonden.",
+    "No products found. Paste the link to the product's page at a shop to track it." to "Geen producten gevonden. Plak de link naar de productpagina bij een winkel om het te volgen.",
     "Looking for products at the shops…" to "Producten zoeken bij de winkels…",
     "You've reached your daily limit of 20 searches. You can search again tomorrow." to "Je hebt je dagelijkse limiet van 20 zoekopdrachten bereikt. Morgen kan je opnieuw zoeken.",
     "Type a product name, or paste a link to a product page." to "Typ een productnaam, of plak een link naar een productpagina.",

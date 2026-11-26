@@ -182,7 +182,7 @@ object ProductSearch {
     /** Pages a web search finds at shops that sell nothing themselves: advice, news, a theme, the shop's offers. */
     private val NOT_A_PRODUCT = Regex(
         """/(l|c|advice|advies|conseils?|blog|news|nieuws|magazine|aboutus|about-us|themes?|onlineexpert[^/]*|""" +
-            """images|aanbiedingen|b-stock-aanbiedingen|acties|promoties|promotions?|content|pages?|inspiratie|inspiration)(/|$)|""" +
+            """images|tests?|reviews?|aanbiedingen|b-stock-aanbiedingen|acties|promoties|promotions?|content|pages?|inspiratie|inspiration)(/|$)|""" +
             // A brand's or shop's overview of its models ("v15-v12-bekijk-alle-modellen", "shop-alle-modellen").
             """(alle-modellen|all-models|bekijk-alle|shop-alle|shop-all|tous-les-modeles)""",
         RegexOption.IGNORE_CASE,

@@ -94,7 +94,8 @@ object ShopCheck {
      * Quatres" for a keyboard bench). A shop with such a link is left out: its price may be of anything.
      */
     fun isElsewhere(link: String, name: String): Boolean {
-        val path = runCatching { java.net.URI(link).path }.getOrNull().orEmpty()
+        // Galaxus' and Digitec's product pages are in a folder like a search's ("/nl/s1/product/…-49026982").
+        val path = runCatching { java.net.URI(link).path }.getOrNull().orEmpty().replace(Regex("""/s\d+/product/"""), "/product/")
         if (LISTING_PATH.containsMatchIn(path) || LISTING_QUERY.containsMatchIn(link)) return true
         // Big shops whose product pages have a known shape: any other page of theirs is a list or a theme page
         // (Fnac's "/gaming/playstation5-pro-console/q", found for the PS5 Pro, has no price of its own).

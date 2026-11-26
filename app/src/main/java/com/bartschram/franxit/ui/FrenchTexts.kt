@@ -89,7 +89,7 @@ internal val FRENCH_TEXTS: Map<String, String> = mapOf(
     "Pick it to compare prices across all shops:" to "Choisis-le pour comparer les prix de tous les magasins :",
     "Track this link" to "Suivre ce lien",
     "Search failed. Check your connection." to "La recherche a échoué. Vérifie ta connexion.",
-    "No products found." to "Aucun produit trouvé.",
+    "No products found. Paste the link to the product's page at a shop to track it." to "Aucun produit trouvé. Collez le lien de la page du produit dans un magasin pour le suivre.",
     "Looking for products at the shops…" to "Recherche de produits dans les boutiques…",
     "You've reached your daily limit of 20 searches. You can search again tomorrow." to "Tu as atteint ta limite quotidienne de 20 recherches. Tu pourras à nouveau chercher demain.",
     "Type a product name, or paste a link to a product page." to "Tape le nom d'un produit, ou colle un lien vers une page de produit.",
