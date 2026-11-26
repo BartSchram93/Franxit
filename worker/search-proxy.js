@@ -392,11 +392,14 @@ async function brightDataTest(url, request, env, ctx) {
   } else {
     const q = cleanQuery(url.searchParams.get("q"));
     if (!q) return bad();
-    google = `https://www.google.be/search?${new URLSearchParams({ q, tbm: "shop", hl: "nl", gl: "be", brd_json: "1" })}`;
+    // Google Shopping the old way (tbm=shop) or the new (udm=28): which one Bright Data answers best is tried out.
+    const shop = url.searchParams.get("mode") === "udm" ? { udm: "28" } : { tbm: "shop" };
+    google = `https://www.google.be/search?${new URLSearchParams({ q, ...shop, hl: "nl", gl: "be", brd_json: "1" })}`;
   }
   if (!env.BRIGHTDATA_KEY || !env.BRIGHTDATA_ZONE) return new Response("Not configured", { status: 500 });
   const cache = caches.default;
-  const cacheKey = new Request(`https://cache.invalid/bd-test?u=${encodeURIComponent(google.toLowerCase())}`);
+  const format = url.searchParams.get("format") === "json" ? "json" : "raw";
+  const cacheKey = new Request(`https://cache.invalid/bd-test?f=${format}&u=${encodeURIComponent(google.toLowerCase())}`);
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -407,7 +410,7 @@ async function brightDataTest(url, request, env, ctx) {
     answer = await fetch("https://api.brightdata.com/request", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.BRIGHTDATA_KEY}` },
-      body: JSON.stringify({ zone: env.BRIGHTDATA_ZONE, url: google, format: "raw" }),
+      body: JSON.stringify({ zone: env.BRIGHTDATA_ZONE, url: google, format }),
     });
   } catch {
     return new Response("Search service error", { status: 502 });
@@ -417,7 +420,10 @@ async function brightDataTest(url, request, env, ctx) {
   if (!answer.ok) return new Response(`Search service error ${answer.status}: ${text.slice(0, 300)}`, { status: 502 });
   // The pictures Google's page embeds (logos, photos as data): left out, they're most of the answer.
   const slim = text.replace(/data:image\/[a-z+]+;base64,[A-Za-z0-9+\/=]+/g, "");
-  const response = new Response(JSON.stringify({ ms, size: text.length, answer: slim }), {
+  // Bright Data's own headers (an id to fetch a later answer by, its status): to see why an answer is empty.
+  const headers = {};
+  for (const [k, v] of answer.headers) if (/^x-|^brd|retry|location/i.test(k)) headers[k] = v;
+  const response = new Response(JSON.stringify({ ms, status: answer.status, headers, size: text.length, google, answer: slim }), {
     status: 200,
     headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
   });
