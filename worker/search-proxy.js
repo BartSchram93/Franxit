@@ -431,6 +431,51 @@ async function brightDataTest(url, request, env, ctx) {
   return response;
 }
 
+// ---- SerpApi for Google Shopping: a trial against LiteScrape (speed of the search and of a product's page) ----
+
+/**
+ * GET /sa-test?q=… (a search) or /sa-test?token=<immersive_product_page_token> (Google's page of that product, its
+ * shops): through SerpApi (secret SERPAPI_KEY), with how long it took and how many results. As strict as the search:
+ * the app's token, 50 fresh a day per IP address, kept a day. For trying SerpApi out; the app doesn't use it.
+ */
+async function serpApiTest(url, request, env, ctx) {
+  const q = cleanQuery(url.searchParams.get("q"));
+  const token = url.searchParams.get("token") || "";
+  if (!q && (token.length < 10 || token.length > 4000)) return bad();
+  if (!env.SERPAPI_KEY) return new Response("Not configured", { status: 500 });
+  const params = q
+    ? new URLSearchParams({ engine: "google_shopping", q, gl: "be", hl: "nl", google_domain: "google.be", location: PLACE })
+    : new URLSearchParams({ engine: "google_immersive_product", page_token: token, gl: "be", hl: "nl" });
+  const cache = caches.default;
+  const cacheKey = new Request(`https://cache.invalid/sa-test?${params.toString().toLowerCase()}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  if (!(await countToday(env, ctx, `sa/${ip}`, MAX_FRESH_PER_IP))) return new Response("Too many searches today", { status: 429 });
+  params.set("api_key", env.SERPAPI_KEY);
+  params.set("no_cache", "true");
+  const started = Date.now();
+  let answer;
+  try { answer = await fetch(`https://serpapi.com/search.json?${params}`); } catch { return new Response("Search service error", { status: 502 }); }
+  const ms = Date.now() - started;
+  let data;
+  try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
+  const results = data.shopping_results || [];
+  const stores = (data.product_results && data.product_results.stores) || [];
+  const body = {
+    ms,
+    status: answer.status,
+    error: data.error || null,
+    results: results.length,
+    stores: stores.length,
+    tokens: results.map((r) => r.immersive_product_page_token).filter(Boolean).slice(0, 3),
+    sample: (q ? results : stores).slice(0, 5).map((r) => ({ title: r.title || r.name, source: r.source || r.name, price: r.price || r.extracted_price, link: r.link || null })),
+  };
+  const response = new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` } });
+  ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  return response;
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (env.APP_TOKEN && request.headers.get("X-Franxit-Token") !== env.APP_TOKEN) {
@@ -438,6 +483,7 @@ export default {
     }
     const url = new URL(request.url);
     if (url.pathname === "/bd-test") return brightDataTest(url, request, env, ctx);
+    if (url.pathname === "/sa-test") return serpApiTest(url, request, env, ctx);
     if (url.pathname === "/api/suggest") {
       if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
       return suggest(url, request, env, ctx);
