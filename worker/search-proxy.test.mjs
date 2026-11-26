@@ -8,6 +8,12 @@ globalThis.fetch = async (url, init) => {
   if (String(url).startsWith("https://api.exa.ai/search")) {
     const body = JSON.parse(init.body);
     assert.equal(init.headers["x-api-key"], "KEY");
+    // The big Belgian shops on their own, when the search found few Belgian shops' pages.
+    if (body.includeDomains) {
+      assert.ok(body.includeDomains.includes("mediamarkt.be"));
+      return Response.json({ results: body.query.startsWith("TCL")
+        ? [{ url: "https://www.mediamarkt.be/nl/product/_tcl-nxtpaper-14-2155555.html", title: "TCL NXTPAPER 14 | MediaMarkt" }] : [] });
+    }
     assert.ok(body.excludeDomains.includes("youtube.com"));
     if (body.query.startsWith("fail")) return new Response("no credits", { status: 402 });
     // Asked as a purchase in Belgium, unless the words say so already.
@@ -114,4 +120,10 @@ r = await gs("/search?q=nothing here", true);
 assert.deepEqual(await r.json(), { shopping_results: [] });
 assert.ok(!calls.some((c) => c.url.includes("litescrape")));
 assert.equal((await gs("/stores?page_token=sa.notbase64!!", false)).status, 400);
+
+// Few Belgian shops found: the big Belgian shops searched too, their pages first.
+r = await post({ query: "TCL nxtpaper 14" });
+j = await r.json();
+assert.equal(j.products[0].retailer, "mediamarkt.be");
+assert.equal(j.products.length, 3);
 console.log("worker tests ok");

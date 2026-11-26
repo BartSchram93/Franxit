@@ -309,6 +309,18 @@ const NOT_SHOPS = [
   "vergelijk.be", "vergelijk.nl", "beslist.nl", "beslist.be", "google.com", "google.be",
 ];
 
+// The big shops in Belgium: searched on their own when a search finds few Belgian shops' pages (Exa gave MediaMarkt's
+// Dutch page of the TCL Nxtpaper 14, not its Belgian one).
+const BELGIAN_SHOPS = [
+  "mediamarkt.be", "coolblue.be", "bol.com", "krefel.be", "vandenborre.be", "fnac.be", "amazon.com.be", "galaxus.be",
+  "alternate.be", "dreamland.be", "brico.be", "hubo.be", "decathlon.be", "zalando.be", "torfs.be",
+];
+const MIN_BELGIAN = 5;  // fewer Belgian shops' pages than this: the big shops are searched too
+const isBelgian = (url) => {
+  const host = retailerOf(url) || "";
+  return host.endsWith(".be") || host === "bol.com" || host.endsWith(".bol.com");
+};
+
 /** A query as the app may send it: words, not too few or too many. Null when it isn't one. */
 function cleanQuery(raw) {
   const q = String(raw ?? "").replace(/\s+/g, " ").trim();
@@ -389,20 +401,29 @@ async function productSearch(request, env, ctx) {
     contents: { highlights: { numSentences: 2, highlightsPerUrl: 1 } },
   };
   search.excludeDomains = NOT_SHOPS;
-  let answer;
-  try {
-    answer = await fetch("https://api.exa.ai/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": env.EXA_API_KEY },
-      body: JSON.stringify(search),
-    });
-  } catch {
-    return new Response("Search service error", { status: 502 });
-  }
+  const exa = async (body) => {
+    try {
+      const answer = await fetch("https://api.exa.ai/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": env.EXA_API_KEY },
+        body: JSON.stringify(body),
+      });
+      return answer.ok ? await answer.json() : null;
+    } catch {
+      return null;
+    }
+  };
   // Exa's own trouble (credits, its limits) is no user's daily limit: a plain service error.
-  if (!answer.ok) return new Response("Search service error", { status: 502 });
-  let data;
-  try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
+  let data = await exa(search);
+  if (!data) return new Response("Search service error", { status: 502 });
+  // Few Belgian shops among them: the big Belgian shops searched as well (a second search), their pages first.
+  if (((data.results) || []).filter((r) => isBelgian(r.url)).length < MIN_BELGIAN) {
+    const belgian = await exa({
+      query: search.query, type: "auto", numResults: 10, userLocation: "BE", includeDomains: BELGIAN_SHOPS,
+      contents: search.contents,
+    });
+    if (belgian) data = { results: [...(belgian.results || []), ...(data.results || [])] };
+  }
   const response = new Response(JSON.stringify({ products: exaProducts(data) }), {
     status: 200,
     headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
