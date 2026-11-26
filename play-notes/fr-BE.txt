@@ -1,1 +1,2 @@
-• Un nouveau produit affiche ses magasins bien plus vite : Google Shopping répond désormais en quelques secondes
+• La recherche trouve plus de magasins (comme Galaxus) et plus de tests
+• Rien trouvé ? Collez le lien de la page du produit dans un magasin
