@@ -21,6 +21,28 @@ globalThis.fetch = async (url, init) => {
     ] });
   }
   if (String(url).startsWith("https://suggestqueries.google.com/")) return new Response(JSON.stringify(["play", ["playstation 5", "playstation 5 pro", 3, ""]]));
+  if (String(url).startsWith("https://serpapi.com/search.json")) {
+    const u = new URL(url);
+    if (u.searchParams.get("api_key") === "SPENT") return Response.json({ error: "Your account has run out of searches." }, { status: 429 });
+    if (u.searchParams.get("engine") === "google_immersive_product") {
+      assert.equal(u.searchParams.get("more_stores"), "true");
+      assert.equal(u.searchParams.get("page_token"), "SERP-TOKEN-1234567890");
+      return Response.json({ product_results: { stores: [
+        { name: "Coolblue", title: "Sony WH-1000XM5 Zwart", extracted_price: 299, link: "https://www.coolblue.be/x", logo: "https://l/c.png", rating: 4.6 },
+        { name: "MediaMarkt", title: "Sony WH-1000XM4 Zwart", extracted_price: 199, link: "https://www.mediamarkt.be/y" },
+        { name: "Back Market", title: "Sony WH-1000XM5", extracted_price: 150, link: "https://www.backmarket.be/z" },
+      ] } });
+    }
+    if (u.searchParams.get("q") === "nothing here") return Response.json({ error: "Google hasn't returned any results for this query." });
+    if (u.searchParams.get("q") === "serp down") return new Response("oops", { status: 500 });
+    return Response.json({ shopping_results: [
+      { title: "Sony WH-1000XM5 Zwart", source: "Coolblue.be", extracted_price: 299, immersive_product_page_token: "SERP-TOKEN-1234567890" },
+      { title: "Sony WH-1000XM4", source: "bol.com", extracted_price: 199, immersive_product_page_token: "OTHER" },
+    ] });
+  }
+  if (String(url).startsWith("https://api.litescrape.com/")) {
+    return Response.json({ shopping_results: [{ title: "Sony WH-1000XM5", source: "Krëfel", extracted_price: 289, gpcid: "123" }] });
+  }
   throw new Error("unexpected " + url);
 };
 const { default: worker } = await import("./search-proxy.js");
@@ -58,4 +80,38 @@ r = await worker.fetch(new Request("https://w/api/product-search", { method: "PO
 assert.equal(r.status, 500);
 r = await worker.fetch(new Request("https://w/api/suggest?q=play", { headers: { "X-Franxit-Token": "T" } }), env, ctx);
 assert.deepEqual(await r.json(), { suggestions: ["playstation 5", "playstation 5 pro"] });
+
+// Google Shopping: SerpApi when the app asks for speed (a product just added), LiteScrape otherwise (the nightly checks).
+const gs = (path, fast, e = { APP_TOKEN: "T", SERPAPI_KEY: "SPENT", SERPAPI2_KEY: "K2", LITESCRAPE_KEY: "L" }) =>
+  worker.fetch(new Request("https://w" + path, { headers: { "X-Franxit-Token": "T", "CF-Connecting-IP": "9.9.9.9", ...(fast ? { "X-Franxit-Speed": "fast" } : {}) } }), e, ctx);
+calls.length = 0;
+r = await gs("/search?q=sony wh-1000xm5", true);
+j = await r.json();
+assert.equal(j.shopping_results.length, 1);  // the XM4 is another model
+assert.equal(j.shopping_results[0].source, "Coolblue.be");
+assert.ok(j.shopping_results[0].immersive_product_page_token.startsWith("sa."));
+assert.equal(calls.filter((c) => c.url.includes("serpapi")).length, 2);  // the first key used up: the second
+assert.ok(!calls.some((c) => c.url.includes("litescrape")));
+// Its shops: SerpApi's, filtered (another model, a second-hand shop).
+r = await gs("/stores?page_token=" + encodeURIComponent(j.shopping_results[0].immersive_product_page_token), false);
+j = await r.json();
+assert.deepEqual(j.product_results.stores.map((s) => s.name), ["Coolblue"]);
+assert.equal(j.product_results.stores[0].logo, "https://l/c.png");
+// The nightly check: LiteScrape.
+await Promise.all(waits);
+calls.length = 0;
+r = await gs("/search?q=sony wh-1000xm5 nacht", false);
+j = await r.json();
+assert.equal(j.shopping_results[0].source, "Krëfel");
+assert.ok(!calls.some((c) => c.url.includes("serpapi")));
+// SerpApi failing: LiteScrape answers. Google finding nothing: an empty answer, not LiteScrape.
+calls.length = 0;
+r = await gs("/search?q=serp down", true);
+assert.equal((await r.json()).shopping_results[0].source, "Krëfel");
+assert.ok(calls.some((c) => c.url.includes("litescrape")));
+calls.length = 0;
+r = await gs("/search?q=nothing here", true);
+assert.deepEqual(await r.json(), { shopping_results: [] });
+assert.ok(!calls.some((c) => c.url.includes("litescrape")));
+assert.equal((await gs("/stores?page_token=sa.notbase64!!", false)).status, 400);
 console.log("worker tests ok");

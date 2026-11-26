@@ -267,7 +267,8 @@ class Repository private constructor(context: Context) {
                     onFirstShops?.invoke(first.offers.map { ShopOffer(it.seller, it.price, it.inStock) })
                 }
             }
-            if (first) GoogleShopping.within(FIRST_GOOGLE_MS, search) else search()
+            // A product just added: the fast service (SerpApi), as you're waiting; at night the slower one.
+            if (first) GoogleShopping.quickly { GoogleShopping.within(FIRST_GOOGLE_MS, search) } else search()
         } catch (e: Exception) {
             return when (e.message) {
                 // Nothing for this product: asked once a day, not at every refresh.

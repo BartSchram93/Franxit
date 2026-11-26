@@ -1,7 +1,10 @@
-// Cloudflare Worker between the Franxit app and LiteScrape (Google Shopping).
+// Cloudflare Worker between the Franxit app and Google Shopping.
 //
-// - The LiteScrape key lives here only, as the secret LITESCRAPE_KEY; the app never has it. LiteScrape's answers are
-//   turned into the format the app reads (see below).
+// - Google Shopping: for a product just added (the app sends X-Franxit-Speed: fast) through SerpApi (secrets
+//   SERPAPI_KEY, and SERPAPI2_KEY when the first's searches are used up), a search in a second or two, a product's shops
+//   in about one; LiteScrape (secret LITESCRAPE_KEY), slower but cheaper, answers the nightly checks, and also when
+//   SerpApi can't (both keys used up, an error). The keys live here only; the app never has them. Both answers are
+//   given to the app in the same format and as strictly filtered (see below).
 // - The app can only ask for two things (a search and a product's shops), with fixed settings.
 // - Answers are kept for a day and shared by everyone: the same product costs one search a day.
 // - A limit on fresh searches (the ones that cost a LiteScrape request) per IP address per day.
@@ -20,7 +23,7 @@
 //   nothing on a workers.dev address, so bind LIMITS there).
 
 const DAY = 86400;
-const MAX_FRESH_PER_IP = 50;      // fresh Google Shopping searches per IP address per day
+const MAX_FRESH_PER_IP = 50;      // fresh Google Shopping searches per IP address per day (SerpApi or LiteScrape)
 
 const MAX_RECOGNIZE_PER_IP = 5;   // photos recognised per IP address per day
 const MAX_PHOTO_BYTES = 500_000;  // SerpApi's Image API takes at most 500 KB
@@ -205,36 +208,87 @@ const otherColour = (title, q) => {
 // Shops that sell used or refurbished products: LiteScrape doesn't mark those, the app leaves out what is marked.
 const SECOND_HAND_SHOP = /back ?market|used products|sellpy|refurbed|swappie|rebuy|2dehands|marktplaats|vinted|cash converters/i;
 
+/** The results of a search for [q] the app can use: [q]'s model codes, not another colour. */
+const sameProduct = (q) => {
+  const codes = modelCodes(q);
+  return (title) => hasCodes(title, codes) && !otherColour(title, q);
+};
+
+/** A search result as the app reads it, with [token] for its product's shops (none: no shops asked). */
+function shoppingResult(r, token) {
+  const o = {
+    title: r.title, source: r.source, price: r.price, extracted_price: r.extracted_price,
+    thumbnail: r.thumbnail, rating: r.rating, reviews: r.reviews,
+  };
+  if (r.old_price) o.old_price = r.old_price;
+  if (r.extensions) o.extensions = r.extensions;
+  if (r.second_hand_condition || SECOND_HAND_SHOP.test(r.source || "")) o.second_hand_condition = r.second_hand_condition || "Refurbished";
+  if (r.alternative_price) o.alternative_price = r.alternative_price;
+  if (token) o.immersive_product_page_token = token;
+  return o;
+}
+
 /** LiteScrape's search answer in the app's format. */
 function liteSearch(data, q) {
-  const codes = modelCodes(q);
-  const results = (data.shopping_results || []).filter((r) => hasCodes(r.title, codes) && !otherColour(r.title, q)).map((r) => {
-    const o = {
-      title: r.title, source: r.source, price: r.price, extracted_price: r.extracted_price,
-      thumbnail: r.thumbnail, rating: r.rating, reviews: r.reviews,
-    };
-    if (r.old_price) o.old_price = r.old_price;
-    if (r.extensions) o.extensions = r.extensions;
-    if (r.second_hand_condition || SECOND_HAND_SHOP.test(r.source || "")) o.second_hand_condition = r.second_hand_condition || "Refurbished";
-    if (r.alternative_price) o.alternative_price = r.alternative_price;
-    if (r.gpcid || r.catalog_id || r.headline_offer_docid) {
-      o.immersive_product_page_token = b64({
-        q, g: r.gpcid, c: r.catalog_id, h: r.headline_offer_docid, i: r.image_docid,
-      });
-    }
-    return o;
-  });
+  const same = sameProduct(q);
+  const results = (data.shopping_results || []).filter((r) => same(r.title)).map((r) => shoppingResult(r,
+    r.gpcid || r.catalog_id || r.headline_offer_docid ? b64({ q, g: r.gpcid, c: r.catalog_id, h: r.headline_offer_docid, i: r.image_docid }) : null));
   return { shopping_results: results };
 }
 
 /** LiteScrape's product answer ("offers") as the app's "product_results.stores". */
 function liteStores(data, q) {
-  const codes = modelCodes(q);
-  const stores = (data.offers || []).filter((o) => !o.title || (hasCodes(o.title, codes) && !otherColour(o.title, q))).map((o) => ({
+  const same = sameProduct(q);
+  const stores = (data.offers || []).filter((o) => !o.title || same(o.title)).map((o) => ({
     name: o.merchant, title: o.title, extracted_price: o.extracted_price, price: o.price, link: o.link,
     details_and_offers: [o.availability, ...(o.details || [])].filter(Boolean),
   })).filter((o) => !SECOND_HAND_SHOP.test(o.name || ""));
   return { product_results: { stores } };
+}
+
+// ---- SerpApi: already the app's format; filtered as strictly as LiteScrape's ----
+
+// SerpApi's product tokens start with this here, so a shops request knows whose token it has (LiteScrape's are ours).
+const SERP_TOKEN = "sa.";
+
+/** SerpApi's search answer, filtered; its product tokens marked as SerpApi's, with the search words to filter shops by. */
+function serpSearch(data, q) {
+  const same = sameProduct(q);
+  const results = (data.shopping_results || []).filter((r) => same(r.title)).map((r) => shoppingResult(r,
+    r.immersive_product_page_token ? SERP_TOKEN + b64({ q, t: r.immersive_product_page_token }) : null));
+  return { shopping_results: results };
+}
+
+/** SerpApi's product page, its shops filtered. */
+function serpStores(data, q) {
+  const same = sameProduct(q);
+  const stores = ((data.product_results && data.product_results.stores) || [])
+    .filter((o) => !o.title || same(o.title))
+    .filter((o) => !SECOND_HAND_SHOP.test(o.name || ""))
+    .map((o) => ({
+      name: o.name, title: o.title, extracted_price: o.extracted_price, price: o.price, link: o.link, logo: o.logo,
+      rating: o.rating, reviews: o.reviews, details_and_offers: o.details_and_offers,
+    }));
+  return { product_results: { stores } };
+}
+
+// SerpApi saying Google found nothing: an answer (no results), not a failure.
+const NOTHING_FOUND = /hasn't returned any results|no results/i;
+
+/**
+ * Google Shopping through SerpApi: the answer, or null when it can't answer (no keys, all used up, an error), for
+ * LiteScrape to answer instead.
+ */
+async function serpApi(params, env) {
+  for (const key of serpKeys(env)) {
+    params.set("api_key", key);
+    let answer, data;
+    try { answer = await fetch(`https://serpapi.com/search.json?${params}`); data = await answer.json(); } catch { return null; }
+    if (keySpent(answer.status, data.error)) continue;
+    if (data.error && NOTHING_FOUND.test(data.error)) return {};
+    return answer.ok && !data.error ? data : null;
+  }
+  return null;
 }
 
 /** An error from the provider as the status the app understands (401 key, 429 no searches left). */
@@ -386,133 +440,12 @@ async function suggest(url, request, env, ctx) {
   return response;
 }
 
-// ---- Bright Data's SERP API: a trial against LiteScrape (speed, and what its answer holds) ----
-
-/**
- * GET /bd-test?q=… (a search) or /bd-test?product=<Google's product link from a search's answer> (Google's page of
- * that product: its shops): Google Shopping in Belgium through Bright Data (secrets BRIGHTDATA_KEY, BRIGHTDATA_ZONE),
- * its answer without the pictures it embeds, and how long it took. As strict as the search: the app's token, 50 fresh
- * a day per IP address, kept a day. For trying Bright Data out; the app doesn't use it.
- */
-async function brightDataTest(url, request, env, ctx) {
-  let google;
-  const product = url.searchParams.get("product") || "";
-  if (product) {
-    let u;
-    try { u = new URL(product); } catch { return bad(); }
-    if (u.protocol !== "https:" || !/^www\.google\.(com|be)$/.test(u.hostname) || u.pathname !== "/search") return bad();
-    u.searchParams.set("hl", "nl");
-    u.searchParams.set("gl", "be");
-    u.searchParams.set("brd_json", "1");
-    google = u.toString();
-  } else {
-    const q = cleanQuery(url.searchParams.get("q"));
-    if (!q) return bad();
-    // Google Shopping the old way (tbm=shop) or the new (udm=28): which one Bright Data answers best is tried out.
-    const shop = url.searchParams.get("mode") === "udm" ? { udm: "28" } : { tbm: "shop" };
-    google = `https://www.google.be/search?${new URLSearchParams({ q, ...shop, hl: "nl", gl: "be", brd_json: "1" })}`;
-  }
-  if (!env.BRIGHTDATA_KEY || !env.BRIGHTDATA_ZONE) return new Response("Not configured", { status: 500 });
-  const cache = caches.default;
-  const format = url.searchParams.get("format") === "json" ? "json" : "raw";
-  const cacheKey = new Request(`https://cache.invalid/bd-test?f=${format}&u=${encodeURIComponent(google.toLowerCase())}`);
-  const hit = await cache.match(cacheKey);
-  if (hit) return hit;
-  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  if (!(await countToday(env, ctx, `bd/${ip}`, MAX_FRESH_PER_IP))) return new Response("Too many searches today", { status: 429 });
-  const started = Date.now();
-  let answer;
-  try {
-    answer = await fetch("https://api.brightdata.com/request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.BRIGHTDATA_KEY}` },
-      body: JSON.stringify({ zone: env.BRIGHTDATA_ZONE, url: google, format }),
-    });
-  } catch {
-    return new Response("Search service error", { status: 502 });
-  }
-  const text = await answer.text();
-  const ms = Date.now() - started;
-  if (!answer.ok) return new Response(`Search service error ${answer.status}: ${text.slice(0, 300)}`, { status: 502 });
-  // The pictures Google's page embeds (logos, photos as data): left out, they're most of the answer.
-  const slim = text.replace(/data:image\/[a-z+]+;base64,[A-Za-z0-9+\/=]+/g, "");
-  // Bright Data's own headers (an id to fetch a later answer by, its status): to see why an answer is empty.
-  const headers = {};
-  for (const [k, v] of answer.headers) if (/^x-|^brd|retry|location/i.test(k)) headers[k] = v;
-  const response = new Response(JSON.stringify({ ms, status: answer.status, headers, size: text.length, google, answer: slim }), {
-    status: 200,
-    headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` },
-  });
-  ctx.waitUntil(cache.put(cacheKey, response.clone()));
-  return response;
-}
-
-// ---- SerpApi for Google Shopping: a trial against LiteScrape (speed of the search and of a product's page) ----
-
-/**
- * GET /sa-test?q=… (a search) or /sa-test?token=<immersive_product_page_token> (Google's page of that product, its
- * shops): through SerpApi (secret SERPAPI_KEY), with how long it took and how many results. As strict as the search:
- * the app's token, 50 fresh a day per IP address, kept a day. For trying SerpApi out; the app doesn't use it.
- * &raw=1 gives SerpApi's whole answer (to run the app's own reading on it); &more=1 asks a product's page for more shops.
- */
-async function serpApiTest(url, request, env, ctx) {
-  const q = cleanQuery(url.searchParams.get("q"));
-  const token = url.searchParams.get("token") || "";
-  if (!q && (token.length < 10 || token.length > 4000)) return bad();
-  if (!serpKeys(env).length) return new Response("Not configured", { status: 500 });
-  const raw = url.searchParams.get("raw") === "1";
-  const params = q
-    ? new URLSearchParams({ engine: "google_shopping", q, gl: "be", hl: "nl", google_domain: "google.be" })
-    : new URLSearchParams({ engine: "google_immersive_product", page_token: token, gl: "be", hl: "nl" });
-  if (!q && url.searchParams.get("more") === "1") params.set("more_stores", "true");
-  const cache = caches.default;
-  const cacheKey = new Request(`https://cache.invalid/sa-test?raw=${raw}&${params.toString().toLowerCase()}`);
-  const hit = await cache.match(cacheKey);
-  if (hit) return hit;
-  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  if (!(await countToday(env, ctx, `sa/${ip}`, MAX_FRESH_PER_IP))) return new Response("Too many searches today", { status: 429 });
-  params.set("no_cache", "true");
-  const started = Date.now();
-  let answer, data, keyUsed = 0;
-  for (const [i, key] of serpKeys(env).entries()) {
-    params.set("api_key", key);
-    try { answer = await fetch(`https://serpapi.com/search.json?${params}`); } catch { return new Response("Search service error", { status: 502 }); }
-    try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
-    keyUsed = i + 1;
-    if (!keySpent(answer.status, data.error)) break;
-  }
-  const ms = Date.now() - started;
-  const results = data.shopping_results || [];
-  const stores = (data.product_results && data.product_results.stores) || [];
-  const body = {
-    ms,
-    status: answer.status,
-    error: data.error || null,
-    key: keyUsed,
-    results: results.length,
-    stores: stores.length,
-    tokens: results.map((r) => r.immersive_product_page_token).filter(Boolean).slice(0, 3),
-    sample: (q ? results : stores).slice(0, 5).map((r) => ({ title: r.title || r.name, source: r.source || r.name, price: r.price || r.extracted_price, link: r.link || null })),
-  };
-  if (raw) {
-    delete body.sample;
-    const { search_metadata, search_parameters, ...rest } = data;
-    body.answer = rest;
-  }
-  const response = new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${DAY}` } });
-  // An error isn't kept: asked again next time.
-  if (!data.error) ctx.waitUntil(cache.put(cacheKey, response.clone()));
-  return response;
-}
-
 export default {
   async fetch(request, env, ctx) {
     if (env.APP_TOKEN && request.headers.get("X-Franxit-Token") !== env.APP_TOKEN) {
       return new Response("Forbidden", { status: 403 });
     }
     const url = new URL(request.url);
-    if (url.pathname === "/bd-test") return brightDataTest(url, request, env, ctx);
-    if (url.pathname === "/sa-test") return serpApiTest(url, request, env, ctx);
     if (url.pathname === "/api/suggest") {
       if (request.method !== "GET") return new Response("Method not allowed", { status: 405 });
       return suggest(url, request, env, ctx);
@@ -534,7 +467,7 @@ export default {
       upstream = new URLSearchParams({ q, gl: "be", hl: "nl", google_domain: "google.be" });
     } else if (url.pathname === "/stores") {
       const token = url.searchParams.get("page_token") || "";
-      if (token.length < 10 || token.length > 4000 || !/^[A-Za-z0-9_\-=.%]+$/.test(token)) return bad();
+      if (token.length < 10 || token.length > 8000 || !/^[A-Za-z0-9_\-=.%]+$/.test(token)) return bad();
       upstream = new URLSearchParams({ page_token: token });
     } else {
       return new Response("Not found", { status: 404 });
@@ -550,17 +483,36 @@ export default {
     const ip = request.headers.get("CF-Connecting-IP") || "unknown";
     if (!(await countToday(env, ctx, ip, MAX_FRESH_PER_IP))) return new Response("Too many searches today", { status: 429 });
 
-    if (!env.LITESCRAPE_KEY) return new Response("Not configured", { status: 500 });
-    const target = liteRequest(url.pathname, { q: upstream.get("q"), token: url.searchParams.get("page_token") });
-    if (!target) return bad();
-    const answer = await fetch(target, { headers: { Authorization: `Bearer ${env.LITESCRAPE_KEY}` } });
-    if (!answer.ok) return new Response("Search service error", { status: liteStatus(answer.status) });
-    let data;
-    try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
-    // The search words of a shops request are in its token.
-    let storesQuery = "";
-    if (url.pathname === "/stores") { try { storesQuery = unb64(url.searchParams.get("page_token")).q; } catch { /* no words: no filter */ } }
-    const body = JSON.stringify(url.pathname === "/search" ? liteSearch(data, upstream.get("q")) : liteStores(data, storesQuery));
+    const token = url.searchParams.get("page_token") || "";
+    let body;
+    // SerpApi for a product just added (the app asks for speed); LiteScrape for the nightly checks, where the wait
+    // bothers no one and searches cost less. A SerpApi product's shops only SerpApi has.
+    const fast = request.headers.get("X-Franxit-Speed") === "fast";
+    if ((url.pathname === "/search" && fast) || token.startsWith(SERP_TOKEN)) {
+      let t = null;
+      if (url.pathname === "/stores") { try { t = unb64(token.slice(SERP_TOKEN.length)); } catch { return bad(); } }
+      if (t && (typeof t.t !== "string" || t.t.length < 10)) return bad();
+      const params = t
+        ? new URLSearchParams({ engine: "google_immersive_product", page_token: t.t, gl: "be", hl: "nl", more_stores: "true" })
+        : new URLSearchParams({ engine: "google_shopping", q: upstream.get("q"), gl: "be", hl: "nl", google_domain: "google.be" });
+      const data = await serpApi(params, env);
+      if (data) body = JSON.stringify(t ? serpStores(data, String(t.q || "")) : serpSearch(data, upstream.get("q")));
+      // A SerpApi product's shops: only SerpApi has them.
+      else if (t) return new Response("Search service error", { status: serpKeys(env).length ? 502 : 500 });
+    }
+    if (!body) {
+      if (!env.LITESCRAPE_KEY) return new Response(serpKeys(env).length ? "Search service error" : "Not configured", { status: serpKeys(env).length ? 502 : 500 });
+      const target = liteRequest(url.pathname, { q: upstream.get("q"), token });
+      if (!target) return bad();
+      const answer = await fetch(target, { headers: { Authorization: `Bearer ${env.LITESCRAPE_KEY}` } });
+      if (!answer.ok) return new Response("Search service error", { status: liteStatus(answer.status) });
+      let data;
+      try { data = await answer.json(); } catch { return new Response("Search service error", { status: 502 }); }
+      // The search words of a shops request are in its token.
+      let storesQuery = "";
+      if (url.pathname === "/stores") { try { storesQuery = unb64(token).q; } catch { /* no words: no filter */ } }
+      body = JSON.stringify(url.pathname === "/search" ? liteSearch(data, upstream.get("q")) : liteStores(data, storesQuery));
+    }
     const status = 200;
     const response = new Response(body, {
       status,

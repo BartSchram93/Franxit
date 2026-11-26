@@ -113,9 +113,11 @@ object GoogleShopping {
         val links = java.util.concurrent.ConcurrentHashMap(found.links)
         // At the same time (each is a search of some seconds), within the same time as the rest of the search.
         val until = deadline.get()
+        val fast = quick.get()
         val lookups = found.result.offers.filter { links[it.seller]?.startsWith(TOKEN) == true }.take(MAX_LOOKUPS).map { offer ->
             Thread {
                 deadline.set(until)
+                quick.set(fast)
                 val token = links.getValue(offer.seller).removePrefix(TOKEN)
                 val page = runCatching {
                     storeLink(token, offer.seller) { a, b -> com.bartschram.franxit.data.TrustedShops.same(a, b) }
@@ -138,6 +140,22 @@ object GoogleShopping {
 
     private val deadline = ThreadLocal<Long?>()
 
+    private val quick = ThreadLocal<Boolean?>()
+
+    /**
+     * [block] with its searches asked of the fast (and dearer) service: a product just added, which you're looking at.
+     * The nightly checks ask the slower one, where the wait bothers no one.
+     */
+    fun <T> quickly(block: () -> T): T {
+        val before = quick.get()
+        quick.set(true)
+        try {
+            return block()
+        } finally {
+            quick.set(before)
+        }
+    }
+
     /**
      * [block] with all its requests to the search service within [ms] together: a search tries up to three wordings,
      * each with Google's page of the product and the shops' links, each asked twice when slow, and a refresh with
@@ -158,7 +176,8 @@ object GoogleShopping {
      * more: the service may have it by then (it keeps answers for a day).
      */
     private fun serp(path: String): String {
-        val token = CoreConfig.appToken.takeIf { it.isNotBlank() }?.let { mapOf("X-Franxit-Token" to it) }.orEmpty()
+        val token = CoreConfig.appToken.takeIf { it.isNotBlank() }?.let { mapOf("X-Franxit-Token" to it) }.orEmpty() +
+            (if (quick.get() == true) mapOf("X-Franxit-Speed" to "fast") else emptyMap())
         var last: IOException? = null
         repeat(2) {
             // Within the time this check gives Google ([within]): no new request when it's (nearly) up.
